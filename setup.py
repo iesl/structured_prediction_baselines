@@ -26,7 +26,7 @@ def load_requirements(path_dir=PATH_ROOT, comment_char="#"):
 install_requires = load_requirements()
 
 setup(
-    name="allennlp-models-structured-prediction",
+    name="structured_prediction_baselines",
     version="0.0.1",
     author="Dhruvesh Patel",
     author_email="1793dnp@gmail.com",
@@ -41,7 +41,7 @@ setup(
     packages=find_packages(
         exclude=["*.tests", "*.tests.*", "tests.*", "tests", "examples"]
     ),
-    package_data={"allennlp-models-structured-prediction": ["py.typed"]},
+    package_data={"structure_prediction_baselines": ["py.typed"]},
     install_requires=install_requires,
     keywords=["pytorch", "AI", "ML", "Machine Learning", "Deep Learning"],
     classifiers=[
