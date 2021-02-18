@@ -9,8 +9,6 @@ Implements baselines for tasks like POS tagging, NER and SRL.
 # Contributors
 
 
-[Dhruvesh Patel](dhruveshp.com)
-
 
 # Cite
 
