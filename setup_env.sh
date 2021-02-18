@@ -15,3 +15,4 @@ pip install -r core_requirements.txt
 echo "=======Login to wandb (optional)==============="
 wandb init
 
+echo "Do 'source .venv_allennlp-models-structured-prediction/bin/activate' to load the enviroment."
