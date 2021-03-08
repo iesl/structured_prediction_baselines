@@ -17,7 +17,7 @@ class LinearChain(StructuredEnergy):
         self,
         y: torch.Tensor,
         y_hat: torch.Tensor,
-        mask: torch.BoolTensor,
+        mask: torch.BoolTensor = None,
         **kwargs: Any,
     ) -> torch.Tensor:
         # implement
