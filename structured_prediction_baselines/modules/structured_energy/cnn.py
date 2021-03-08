@@ -3,8 +3,8 @@ from .structured_energy import StructuredEnergy
 import torch
 
 
-@StructuredEnergy.register("linear-chain")
-class LinearChain(StructuredEnergy):
+@StructuredEnergy.register("cnn")
+class CNN(StructuredEnergy):
     def __init__(self, **kwargs: Any):
         """
         TODO: Change kwargs to take hidden size and output size

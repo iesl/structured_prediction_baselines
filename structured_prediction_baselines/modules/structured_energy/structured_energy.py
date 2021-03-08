@@ -13,7 +13,6 @@ class StructuredEnergy(torch.nn.Module, Registrable):
     def forward(
         self,
         y: torch.Tensor,
-        y_hat: torch.Tensor,
         mask: torch.BoolTensor,
         **kwargs: Any,
     ) -> torch.Tensor:

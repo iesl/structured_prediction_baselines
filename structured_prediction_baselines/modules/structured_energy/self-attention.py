@@ -3,8 +3,8 @@ from .structured_energy import StructuredEnergy
 import torch
 
 
-@StructuredEnergy.register("linear-chain")
-class LinearChain(StructuredEnergy):
+@StructuredEnergy.register("self-attention")
+class SelfAttention(StructuredEnergy):
     def __init__(self, **kwargs: Any):
         """
         TODO: Change kwargs to take hidden size and output size

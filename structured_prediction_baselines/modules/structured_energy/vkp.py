@@ -3,8 +3,10 @@ from .structured_energy import StructuredEnergy
 import torch
 
 
-@StructuredEnergy.register("linear-chain")
-class LinearChain(StructuredEnergy):
+@StructuredEnergy.register("vkp")
+class VKP(StructuredEnergy):
+    """Vectorized Kronecker Product High Order Energy"""
+
     def __init__(self, **kwargs: Any):
         """
         TODO: Change kwargs to take hidden size and output size
