@@ -1,6 +1,8 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
 from .structured_energy import StructuredEnergy
 import torch
+from allennlp.modules.seq2vec_encoders.cnn_encoder import CnnEncoder
+from allennlp.modules.seq2seq_encoders.seq2seq_encoder import Seq2SeqEncoder
 
 
 @StructuredEnergy.register("cnn")
