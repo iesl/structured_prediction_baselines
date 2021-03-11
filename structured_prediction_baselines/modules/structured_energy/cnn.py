@@ -1,19 +1,18 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
 from .structured_energy import StructuredEnergy
 import torch
-from allennlp.modules.seq2vec_encoders.cnn_encoder import CnnEncoder
-from allennlp.modules.seq2seq_encoders.seq2seq_encoder import Seq2SeqEncoder
+from ..cnn_encoder import Cnn2dEncoder
 
 
 @StructuredEnergy.register("cnn")
 class CNN(StructuredEnergy):
-    def __init__(self, **kwargs: Any):
+    def __init__(self, num_tags: int, **kwargs: Any):
         """
         TODO: Change kwargs to take hidden size and output size
         """
         super().__init__()
-        # TODO: initialize weights
-        # self.W =
+        self.num_tags = num_tags
+        self.encoder = Cnn2dEncoder(num_tags, embedding_dim=1, num_filters=50, ngram_filter_sizes=(3,), dropout=0.1)
 
     def forward(
         self,
@@ -21,5 +20,7 @@ class CNN(StructuredEnergy):
         mask: torch.BoolTensor,
         **kwargs: Any,
     ) -> torch.Tensor:
-        # implement
-        pass
+        output = self.encoder(y, mask)
+        output = output.sum(dim=1)
+        output = output * mask
+        return output.sum(dim=1)

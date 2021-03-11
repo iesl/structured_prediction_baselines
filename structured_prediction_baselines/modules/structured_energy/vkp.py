@@ -16,7 +16,6 @@ class VKP(StructuredEnergy):
         super().__init__()
         self.num_tags = num_tags
         self.M = M
-        # TODO: initialize weights
         self.W = nn.Parameter(
             torch.FloatTensor(np.random.uniform(-0.02, 0.02, [num_tags + 1] * (self.M + 1)).astype('float32')))
 

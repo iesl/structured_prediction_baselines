@@ -14,9 +14,9 @@ class LinearChain(StructuredEnergy):
         super().__init__()
         self.M = 1
         self.num_tags = num_tags
-        # TODO: initialize weights
         self.W = nn.Parameter(
-                torch.FloatTensor(np.random.uniform(-0.02, 0.02, (self.M, num_tags + 1, num_tags + 1)).astype('float32')))
+                torch.FloatTensor(
+                    np.random.uniform(-0.02, 0.02, (self.M, num_tags + 1, num_tags + 1)).astype('float32')))
 
     def forward(
         self,
@@ -24,32 +24,37 @@ class LinearChain(StructuredEnergy):
         mask: torch.BoolTensor,
         **kwargs: Any,
     ) -> torch.Tensor:
-        # implement
-        B, T, C = y.shape
-        targets = y.transpose(0, 1)  # [T, B, C]
-        length_index = mask.sum(1).long() - 1  # [B]
 
-        trans_energy = torch.zeros(B, requires_grad=True)
+        batch_size, seq_length, _ = y.shape
+        targets = y.transpose(0, 1)  # [seq_length, batch_size, num_tags]
+        length_index = mask.sum(1).long() - 1  # [batch_size]
+
+        trans_energy = torch.zeros(batch_size, requires_grad=True)
         prev_labels = []
-        for t in range(T):  # M=1 : Linear; M>1: Skip-Chain
+        for t in range(seq_length):
             energy_t = 0
-            target_t = targets[t]  # [B, C]
+            target_t = targets[t]  # [batch_size, num_tags]
+
             if t < self.M:
                 prev_labels.append(target_t)
-                new_ta_energy = torch.mm(prev_labels[t], self.W[t, -1, :-1].unsqueeze(1)).squeeze(1)  # [B, C] x [C] -> [B]
-                energy_t += new_ta_energy * mask[:, t]  # [B]
+                new_ta_energy = torch.mm(prev_labels[t], self.W[t, -1, :-1].unsqueeze(1)).squeeze(1)
+                # [batch_size, num_tags] x [num_tags] -> [batch_size]
+
+                energy_t += new_ta_energy * mask[:, t]  # [batch_size]
+
                 for i in range(t):
-                    new_ta_energy = torch.mm(prev_labels[t - 1 - i], self.W[i, :-1, :-1])  # [B, C]
-                    energy_t += ((new_ta_energy * target_t).sum(1)) * mask[:, t]  # [B]
+                    new_ta_energy = torch.mm(prev_labels[t - 1 - i], self.W[i, :-1, :-1])  # [batch_size, num_tags]
+                    energy_t += ((new_ta_energy * target_t).sum(1)) * mask[:, t]  # [batch_size]
             else:
                 for i in range(self.M):
-                    new_ta_energy = torch.mm(prev_labels[self.M - 1 - i], self.W[i, :-1, :-1])  # [B, C]
-                    energy_t += ((new_ta_energy * target_t).sum(1)) * mask[:, t]  # [B]
+                    new_ta_energy = torch.mm(prev_labels[self.M - 1 - i], self.W[i, :-1, :-1])  # [batch_size, num_tags]
+                    energy_t += ((new_ta_energy * target_t).sum(1)) * mask[:, t]  # [batch_size]
                 prev_labels.append(target_t)
                 prev_labels.pop(0)
             trans_energy += energy_t
 
-        for i in range(min(self.M, T)):
-            pos_end_target = y[torch.arange(B), length_index - i, :]  # [B, C]
-            trans_energy += torch.mm(pos_end_target, self.W[i, :-1, -1].unsqueeze(1)).squeeze(1)  # [B]
+        for i in range(min(self.M, seq_length)):
+            pos_end_target = y[torch.arange(batch_size), length_index - i, :]  # [batch_size, num_tags]
+            trans_energy += torch.mm(pos_end_target, self.W[i, :-1, -1].unsqueeze(1)).squeeze(1)  # [batch_size]
+
         return trans_energy

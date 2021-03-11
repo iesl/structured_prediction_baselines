@@ -14,6 +14,5 @@ class SkipChain(LinearChain):
         """
         super().__init__(num_tags)
         self.M = M
-        # TODO: initialize weights
         self.W = nn.Parameter(
             torch.FloatTensor(np.random.uniform(-0.02, 0.02, (self.M, num_tags + 1, num_tags + 1)).astype('float32')))

@@ -3,9 +3,10 @@ from .structured_energy import StructuredEnergy
 import torch
 from allennlp_models.rc.modules.seq2seq_encoders.multi_head_self_attention import MultiHeadSelfAttention
 
+
 @StructuredEnergy.register("self-attention")
 class SelfAttention(StructuredEnergy):
-    def __init__(self, num_tags: int, reduction="max", M: int = 0, **kwargs: Any):
+    def __init__(self, num_tags: int, reduction: str = "max", M: int = 0, **kwargs: Any):
         """
         TODO: Change kwargs to take hidden size and output size
         """
