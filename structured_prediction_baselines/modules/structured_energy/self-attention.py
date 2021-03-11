@@ -11,7 +11,6 @@ class SelfAttention(StructuredEnergy):
         TODO: Change kwargs to take hidden size and output size
         """
         super().__init__()
-        # TODO: initialize weights
         self.num_tags = num_tags
         self.reduction = reduction
         self.M = M
@@ -21,19 +20,19 @@ class SelfAttention(StructuredEnergy):
     def forward(
         self,
         y: torch.Tensor,
-        mask: torch.BoolTensor,
+        mask: torch.BoolTensor = None,
         **kwargs: Any,
     ) -> torch.Tensor:
-        batch_size, seq_length, _ = y.shape
+        batch_size, n_samples, seq_length, _ = y.shape
         attention_mask = torch.BoolTensor(seq_length, seq_length).fill_(False)
         for i in range(seq_length):
             lower_idx, higher_idx = max(0, i - self.M), min(seq_length, i + self.M + 1)
             attention_mask[i][lower_idx:higher_idx] = True
 
-        attention_mask = attention_mask.unsqueeze(0)
+        attention_mask = attention_mask.unsqueeze(0).unsqueeze(0)
         attention_output = self.attention_layer(y, attention_mask)
         if self.reduction == "sum":
-            return attention_output.sum((1, 2))
+            return attention_output.sum((2, 3))
 
         # reduction = "max" (Default)
-        return attention_mask.amax(dim=2).sum(1)
+        return attention_mask.amax(dim=3).sum(2)

@@ -17,10 +17,10 @@ class CNN(StructuredEnergy):
     def forward(
         self,
         y: torch.Tensor,
-        mask: torch.BoolTensor,
+        mask: torch.BoolTensor = None,
         **kwargs: Any,
     ) -> torch.Tensor:
         output = self.encoder(y, mask)
-        output = output.sum(dim=1)
-        output = output * mask
-        return output.sum(dim=1)
+        output = output.sum(dim=2)
+        output = output * mask.unsqueeze(1)
+        return output.sum(dim=2)

@@ -22,7 +22,7 @@ class VKP(StructuredEnergy):
     def forward(
         self,
         y: torch.Tensor,
-        mask: torch.BoolTensor,
+        mask: torch.BoolTensor = None,
         **kwargs: Any,
     ) -> torch.Tensor:
         B, T, C = y.shape

@@ -36,7 +36,7 @@ class Cnn2dEncoder(Seq2VecEncoder):
         num_tags: int,
         embedding_dim: int,
         num_filters: int,
-        ngram_filter_sizes: Tuple[int, ...] = (2, 3, 4, 5),
+        ngram_filter_sizes: Tuple[int, ...] = (3,),
         dropout: float = 0,
         conv_layer_activation: Activation = None,
         output_dim: Optional[int] = None,
@@ -72,12 +72,14 @@ class Cnn2dEncoder(Seq2VecEncoder):
 
     def forward(self, tokens: torch.Tensor, mask: torch.BoolTensor):
         if mask is not None:
-            tokens = tokens * mask.unsqueeze(-1)
+            tokens = tokens * mask.unsqueeze(1).unsqueeze(-1)
 
-        # input(tokens) shape: (batch_size, seq_length, num_tags), we need to add a dimension to match
-        # the dimensions that our convolution layer expects (batch_size, in_channels, seq_length, num_tags)
+        batch_size, n_samples, seq_length, _ = tokens.shape
+        tokens = tokens.reshape((batch_size*n_samples, 1, seq_length, -1))
+        # input(tokens) shape: (batch_size, n_samples, seq_length, num_tags), we need to reshape and add a dimension to
+        # match the dimensions that our convolution layer expects (N, in_channels, seq_length, num_tags)
         # here we have in_channels as 1
-        tokens = tokens.unsqueeze(1)
+
         filter_outputs = []
 
         for i in range(len(self._convolution_layers)):
@@ -97,4 +99,4 @@ class Cnn2dEncoder(Seq2VecEncoder):
         )
 
         output = self._dropout(output)
-        return output
+        return output.view(batch_size, n_samples, seq_length, -1)
