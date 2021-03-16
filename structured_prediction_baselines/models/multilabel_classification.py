@@ -2,7 +2,9 @@ from typing import List, Tuple, Union, Dict, Any, Optional
 import torch
 from .base import ScoreBasedLearningModel
 from structured_prediction_baselines.modules.sampler import Sampler
-from structured_prediction_baselines.modules.cost_function import CostFunction
+from structured_prediction_baselines.modules.oracle_value_function import (
+    OracleValueFunction,
+)
 from structured_prediction_baselines.modules.loss import Loss
 from allennlp.data.vocabulary import Vocabulary
 from structured_prediction_baselines.modules.score_nn import ScoreNN
@@ -17,20 +19,26 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-@Model.register("multi-label-classification")
+@Model.register(
+    "multi-label-classification", constructor="from_partial_objects"
+)
 class MultilabelClassification(ScoreBasedLearningModel):
     def __init__(
         self,
-        vocab: Vocabulary,
-        sampler: Sampler,
-        loss_fn: Loss,
         **kwargs: Any,
     ) -> None:
-        super().__init__(vocab, sampler, loss_fn, **kwargs)
+        super().__init__(**kwargs)
         # metrics
         self.f1 = MultilabelClassificationF1()
         self.map = MultilabelClassificationMeanAvgPrecision()
         self.micro_map = MultilabelClassificationMicroAvgPrecision()
+
+    def unsqueeze_labels(self, labels: torch.Tensor) -> torch.Tensor:
+        """Unsqueeze and turn the labels into one-hot if required"""
+        # for mlc the labels already are in shape (batch, num_labels)
+        # we just need to unsqueeze
+
+        return labels.unsqueeze(1)
 
     def calculate_metrics(  # type: ignore
         self, labels: torch.Tensor, y_hat: torch.Tensor
@@ -45,6 +53,11 @@ class MultilabelClassification(ScoreBasedLearningModel):
             y_hat = y_hat.squeeze(1)
         # At this point we assume that y_hat is of shape (batch, num_labels)
         # where each entry in [0,1]
+
+        if labels.dim() == 3:
+            # we might have added an extra dim to labels
+            labels = labels.squeeze(1)
+
         self.f1(y_hat, labels)
         self.map(y_hat, labels)
         self.micro_map(y_hat, labels)

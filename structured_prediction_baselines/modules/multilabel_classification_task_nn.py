@@ -8,7 +8,7 @@ import torch
 import numpy as np
 
 
-@TaskNN.register("multi-label")
+@TaskNN.register("multi-label-classification")
 class MultilabelTaskNN(TaskNN):
     def __init__(
         self,
@@ -34,10 +34,6 @@ class MultilabelTaskNN(TaskNN):
         **kwargs: Any,
     ) -> torch.Tensor:
         features = self.feature_network(x)  # (batch, hidden_dim)
-        label_scores = torch.sigmoid(
-            torch.matmul(features, self.label_embeddings.weight.T)
-        ).unsqueeze(
-            1
-        )  # (batch, 1, num_labels)
+        logits = torch.matmul(features, self.label_embeddings.weight.T)
 
-        return label_scores
+        return logits  # unormalized logit of shape (batch, num_labels)

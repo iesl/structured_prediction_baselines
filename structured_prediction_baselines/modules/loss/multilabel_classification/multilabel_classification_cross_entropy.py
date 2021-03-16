@@ -1,23 +1,22 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
 import torch
-from .loss import Loss
+from structured_prediction_baselines.modules.loss import Loss
 
 
 @Loss.register("multi-label-bce")
 class MultilabelClassificationBCELoss(Loss):
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
-        self.loss_fn = torch.nn.BCELoss(reduction="mean")
+        self.loss_fn = torch.nn.BCEWithLogitsLoss(reduction="mean")
 
     def forward(
         self,
         x: Any,
-        labels: torch.Tensor,
-        y_hat: torch.Tensor,
+        labels: Optional[torch.Tensor],  # (batch, 1, num_labels)
+        y_hat: torch.Tensor,  # (batch, 1, num_labels)
         y_hat_probabilities: Optional[torch.Tensor],
+        **kwargs: Any,
     ) -> torch.Tensor:
-        if y_hat.dim() == 3:  # (batch, 1, num_labels)
-            # we assume that the extra dim is 1
-            y_hat = y_hat.squeeze(1)
+        assert labels is not None
 
         return self.loss_fn(y_hat, labels.to(dtype=y_hat.dtype))

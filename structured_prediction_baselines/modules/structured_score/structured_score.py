@@ -14,25 +14,33 @@ class StructuredScore(torch.nn.Module, Registrable):
         self,
         y: torch.Tensor,
         **kwargs: Any,
-    ) -> Union[float, torch.Tensor]:
+    ) -> torch.Tensor:
+        """
+        Args:
+            y: Tensor of shape (batch, num_samples or 1, ...)
+
+        Returns:
+            scores of shape (batch, num_samples or 1)
+        """
         raise NotImplementedError
 
 
 class StructuredScoreContainer(StructuredScore):
-    """A collection of different `StructuredEnergy` modules
+    """A collection of different `StructuredScore` modules
     that will be added together to form the total energy"""
 
     def __init__(self, constituent_energies: List[StructuredScore]) -> None:
         self.constituent_energies = torch.nn.ModuleList(constituent_energies)
+        assert len(self.constituent_energies) > 0
 
     def forward(
         self,
         y: torch.Tensor,
         **kwargs: Any,
-    ) -> Union[float, torch.Tensor]:
-        total_energy: Union[float, torch.Tensor] = 0.0
+    ) -> torch.Tensor:
+        total_energy: torch.Tensor = self.constituent_energies[0](y, **kwargs)
 
-        for energy in self.constituent_energies:
+        for energy in self.constituent_energies[1:]:
             total_energy = total_energy + energy(y, **kwargs)
 
         return total_energy

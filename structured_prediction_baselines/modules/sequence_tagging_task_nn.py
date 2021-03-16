@@ -43,7 +43,10 @@ class SequenceTaggingTaskNN(TaskNN):
         else:
             output_dim = self.encoder.get_output_dim()
         self.tag_projection_layer = TimeDistributed(  # type: ignore
-            Linear(output_dim, num_tags, bias=False)
+            torch.nn.Sequential(
+                Linear(output_dim, num_tags, bias=False),
+                torch.nn.Softmax(dim=-1),
+            )
         )
 
         if dropout:
@@ -73,6 +76,6 @@ class SequenceTaggingTaskNN(TaskNN):
         if self.feedforward is not None:
             encoded_text = self.feedforward(encoded_text)
 
-        logits = self.tag_projection_layer(encoded_text).unsqueeze(1)
+        logits = self.tag_projection_layer(encoded_text)
 
         return logits  # shape (batch, 1, sequence, num_tags)
