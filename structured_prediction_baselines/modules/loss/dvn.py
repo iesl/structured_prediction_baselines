@@ -65,7 +65,7 @@ class DVNLoss(Loss):
         )  # (batch, num_samples)
 
         if labels is not None:
-            # For dvn we do take gradient of oracle_score, so we detach y_hat
+            # For dvn we do not take gradient of oracle_score, so we detach y_hat
             oracle_score: Optional[torch.Tensor] = self.oracle_value_function(
                 labels, y_hat.detach().clone(), **kwargs
             )  # (batch, num_samples)

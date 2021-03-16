@@ -47,7 +47,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       type: 'gradient-based-inference',
       gradient_descent_loop: {
         optimizer: {
-          lr: 0.5,
+          lr: 0.1,
           weight_decay: 0,
           type: 'adam',
         },
@@ -75,7 +75,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       number_init_samples: 1,
       random_mixing_in_init: 1.0,
     },
-    oracle_value_function: { type: 'hamming' },
+    oracle_value_function: { type: 'per-instance-f1' },
     score_nn: {
       type: 'multi-label-classification',
       task_nn: {
