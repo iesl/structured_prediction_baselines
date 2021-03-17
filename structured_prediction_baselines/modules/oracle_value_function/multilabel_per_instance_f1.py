@@ -5,6 +5,19 @@ from structured_prediction_baselines.modules.oracle_value_function import (
 )
 
 
+def compute(
+    labels: torch.Tensor,  #: (batch*num_samples, ...)
+    y_hat: torch.Tensor,  #: (batch*num_samples, ...)
+) -> torch.Tensor:
+
+    intersection = torch.sum(
+        torch.minimum(y_hat, labels), dim=-1
+    )  # (batch*num_samples,)
+    union = torch.sum(torch.maximum(y_hat, labels), dim=-1)
+
+    return 2.0 * intersection / (intersection + union)
+
+
 @OracleValueFunction.register("per-instance-f1")
 class PerInstanceF1(OracleValueFunction):
     """
@@ -19,10 +32,4 @@ class PerInstanceF1(OracleValueFunction):
         labels: torch.Tensor,  #: (batch*num_samples, ...)
         y_hat: torch.Tensor,  #: (batch*num_samples, ...)
     ) -> torch.Tensor:
-
-        intersection = torch.sum(
-            torch.minimum(y_hat, labels), dim=-1
-        )  # (batch*num_samples,)
-        union = torch.sum(torch.maximum(y_hat, labels), dim=-1)
-
-        return 2.0 * intersection / (intersection + union)
+        return compute(labels, y_hat)

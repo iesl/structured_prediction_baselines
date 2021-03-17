@@ -12,6 +12,7 @@ from structured_prediction_baselines.metrics import (
     MultilabelClassificationF1,
     MultilabelClassificationMeanAvgPrecision,
     MultilabelClassificationMicroAvgPrecision,
+    MultilabelClassificationRelaxedF1,
 )
 from allennlp.models import Model
 import logging
@@ -32,6 +33,7 @@ class MultilabelClassification(ScoreBasedLearningModel):
         self.f1 = MultilabelClassificationF1()
         self.map = MultilabelClassificationMeanAvgPrecision()
         self.micro_map = MultilabelClassificationMicroAvgPrecision()
+        self.relaxed_f1 = MultilabelClassificationRelaxedF1()
 
     def unsqueeze_labels(self, labels: torch.Tensor) -> torch.Tensor:
         """Unsqueeze and turn the labels into one-hot if required"""
@@ -61,6 +63,7 @@ class MultilabelClassification(ScoreBasedLearningModel):
         self.f1(y_hat, labels)
         self.map(y_hat, labels)
         self.micro_map(y_hat, labels)
+        self.relaxed_f1(y_hat, labels)
 
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
 
@@ -68,4 +71,5 @@ class MultilabelClassification(ScoreBasedLearningModel):
             "MAP": self.map.get_metric(reset),
             "fixed_f1": self.f1.get_metric(reset),
             "micro_map": self.micro_map.get_metric(reset),
+            "relaxed_f1": self.relaxed_f1.get_metric(reset),
         }

@@ -12,7 +12,7 @@ class OracleValueFunction(Registrable):
     This will not be an instance of torch.nn.Module because we do not expect it to carry any parameters.
     """
 
-    def __init__(self, differentiable: bool = True, **kwargs: Any):
+    def __init__(self, differentiable: bool = False, **kwargs: Any):
         super().__init__()
         self.differentiable = differentiable
 

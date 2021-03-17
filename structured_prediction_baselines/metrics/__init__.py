@@ -1,4 +1,7 @@
-from .multilabel_classification_f1 import MultilabelClassificationF1
+from .multilabel_classification_f1 import (
+    MultilabelClassificationF1,
+    MultilabelClassificationRelaxedF1,
+)
 from .multilabel_classification_mean_average_precision import (
     MultilabelClassificationMeanAvgPrecision,
 )
