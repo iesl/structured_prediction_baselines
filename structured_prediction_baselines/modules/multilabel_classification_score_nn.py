@@ -15,7 +15,7 @@ class MultilabelClassificationScoreNN(ScoreNN):
             x
         )  # unormalized logit of shape (batch, num_labels)
         local_energy = torch.sum(
-            torch.sigmoid(label_scores.unsqueeze(1)) * y, dim=-1
+            label_scores.unsqueeze(1) * y, dim=-1
         )  #: (batch, num_samples)
 
         return local_energy

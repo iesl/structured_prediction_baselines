@@ -307,7 +307,7 @@ class GradientBasedInferenceSampler(Sampler):
         dtype, device = self.get_dtype_device()
 
         if labels is None:
-            samples = self.output_space.get_random_samples(
+            samples = self.output_space.get_samples(
                 (self.get_batch_size(x), self.number_init_samples),
                 device=device,
                 dtype=dtype,
@@ -408,4 +408,7 @@ class GradientBasedInferenceSampler(Sampler):
 
         # print(f"\nloss_values:\n{loss_values}")
 
-        return self.get_samples_from_trajectory(trajectory, loss_values), None
+        return (
+            self.get_samples_from_trajectory(trajectory, loss_values),
+            torch.tensor(loss_values),
+        )

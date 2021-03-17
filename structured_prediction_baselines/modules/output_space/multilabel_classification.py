@@ -6,10 +6,16 @@ import torch
 
 @OutputSpace.register("multi-label-discrete")
 class MultilabelDiscreteOutputSpace(OutputSpace):
-    def __init__(self, num_labels: int):
+    def __init__(self, num_labels: int, default_value: Optional[float] = None):
         self.num_labels = num_labels
+        self.default_value = default_value
 
-    def get_random_samples(
+    @torch.no_grad()  # type:ignore
+    def projection_function_(self, inp: torch.Tensor) -> None:
+        """Inplace projection function"""
+        inp.clamp_(0, 1)
+
+    def get_samples(
         self,
         num_samples: Union[Tuple[int, ...], int],
         dtype: Optional[torch.dtype] = None,
@@ -25,9 +31,15 @@ class MultilabelDiscreteOutputSpace(OutputSpace):
         else:
             num_samples = num_samples + (self.num_labels,)
 
-        return torch.randint(
-            low=0, high=2, size=num_samples, dtype=dtype, device=device
-        )
+        if self.default_value is None:  # random
+            return torch.randint(
+                low=0, high=2, size=num_samples, dtype=dtype, device=device
+            )
+        else:
+            return (
+                torch.ones(size=num_samples, dtype=dtype, device=device)
+                * self.default_value
+            )
 
     def get_mixed_samples(
         self,
@@ -52,7 +64,7 @@ class MultilabelDiscreteOutputSpace(OutputSpace):
             + (reference.shape[1],)
         )
 
-        random_samples = self.get_random_samples(
+        random_samples = self.get_samples(
             num_samples,
             dtype=dtype,
             device=device or reference.device,
@@ -73,10 +85,10 @@ class MultilabelDiscreteOutputSpace(OutputSpace):
 
 @OutputSpace.register("multi-label-relaxed")
 class MultilabelRelaxedOutputSpace(MultilabelDiscreteOutputSpace):
-    def __init__(self, num_labels: int):
-        self.num_labels = num_labels
+    def __init__(self, num_labels: int, default_value: Optional[float] = None):
+        super().__init__(num_labels, default_value)
 
-    def get_random_samples(
+    def get_samples(
         self,
         num_samples: Union[Tuple[int, ...], int],
         dtype: Optional[torch.dtype] = None,
@@ -87,4 +99,10 @@ class MultilabelRelaxedOutputSpace(MultilabelDiscreteOutputSpace):
         else:
             num_samples = num_samples + (self.num_labels,)
 
-        return torch.rand(size=num_samples, dtype=dtype, device=device)
+        if self.default_value is None:
+            return torch.rand(size=num_samples, dtype=dtype, device=device)
+        else:
+            return (
+                torch.ones(size=num_samples, dtype=dtype, device=device)
+                * self.default_value
+            )

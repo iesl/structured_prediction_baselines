@@ -45,7 +45,6 @@ class ScoreNN(torch.nn.Module, Registrable):
         **kwargs: Any,
     ) -> Optional[torch.Tensor]:
         score = None
-
         local_score = self.compute_local_score(x, y, **kwargs)
 
         if local_score is not None:

@@ -146,7 +146,6 @@ class ScoreBasedLearningModel(Model):
                 y_pred = y_hat
             # Loss needs one-hot labels of shape (batch, 1, ...)
             labels = self.unsqueeze_labels(labels)
-
             loss = self.loss_fn(
                 x,
                 labels,

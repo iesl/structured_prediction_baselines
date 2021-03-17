@@ -73,3 +73,52 @@ class DVNLoss(Loss):
             oracle_score = None
 
         return predicted_score, oracle_score
+
+
+class DVNScoreLoss(Loss):
+    def __init__(self, **kwargs: Any):
+        super().__init__(**kwargs)
+
+        if self.score_nn is None:
+            raise ConfigurationError("score_nn cannot be None for DVNLoss")
+
+    def compute_loss(
+        self,
+        predicted_score: torch.Tensor,  # (batch, num_samples)
+    ) -> torch.Tensor:
+        raise NotImplementedError
+
+    def forward(
+        self,
+        x: Any,
+        labels: Optional[torch.Tensor],  # (batch, 1, ...)
+        y_hat: torch.Tensor,  # (batch, num_samples, ...)
+        y_hat_probabilities: Optional[torch.Tensor],  # (batch, num_samples)
+        **kwargs: Any,
+    ) -> torch.Tensor:
+
+        predicted_score = self._get_predicted_score(
+            x, labels, y_hat, y_hat_probabilities, **kwargs
+        )
+
+        return self.compute_loss(predicted_score)
+
+    def _get_predicted_score(
+        self,
+        x: Any,
+        labels: Optional[torch.Tensor],
+        y_hat: torch.Tensor,
+        y_hat_probabilities: Optional[torch.Tensor],
+        **kwargs: Any,
+    ) -> torch.Tensor:
+        # labels shape (batch, 1, ...)
+        # y_hat shape (batch, num_samples, ...)
+        self.score_nn = cast(
+            ScoreNN, self.score_nn
+        )  # purely for typing, no runtime effect
+
+        predicted_score = self.score_nn(
+            x, y_hat, **kwargs
+        )  # (batch, num_samples)
+
+        return predicted_score

@@ -52,12 +52,12 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
           type: 'adam',
         },
       },
-      loss_fn: { type: 'multi-label-dvn-bce' },  //This loss can be different from the main loss
-      output_space: { type: 'multi-label-relaxed', num_labels: num_labels },
+      loss_fn: { type: 'multi-label-dvn-score' },  //This loss can be different from the main loss // change this
+      output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
       stopping_criteria: 20,
       sample_picker: { type: 'lastn' },
       number_init_samples: 1,
-      random_mixing_in_init: 0.8,
+      random_mixing_in_init: 1.0,
     },
     inference_module: {
       type: 'gradient-based-inference',
@@ -68,8 +68,8 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
           type: 'adam',
         },
       },
-      loss_fn: { type: 'multi-label-dvn-bce' },  //This loss can be different from the main loss
-      output_space: { type: 'multi-label-relaxed', num_labels: num_labels },
+      loss_fn: { type: 'multi-label-dvn-score' },  //This loss can be different from the main loss
+      output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
       stopping_criteria: 30,
       sample_picker: { type: 'best' },
       number_init_samples: 1,
@@ -129,7 +129,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       verbose: true,
     },
     optimizer: {
-      lr: 0.001,
+      lr: 0.01,
       weight_decay: 1e-4,
       type: 'adam',
     },
@@ -139,10 +139,11 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
     callbacks: [
       'track_epoch_callback',
       {
-        type: 'tensorboard',
+        type: 'tensorboard-custom',
         tensorboard_writer: {
           should_log_learning_rate: true,
         },
+        model_outputs_to_log: ['sample_probabilities'],
       },
     ] + (if use_wandb then ['log_metrics_to_wandb'] else []),
   },

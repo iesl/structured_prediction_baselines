@@ -4,7 +4,7 @@ import torch
 
 
 class OutputSpace(Registrable):
-    def get_random_samples(
+    def get_samples(
         self,
         num_samples: Union[Tuple[int, ...], int],  #: includes the batch dim
         dtype: torch.dtype,
@@ -25,4 +25,4 @@ class OutputSpace(Registrable):
     @torch.no_grad()  # type:ignore
     def projection_function_(self, inp: torch.Tensor) -> None:
         """Inplace projection function"""
-        inp.clamp_(0, 1)
+        raise NotImplementedError
