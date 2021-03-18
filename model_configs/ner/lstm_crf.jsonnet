@@ -7,7 +7,7 @@ local cuda_device = std.extVar('CUDA_DEVICE');
 local use_wandb = (if test == '1' then false else true);
 
 local dataset_name = 'conll2003ner';
-local dataset = (import '../datasets.jsonnet')[dataset_name];
+local dataset = (import 'datasets.jsonnet')[dataset_name];
 
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
