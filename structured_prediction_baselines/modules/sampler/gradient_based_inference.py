@@ -109,23 +109,24 @@ class GradientDescentLoop(Registrable):
         self,
         inp: torch.Tensor,
         loss_fn: Callable[[torch.Tensor], torch.Tensor],
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Returns:
             inp: next point after the gradient update
-            loss: loss value at the previous point
+            loss: loss value at the previous point (unreduced)
         """
         # make sure the caller class has turned off requires_grad to everything except
         assert (
             inp.requires_grad
         ), "Input to step should have requires_grad=True"
         inp.grad = None  # zero grad
-        loss = loss_fn(inp)
+        loss_unreduced = loss_fn(inp)
+        loss = torch.sum(loss_unreduced)
         loss.backward()  # type:ignore
         assert self.active_optimizer is not None
         self.active_optimizer.step()  # this will update `inp`
 
-        return inp, loss
+        return inp, loss_unreduced, loss
 
     def __call__(
         self,
@@ -135,11 +136,12 @@ class GradientDescentLoop(Registrable):
             int, Callable[[int, float], bool]
         ],  #: (current_step, current_loss)
         projection_function_: Callable[[torch.Tensor], None],
-    ) -> Tuple[List[torch.Tensor], List[float]]:
+    ) -> Tuple[List[torch.Tensor], List[torch.Tensor], List[float]]:
         initial_input.requires_grad = True
         inp = initial_input
         trajectory: List[torch.Tensor] = [inp.detach().clone()]
         loss_values: List[float] = []
+        loss_values_tensors: List[torch.Tensor] = []
         step_number = 0
         loss_value: Union[torch.Tensor, float] = float("inf")
 
@@ -152,16 +154,21 @@ class GradientDescentLoop(Registrable):
         with torch.enable_grad():
             with self.input(inp):
                 while not stop(step_number, float(loss_value)):
-                    inp, loss_value = self.update(inp, loss_fn)
+                    inp, loss_values_tensor, loss_value = self.update(
+                        inp, loss_fn
+                    )
                     projection_function_(inp)
                     trajectory.append(inp.detach().clone())
                     loss_values.append(float(loss_value))
+                    loss_values_tensors.append(
+                        loss_values_tensor.detach().clone()
+                    )
                     step_number += 1
             inp.requires_grad = False
         with torch.no_grad():  # type: ignore
-            loss_values.append(float(loss_fn(inp)))
+            loss_values.append(float(torch.sum(loss_fn(inp))))
 
-        return trajectory, loss_values
+        return trajectory, loss_values_tensors, loss_values
 
 
 GradientDescentLoop.register("basic")(GradientDescentLoop)
@@ -171,34 +178,73 @@ class SamplePicker(Registrable):
     default_implementation = "lastn"
 
     def __call__(
-        self, trajectory: List[torch.Tensor], loss_values: List[float]
-    ) -> Tuple[List[torch.Tensor], List[float]]:
+        self,
+        trajectory: List[torch.Tensor],
+        loss_values_tensors: List[torch.Tensor],
+        loss_values: List[float],
+    ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
         raise NotImplementedError
 
 
 @SamplePicker.register("lastn")
 class LastNSamplePicker(SamplePicker):
+    """
+    For each initialization, pick the lastn.
+    """
+
     def __init__(self, fraction_of_samples_to_keep: float = 1.0):
         self.fraction_of_samples_to_keep = fraction_of_samples_to_keep
 
+    @torch.no_grad()
     def __call__(
-        self, trajectory: List[torch.Tensor], loss_values: List[float]
-    ) -> Tuple[List[torch.Tensor], List[float]]:
+        self,
+        trajectory: List[
+            torch.Tensor
+        ],  # List[Tensor(batch, num_init_samples, ...)]
+        loss_values_tensors: List[torch.Tensor],
+        loss_values: List[float],
+    ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
+        batch, num_init_samples = trajectory[0].shape[:2]
+        assert loss_values_tensors[0].shape[:2] == (batch, num_init_samples)
+
         cutoff_index = -(
             int(len(trajectory) * self.fraction_of_samples_to_keep)
         )
 
-        return trajectory[cutoff_index:], loss_values[cutoff_index:]
+        return trajectory[cutoff_index:], loss_values_tensors[cutoff_index:]
 
 
 @SamplePicker.register("best")
 class BestSamplePicker(SamplePicker):
+    @torch.no_grad()
     def __call__(
-        self, trajectory: List[torch.Tensor], loss_values: List[float]
-    ) -> Tuple[List[torch.Tensor], List[float]]:
-        best_index = int(np.argmin(loss_values))
+        self,
+        trajectory: List[torch.Tensor],  # List[(batch, num_init_samples, ...)]
+        loss_values_tensors: List[
+            torch.Tensor
+        ],  # List[(batch, num_init_samples)]
+        loss_values: List[float],
+    ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
+        # combine the num_init_samples and trajectory dimensions
+        # For each item in batch,
+        # find the best in all trajectories for all initializations
+        trajectory_tensor = torch.cat(
+            trajectory, dim=1
+        )  # (batch, num_init_samples*len(traj), ...)
+        loss_values_tensor = torch.cat(
+            loss_values_tensors, dim=1
+        )  # (batch, num_init_samples*len(traj))
+        best_losses, best_indices = torch.min(
+            loss_values_tensor,
+            dim=1,
+            keepdim=False,
+        )  # (batch,)
+        best_samples = trajectory_tensor[
+            range(len(best_indices)), best_indices, ...
+        ]  # (batch, ...)
+        best_samples = best_samples.unsqueeze(1)  # (batch, 1, ...)
 
-        return [trajectory[best_index]], [loss_values[best_index]]
+        return [best_samples], [best_losses]
 
 
 @Sampler.register(
@@ -223,6 +269,7 @@ class GradientBasedInferenceSampler(Sampler):
             oracle_value_function,
         )
         self.loss_fn = loss_fn
+        assert self.loss_fn.reduction == "none", "We do reduction or our own"
         self.gradient_descent_loop = gradient_descent_loop
         self.stopping_criteria = stopping_criteria
         self.sample_picker = sample_picker or BestSamplePicker()
@@ -276,11 +323,11 @@ class GradientBasedInferenceSampler(Sampler):
             return self.loss_fn(
                 x,
                 (
-                    labels.unsqueeze(1)
+                    labels  # E:labels.unsqueeze(1)
                     if (self.training and labels is not None)
                     else None
                 ),
-                inp.unsqueeze(1),
+                inp,  # E:inp.unsqueeze(1),
                 None,
             )
 
@@ -320,7 +367,8 @@ class GradientBasedInferenceSampler(Sampler):
                 device=device,
             )  # (batch, num_init_samples,...)
 
-        return samples.flatten(0, 1)  # (batch*num_init_samples, ...)
+        return samples  # (batch, num_init_samples, ...)
+        # return samples.flatten(0, 1)  # (batch*num_init_samples, ...)
 
     @contextlib.contextmanager
     def no_param_grad(self) -> Generator[None, None, None]:
@@ -353,22 +401,28 @@ class GradientBasedInferenceSampler(Sampler):
                 pass
 
     def get_samples_from_trajectory(
-        self, trajectory: List[torch.Tensor], loss_values: List[float]
+        self,
+        trajectory: List[torch.Tensor],
+        loss_values_tensors: List[torch.Tensor],
+        loss_values: List[float],
     ) -> torch.Tensor:
         samples_to_keep, loss_values_to_keep = self.sample_picker(
-            trajectory, loss_values
+            trajectory, loss_values_tensors, loss_values
         )
+        # samples_to_keep : List[Tensor(batch, num_init_samples,...)]
         num_samples = len(samples_to_keep)
-        temp = torch.stack(
+        temp = torch.cat(
             samples_to_keep, dim=1
-        )  # (batch*num_init_samples, num_samples, ...)
+        )  # (batch, num_init_samples*num_samples, ...)
         shape = temp.shape
 
-        return temp.reshape(
-            shape[0] // self.number_init_samples,
-            self.number_init_samples * num_samples,
-            *shape[2:],
-        )  # (batch, num_init_samples*num_samples, ...)
+        return temp  # (batch, num_init*num_samples,...)
+        # E:
+        # return temp.reshape(
+        # shape[0] // self.number_init_samples,
+        # self.number_init_samples * num_samples,
+        # *shape[2:],
+        # )  # (batch, num_init_samples*num_samples, ...)
 
     def forward(
         self,
@@ -378,37 +432,42 @@ class GradientBasedInferenceSampler(Sampler):
         ] = None,  #: If given will have shape (batch, ...)
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
-
         init = self.get_initial_output(
             x, labels
-        )  # (batch*num_init_samples, ...)
+        )  # E (batch*num_init_samples, ...)
+        # new: (batch, num_init_samples,...)
         # we have to reshape labels from (batch, ...) to (batch*num_init_samples, ...)
 
+        # E:
+        # if labels is not None:
+        #    labels = torch.repeat_interleave(
+        #        labels, self.number_init_samples, dim=0
+        #    )
+
         if labels is not None:
-            labels = torch.repeat_interleave(
-                labels, self.number_init_samples, dim=0
-            )
+            labels = labels.unsqueeze(1)
         # switch of gradients on parameters using context manager
         with self.no_param_grad():
 
             loss_fn = self.get_loss_fn(
                 x, labels
             )  #: Loss function will expect labels in form (batch, num_samples or 1, ...)
-            trajectory, loss_values = self.gradient_descent_loop(
+            (
+                trajectory,  # new List[Tensor(batch, num_init_samples, ...)]
+                loss_values_tensors,
+                loss_values,
+            ) = self.gradient_descent_loop(
                 init,
                 loss_fn,
                 self.stopping_criteria,
                 self.output_space.projection_function_,
             )
 
-            if labels is not None:  # add groud truth to samples
-                trajectory.append(labels.to(dtype=init.dtype))
-                loss_values.append(float(loss_fn(labels.to(dtype=init.dtype))))
-                assert len(trajectory) == len(loss_values)
-
         # print(f"\nloss_values:\n{loss_values}")
 
         return (
-            self.get_samples_from_trajectory(trajectory, loss_values),
+            self.get_samples_from_trajectory(
+                trajectory, loss_values_tensors, loss_values
+            ),  # (batch, num_samples, ...)
             torch.tensor(loss_values),
         )

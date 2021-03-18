@@ -14,10 +14,13 @@ class Loss(torch.nn.Module, Registrable):
     In some cases, this will only act as a wrapper around loss modules from pytorch.
     """
 
+    allowed_reductions = ["sum", "none"]
+
     def __init__(
         self,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
+        reduction: Optional[str] = "sum",
         **kwargs: Any,
     ):
         """
@@ -29,7 +32,32 @@ class Loss(torch.nn.Module, Registrable):
         self.score_nn = score_nn
         self.oracle_value_function = oracle_value_function
 
+        if reduction not in self.allowed_reductions:
+            raise ValueError(
+                f"reduction should be one of {self.allowed_reductions}"
+            )
+        self.reduction = reduction
+
     def forward(
+        self,
+        x: Any,
+        labels: Optional[torch.Tensor],  #: shape (batch, 1, ...)
+        y_hat: torch.Tensor,  #: shape (batch, num_samples, ...)
+        y_hat_probabilities: Optional[torch.Tensor],
+        **kwargs: Any,
+    ) -> torch.Tensor:
+        loss_unreduced = self._forward(
+            x, labels, y_hat, y_hat_probabilities, **kwargs
+        )
+
+        if self.reduction == "sum":
+            return torch.sum(loss_unreduced)
+        elif self.reduction == "none":
+            return loss_unreduced
+        else:
+            raise ValueError
+
+    def _forward(
         self,
         x: Any,
         labels: Optional[torch.Tensor],  #: shape (batch, 1, ...)
@@ -40,5 +68,9 @@ class Loss(torch.nn.Module, Registrable):
         """
         Args:
             x: Any input tensor (MLC task) or dictionary of tensors (sequence tagging task) based on the task.
+        Returns:
+            loss of shape
+                1. (batch, num_samples) if reduction is None
+                2. (,), ie a scaler loss if reduction is sum or mean
         """
         raise NotImplementedError

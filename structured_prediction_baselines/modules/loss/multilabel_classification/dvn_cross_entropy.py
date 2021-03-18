@@ -19,5 +19,5 @@ class DVNCrossEntropy(DVNLoss):
         return torch.nn.functional.binary_cross_entropy_with_logits(
             predicted_score,
             oracle_value,
-            reduction="sum",
+            reduction=self.reduction,
         )

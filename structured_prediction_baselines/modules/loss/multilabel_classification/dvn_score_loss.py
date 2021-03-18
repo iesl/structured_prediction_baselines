@@ -9,5 +9,4 @@ class MultilabelDVNScoreLoss(DVNScoreLoss):
         self,
         predicted_score: torch.Tensor,  # logits of shape (batch, num_samples)
     ) -> torch.Tensor:
-
-        return -torch.sum(torch.sigmoid(predicted_score))
+        return -torch.sigmoid(predicted_score)

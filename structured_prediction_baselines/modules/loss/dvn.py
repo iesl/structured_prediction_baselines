@@ -27,7 +27,7 @@ class DVNLoss(Loss):
     ) -> torch.Tensor:
         raise NotImplementedError
 
-    def forward(
+    def _forward(
         self,
         x: Any,
         labels: Optional[torch.Tensor],  # (batch, 1, ...)
