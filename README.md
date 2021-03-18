@@ -147,7 +147,8 @@ Flow of data and computations happening in the model are as follows:
 1. **Sampler**:
 
 Given input x, returns samples of shape `(batch, num_samples or 1,...)`  and optionally their corresponding probabilities of shape `(batch, num_samples)`. **The sampler can do and return different things during training and test.** We want the probabilities specifically in the [[Minimum Risk Training for Neural Machine Translation|MRT setting]]. The cases that sampler will cover include:
-	1. Inference network or `TaskNN`, where we just take the input x and produce either a relaxed output of shape `(batch, 1, ...)` or samples of shape `(batch, num_samples, ...)`. Note, when we include `TaskNN` here, we also need to update its parameters, right here. So when sampler uses `TaskNN`, we also need to give it an instance of `Optimizer` to update its parameters.
+
+	1. Inference network or `TaskNN`, where we just take the input x and produce either a relaxed output of shape `(batch, 1, ...)` or samples of shape `(batch, num_samples, ...)`. Note, when we include `inference_net: TaskNN` here, we also need to update its parameters, right here. So when sampler uses `inference_net: TaskNN`, we also need to give it an instance of `Optimizer` to update its parameters.
 
 	2. Cost-augmented inference module that uses `ScoreNN` and `OracleValueFunction` to produce a single relaxed output or samples.
 
