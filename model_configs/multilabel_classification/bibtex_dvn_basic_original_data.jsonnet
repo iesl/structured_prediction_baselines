@@ -9,16 +9,17 @@ local num_labels = dataset_metadata.num_labels;
 local num_input_features = dataset_metadata.input_features;
 
 // model variables
-//local label_space_dim= std.parseJson(std.extVar('label_space_dim'));
 local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
 local label_space_dim = ff_hidden;
 local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
-//local ff_activation = std.parseJson(std.extVar('ff_activation'));
-local ff_activation = 'softplus';
+local ff_activation = std.parseJson(std.extVar('ff_activation'));
+//local ff_activation = 'softplus';
 local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
 local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
-local global_score_hidden_dim = 150;
-
+//local global_score_hidden_dim = 150;
+local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
+local inf_lr = std.parseJson(std.extVar('ff_weight_decay'));
+local inf_optim = std.parseJson(std.extVar('inf_optim'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 
 {
@@ -44,31 +45,37 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
   model: {
     type: 'multi-label-classification',
     sampler: {
-      type: 'gradient-based-inference',
-      gradient_descent_loop: {
-        optimizer: {
-          lr: 0.1,//0.1
-          weight_decay: 0,
-          type: 'adam',
+      type: 'appending-container',
+      constituent_samplers: [
+        {
+          type: 'gradient-based-inference',
+          gradient_descent_loop: {
+            optimizer: {
+              lr: inf_lr,  //0.1
+              weight_decay: 0,
+              type: inf_optim,
+            },
+          },
+          loss_fn: { type: 'multi-label-dvn-score', reduction: 'none' },  //This loss can be different from the main loss // change this
+          output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
+          stopping_criteria: 20,
+          sample_picker: { type: 'lastn' },
+          number_init_samples: 1,
+          random_mixing_in_init: 1.0,
         },
-      },
-      loss_fn: { type: 'multi-label-dvn-score' },  //This loss can be different from the main loss // change this
-      output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
-      stopping_criteria: 20,
-      sample_picker: { type: 'lastn' },
-      number_init_samples: 1,
-      random_mixing_in_init: 1.0,
+        { type: 'ground-truth' },
+      ],
     },
     inference_module: {
       type: 'gradient-based-inference',
       gradient_descent_loop: {
         optimizer: {
-          lr: 0.1, //0.1
+          lr: inf_lr, //0.1
           weight_decay: 0,
-          type: 'adam',
+          type: inf_optim,
         },
       },
-      loss_fn: { type: 'multi-label-dvn-score' },  //This loss can be different from the main loss
+      loss_fn: { type: 'multi-label-dvn-score', reduction: 'none' },  //This loss can be different from the main loss
       output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
       stopping_criteria: 30,
       sample_picker: { type: 'best' },
@@ -125,7 +132,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       type: 'reduce_on_plateau',
       factor: 0.5,
       mode: 'max',
-      patience: 8,
+      patience: 5,
       verbose: true,
     },
     optimizer: {
