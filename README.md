@@ -25,7 +25,7 @@ Implements baselines for tasks like POS tagging, NER and SRL.
     ```
     export CUDA_DEVICE=0 # 0 for GPU, -1 for CPU
     export TEST=1 # for a dryrun and without uploading results to wandb
-    export WANDB_IGNORE_GLOBS=*.th,*.tar.gz
+    export WANDB_IGNORE_GLOBS=*\*\*\*.th,*\*\*\*.tar.gz,*\*\*.th,*\*\*.tar.gz,*\*.th,*\*.tar.gz,*.tar.gz,*.th
     ```
 
 3. Training single models
@@ -45,13 +45,32 @@ Implements baselines for tasks like POS tagging, NER and SRL.
         allennlp train <path_to_config> -s <path to serialization dir> --include_package structure_prediction_baselines
         ```
 
-        2. With output to wandb
+        2. With output to wandb (see [creating account and login into wandb](https://docs.wandb.ai/quickstart#2-create-account) for details on getting started with wandb.)
 
         ```
         export TEST=0
         export CUDA_DEVICE=-1
         wandb_allennlp --subcommand=train --config_file=model_configs/<path_to_config_file> --include-package=structured_prediction_baselines --wandb_run_name=<some_informative_name_for_run>  --wandb_project structure_prediction_baselines --wandb_entity score-based-learning --wandb_tags=baselines,as_reported
         ```
+
+4. Running hyperparameter sweeps
+
+    1. Create a sweep using a sweep config file. See `sweep_configs` directory for examples. Refer sweeps documentation [here](https://docs.wandb.ai/sweeps).
+
+    ```
+    wandb sweep -e score-based-learning -p baselines sweep_configs/path/to/config.yaml
+
+    < you will see an alpha numeric sweep_id as output here. Copy it.>
+    ```
+
+    2. Start search agent on slurm using the following (This script will internally submit to sbatch. So you can run this command on the head node eventhough it is a python script because it exit withing seconds.)
+
+    ```
+    export TEST=0
+    python slurm_wandb_agent.py <sweep_id> -p baselines -e score-based-learning --num-jobs 5 -f --edit-sbatch --edit-srun
+    ```
+
+    You can use `squeue` to see the running agents on nodes. You can rerun this command to start more agents.
 
 # Directory Structure
 
