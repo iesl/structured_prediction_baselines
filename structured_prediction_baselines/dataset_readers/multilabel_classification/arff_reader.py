@@ -162,7 +162,6 @@ class ARFFReader(DatasetReader):
 
         """
         data = []
-
         for file_ in glob.glob(file_path, flags=glob.EXTGLOB):
             logger.info(f"Reading {file_}")
             x, y, feature_names, label_names = load_from_arff(
