@@ -23,7 +23,6 @@ class SequenceTaggingTaskNN(TaskNN):
         encoder: Optional[Seq2SeqEncoder] = None,
         feedforward: Optional[FeedForward] = None,
         dropout: float = 0,
-        softmax: bool = True
     ):
         """
 
@@ -51,15 +50,16 @@ class SequenceTaggingTaskNN(TaskNN):
             raise ValueError("output_dim cannot be None")
 
         self.tag_projection_layer = TimeDistributed(  # type: ignore
-            Linear(output_dim, num_tags)
+            torch.nn.Sequential(
+                Linear(output_dim, num_tags, bias=False),
+                torch.nn.Softmax(dim=-1),
+            )
         )
 
         if dropout:
             self.dropout: Optional[torch.nn.Module] = torch.nn.Dropout(dropout)
         else:
             self.dropout = None
-
-        self.softmax = softmax
 
     def forward(
         self,  # type: ignore
@@ -88,7 +88,4 @@ class SequenceTaggingTaskNN(TaskNN):
 
         logits = self.tag_projection_layer(encoded_text)
 
-        if self.softmax:
-            logits = F.softmax(logits, -1)
-
-        return logits  # shape (batch, sequence, num_tags)
+        return logits  # shape (batch, 1, sequence, num_tags)

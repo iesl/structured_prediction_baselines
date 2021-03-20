@@ -7,15 +7,45 @@ import allennlp.nn.util as util
 
 @ScoreNN.register("seq-tagging")
 class SequenceTaggingScoreNN(ScoreNN):
+    def compute_local_score(  # type:ignore
+        self,
+        x: TextFieldTensors,
+        y: torch.Tensor,  #: shape (batch, num_samples or 1, seq_len, num_tags)
+        buffer: Dict,
+        **kwargs: Any,
+    ) -> torch.Tensor:
+        """
+        Args:
+            y: tensor of labels of shape (batch, seq_len, tags)
+        """
+        y_hat = self.task_nn(x, buffer=buffer)  # (batch, seq_len, tags)
+
+        if "mask" in buffer:
+            mask = buffer["mask"]
+        else:
+            mask = util.get_text_field_mask(x)
+            buffer["mask"] = mask
+
+        assert False, "TODO: incorporate mask here"
+        local_score = torch.sum(
+            y_hat.unsqueeze(1) * y, dim=(-2, -1)
+        )  # (batch, num_samples)
+
+        return local_score
+
     def forward(
         self,
         tokens: TextFieldTensors,
         y_input: torch.LongTensor,
         y_hat: torch.LongTensor,
         buffer: Dict = None,
-    ) -> torch.Tensor:
+        **kwargs: Any,
+    ) -> Optional[torch.Tensor]:
+        score = None
+
         if buffer is None:
             buffer = {}
+        local_score = self.compute_local_score(x, y, buffer=buffer)
 
         y_local = buffer.get("y_local")
         if y_local is None:

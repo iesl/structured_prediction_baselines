@@ -9,4 +9,13 @@ class TaskNN(torch.nn.Module, Registrable):
     Inheriting classes should override the `foward` method.
     """
 
-    pass
+    def forward(
+        self,
+        x: Any,
+        **kwargs: Any,
+    ) -> torch.Tensor:
+        """
+        Returns:
+            unnormalized_logits: tensor of shape (batch, ...)
+        """
+        raise NotImplementedError
