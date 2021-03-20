@@ -9,6 +9,7 @@ from allennlp.modules import (
     FeedForward,
 )
 from torch.nn.modules.linear import Linear
+import torch.nn.functional as F
 import allennlp.nn.util as util
 
 
@@ -17,10 +18,12 @@ class SequenceTaggingTaskNN(TaskNN):
     def __init__(
         self,
         text_field_embedder: TextFieldEmbedder,
-        encoder: Seq2SeqEncoder,
         num_tags: int,
+        output_dim: int = None,
+        encoder: Optional[Seq2SeqEncoder] = None,
         feedforward: Optional[FeedForward] = None,
         dropout: float = 0,
+        softmax: bool = True
     ):
         """
 
@@ -33,15 +36,20 @@ class SequenceTaggingTaskNN(TaskNN):
                 An optional feedforward layer to apply after the encoder.
 
         """
-        self.num_tags
+        super().__init__()
+        self.num_tags = num_tags
         self.text_field_embedder = text_field_embedder
         self.encoder = encoder
         self.feedforward = feedforward
 
         if feedforward is not None:
             output_dim = feedforward.get_output_dim()  # type: ignore
-        else:
+        elif encoder is not None:
             output_dim = self.encoder.get_output_dim()
+
+        if output_dim is None:
+            raise ValueError("output_dim cannot be None")
+
         self.tag_projection_layer = TimeDistributed(  # type: ignore
             Linear(output_dim, num_tags)
         )
@@ -50,6 +58,8 @@ class SequenceTaggingTaskNN(TaskNN):
             self.dropout: Optional[torch.nn.Module] = torch.nn.Dropout(dropout)
         else:
             self.dropout = None
+
+        self.softmax = softmax
 
     def forward(
         self,  # type: ignore
@@ -65,14 +75,20 @@ class SequenceTaggingTaskNN(TaskNN):
         if self.dropout:
             embedded_text_input = self.dropout(embedded_text_input)
 
-        encoded_text = self.encoder(embedded_text_input, mask)
+        if self.encoder:
+            encoded_text = self.encoder(embedded_text_input, mask)
+        else:
+            encoded_text = embedded_text_input
 
         if self.dropout:
             encoded_text = self.dropout(encoded_text)
 
-        if self.feedforward is not None:
+        if self.feedforward:
             encoded_text = self.feedforward(encoded_text)
 
         logits = self.tag_projection_layer(encoded_text)
+
+        if self.softmax:
+            logits = F.softmax(logits, -1)
 
         return logits  # shape (batch, sequence, num_tags)

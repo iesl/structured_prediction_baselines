@@ -35,6 +35,6 @@ class StructuredEnergyContainer(StructuredEnergy):
         total_energy: Union[float, torch.Tensor] = 0.0
 
         for energy in self.constituent_energies:
-            total_energy = total_energy + energy(y, y_hat, mask, **kwargs)
+            total_energy = total_energy + energy(y, mask, **kwargs)
 
         return total_energy
