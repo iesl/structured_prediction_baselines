@@ -7,37 +7,48 @@ import allennlp.nn.util as util
 
 @ScoreNN.register("seq-tagging")
 class SequenceTaggingScoreNN(ScoreNN):
+
     def compute_local_score(  # type:ignore
         self,
         x: TextFieldTensors,
         y: torch.Tensor,  #: shape (batch, num_samples or 1, seq_len, num_tags)
-        buffer: Dict,
+        buffer: Dict = None,
         **kwargs: Any,
     ) -> torch.Tensor:
         """
         Args:
             y: tensor of labels of shape (batch, seq_len, tags)
         """
-        y_hat = self.task_nn(x, buffer=buffer)  # (batch, seq_len, tags)
+        y_local = buffer.get("y_local")
+        if y_local is None:
+            y_local = self.task_nn(x, buffer)
+            buffer["y_local"] = y_local
 
-        if "mask" in buffer:
-            mask = buffer["mask"]
-        else:
+        mask = buffer.get("mask")
+        if mask is None:
             mask = util.get_text_field_mask(x)
             buffer["mask"] = mask
 
-        assert False, "TODO: incorporate mask here"
-        local_score = torch.sum(
-            y_hat.unsqueeze(1) * y, dim=(-2, -1)
-        )  # (batch, num_samples)
+        local_score = torch.sum(y_local * y, dim=-1)
+        local_score = torch.sum(local_score * mask, dim=-1)
 
         return local_score
 
+    def compute_global_score(
+        self, y: Any,  #: (batch, num_samples, ...)
+        buffer: Dict = None,
+        **kwargs: Any
+    ) -> Optional[torch.Tensor]:
+        if self.global_score is not None:
+            return self.global_score(y, buffer["mask"])
+        else:
+            return None
+
     def forward(
         self,
-        tokens: TextFieldTensors,
-        y_input: torch.LongTensor,
-        y_hat: torch.LongTensor,
+        x: TextFieldTensors,
+        y: torch.Tensor,
+        y_hat: torch.Tensor = None,
         buffer: Dict = None,
         **kwargs: Any,
     ) -> Optional[torch.Tensor]:
@@ -45,21 +56,9 @@ class SequenceTaggingScoreNN(ScoreNN):
 
         if buffer is None:
             buffer = {}
+
         local_score = self.compute_local_score(x, y, buffer=buffer)
 
-        y_local = buffer.get("y_local")
-        if y_local is None:
-            y_local = self.task_nn(tokens, buffer)
-            buffer["y_local"] = y_local
+        global_score = self.compute_global_score(y_hat, buffer)
 
-        mask = buffer.get("mask")
-        if mask is None:
-            mask = util.get_text_field_mask(tokens)
-            buffer["mask"] = mask
-
-        local_energy = torch.sum(y_local * y_input, dim=-1)
-        local_energy = torch.sum(local_energy * mask, dim=-1)
-
-        global_energy = self.structured_energy(y_hat, mask)
-
-        return local_energy + global_energy
+        return local_score + global_score

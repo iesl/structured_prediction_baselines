@@ -1,12 +1,12 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
-from .structured_energy import StructuredEnergy
+from structured_prediction_baselines.modules.structured_score.structured_score import StructuredScore
 import torch
 import torch.nn as nn
 import numpy as np
 
 
-@StructuredEnergy.register("linear-chain")
-class LinearChain(StructuredEnergy):
+@StructuredScore.register("linear-chain")
+class LinearChain(StructuredScore):
     def __init__(self, num_tags: int, **kwargs: Any):
         """
         TODO: Change kwargs to take hidden size and output size

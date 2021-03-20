@@ -1,11 +1,11 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
-from .structured_energy import StructuredEnergy
+from structured_prediction_baselines.modules.structured_score.structured_score import StructuredScore
 import torch
 from allennlp_models.rc.modules.seq2seq_encoders.multi_head_self_attention import MultiHeadSelfAttention
 
 
-@StructuredEnergy.register("self-attention")
-class SelfAttention(StructuredEnergy):
+@StructuredScore.register("self-attention")
+class SelfAttention(StructuredScore):
     def __init__(self, num_tags: int, reduction: str = "max", M: int = 0, **kwargs: Any):
         """
         TODO: Change kwargs to take hidden size and output size

@@ -1,11 +1,11 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
-from .structured_energy import StructuredEnergy
+from structured_prediction_baselines.modules.structured_score.structured_score import StructuredScore
 import torch
-from ..cnn_encoder import Cnn2dEncoder
+from structured_prediction_baselines.modules.cnn_encoder import Cnn2dEncoder
 
 
-@StructuredEnergy.register("cnn")
-class CNN(StructuredEnergy):
+@StructuredScore.register("cnn")
+class CNN(StructuredScore):
     def __init__(self, num_tags: int, **kwargs: Any):
         """
         TODO: Change kwargs to take hidden size and output size

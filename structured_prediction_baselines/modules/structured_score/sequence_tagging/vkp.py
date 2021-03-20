@@ -1,12 +1,12 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
-from .structured_energy import StructuredEnergy
+from structured_prediction_baselines.modules.structured_score.structured_score import StructuredScore
 import torch
 import torch.nn as nn
 import numpy as np
 
 
-@StructuredEnergy.register("vkp")
-class VKP(StructuredEnergy):
+@StructuredScore.register("vkp")
+class VKP(StructuredScore):
     """Vectorized Kronecker Product High Order Energy"""
 
     def __init__(self, num_tags: int, M: int, **kwargs: Any):

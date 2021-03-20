@@ -1,12 +1,12 @@
-from typing import List, Tuple, Union, Dict, Any, Optional
-from .linear_chain import LinearChain
-from .structured_energy import StructuredEnergy
+from typing import Any
+from structured_prediction_baselines.modules.structured_score.sequence_tagging.linear_chain import LinearChain
+from structured_prediction_baselines.modules.structured_score.structured_score import StructuredScore
 import torch
 import torch.nn as nn
 import numpy as np
 
 
-@StructuredEnergy.register("skip-chain")
+@StructuredScore.register("skip-chain")
 class SkipChain(LinearChain):
     def __init__(self, num_tags: int, M: int, **kwargs: Any):
         """

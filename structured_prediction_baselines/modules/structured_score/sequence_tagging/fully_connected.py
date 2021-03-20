@@ -1,5 +1,5 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
-from .structured_energy import StructuredEnergy
+from structured_prediction_baselines.modules.structured_energy.structured_energy import StructuredEnergy
 import torch
 
 
