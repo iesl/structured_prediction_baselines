@@ -16,12 +16,13 @@ from overrides import overrides
 from torch.nn.functional import one_hot
 
 from structured_prediction_baselines.modules.score_nn import ScoreNN
-from structured_prediction_baselines.modules.structured_energy.structured_energy import StructuredEnergy
 from structured_prediction_baselines.modules.task_nn import TaskNN
 
 
-@Model.register('sequence-tagging-bert')
+# @Model.register('sequence-tagging-bert')
 class SequenceTaggingBert(Model):
+    eps = 1e-9
+
     def __init__(self, vocab: Vocabulary, num_tags: int, inf_nn: TaskNN, score_nn: ScoreNN, margin_type: int,
                  regularization: bool = True, _lambda: float = 1.0, ce_weight: float = 1.0):
         super().__init__(vocab)
@@ -41,6 +42,7 @@ class SequenceTaggingBert(Model):
 
     def forward(self, *inputs) -> Dict[str, torch.Tensor]:
         buffer = {}
+
         x_train, label_tags = inputs
         y_train = one_hot(label_tags, num_classes=self.num_tags).float()
         batch_size, seq_len, _ = y_train.shape
@@ -48,11 +50,11 @@ class SequenceTaggingBert(Model):
         y_inf = self.inf_nn(*inputs, buffer)
         mask = buffer.get("mask")
         buffer['y_inf'] = y_inf
-        inf_cost = self.score_nn(x_train, y_train, y_inf, buffer)
+        inf_cost = self.score_nn(x_train, y_inf, buffer)
 
         y_cost_aug = self.tag_projection_layer(torch.cat((y_inf, y_train), dim=2))
-        cost_aug_cost = self.score_nn(x_train, y_train, y_cost_aug, buffer)
-        ground_truth_cost = self.score_nn(x_train, y_train, y_train, buffer)
+        cost_aug_cost = self.score_nn(x_train, y_cost_aug, buffer)
+        ground_truth_cost = self.score_nn(x_train, y_train, buffer)
 
         hinge_cost_inf = inf_cost - ground_truth_cost
         delta0 = (torch.abs(y_train - y_cost_aug).sum(2) * mask).sum(1)

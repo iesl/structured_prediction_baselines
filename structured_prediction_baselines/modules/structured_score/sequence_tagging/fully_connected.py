@@ -1,10 +1,10 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
-from structured_prediction_baselines.modules.structured_energy.structured_energy import StructuredEnergy
+from structured_prediction_baselines.modules.structured_score.structured_score import StructuredScore
 import torch
 
 
-@StructuredEnergy.register("fully_connected")
-class FullyConnected(StructuredEnergy):
+@StructuredScore.register("fully_connected")
+class FullyConnected(StructuredScore):
     def __init__(self, **kwargs: Any):
         """
         TODO: Change kwargs to take hidden size and output size
@@ -16,7 +16,7 @@ class FullyConnected(StructuredEnergy):
     def forward(
         self,
         y: torch.Tensor,
-        mask: torch.BoolTensor,
+        mask: torch.BoolTensor = None,
         **kwargs: Any,
     ) -> torch.Tensor:
         # implement

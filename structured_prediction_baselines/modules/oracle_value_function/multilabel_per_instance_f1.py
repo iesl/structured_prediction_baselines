@@ -31,5 +31,6 @@ class PerInstanceF1(OracleValueFunction):
         self,
         labels: torch.Tensor,  #: (batch*num_samples, ...)
         y_hat: torch.Tensor,  #: (batch*num_samples, ...)
+        **kwargs: Any
     ) -> torch.Tensor:
         return compute(labels, y_hat)

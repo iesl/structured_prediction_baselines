@@ -30,6 +30,7 @@ class StructuredScoreContainer(StructuredScore):
     that will be added together to form the total energy"""
 
     def __init__(self, constituent_energies: List[StructuredScore]) -> None:
+        super().__init__()
         self.constituent_energies = torch.nn.ModuleList(constituent_energies)
         assert len(self.constituent_energies) > 0
 

@@ -29,10 +29,10 @@ class OracleValueFunction(Registrable):
     def unflatten_metric(
         self, metric: torch.Tensor, num_samples: int
     ) -> torch.Tensor:
-        return metric.reshape(-1, num_samples, *metric.shape[2:])
+        return metric.reshape(-1, num_samples, *metric.shape[1:])
 
     def compute(
-        self, labels: torch.Tensor, y_hat: torch.Tensor
+        self, labels: torch.Tensor, y_hat: torch.Tensor, **kwargs: Any
     ) -> torch.Tensor:
         raise NotImplementedError
 

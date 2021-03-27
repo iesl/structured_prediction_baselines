@@ -19,6 +19,7 @@ class HammingValueFunction(OracleValueFunction):
         self,
         labels: torch.Tensor,  #: (batch*num_samples, ...)
         y_hat: torch.Tensor,  #: (batch*num_samples, ...)
+        **kwargs: Any
     ) -> torch.Tensor:
         return 1.0 - torch.mean(
             torch.abs(labels - y_hat), dim=-1

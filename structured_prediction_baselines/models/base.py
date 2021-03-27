@@ -9,7 +9,7 @@ from structured_prediction_baselines.modules.score_nn import ScoreNN
 from structured_prediction_baselines.modules.loss import Loss
 from allennlp.data.vocabulary import Vocabulary
 from allennlp.common.lazy import Lazy
-from allennlp.nn import InitializerApplicator, RegularizerApplicator
+from allennlp.nn import InitializerApplicator, RegularizerApplicator, util
 
 
 @Model.register("score-based-learning", constructor="from_partial_objects")
@@ -92,7 +92,10 @@ class ScoreBasedLearningModel(Model):
         labels: torch.Tensor,
         **kwargs: Any,
     ) -> Dict:
-        return {}
+        mask = util.get_text_field_mask(x)
+        mask.unsqueeze(dim=1)  # (batch_size, 1, ...)
+
+        return {"mask": mask}
 
     def convert_to_one_hot(self, labels: torch.Tensor) -> torch.Tensor:
         """Converts the labels to one-hot if not already"""

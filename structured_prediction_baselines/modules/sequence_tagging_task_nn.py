@@ -66,17 +66,19 @@ class SequenceTaggingTaskNN(TaskNN):
         tokens: TextFieldTensors,
         buffer: Dict = None,
     ) -> torch.Tensor:
-        if not buffer:
+        if buffer is None:
             buffer = {}
+            mask = util.get_text_field_mask(tokens)
+            mask.unsqueeze(dim=1)  # (batch_size, 1, ...)
+            buffer["mask"] = mask
+
         embedded_text_input = self.text_field_embedder(tokens)
-        mask = util.get_text_field_mask(tokens)
-        buffer["mask"] = mask
 
         if self.dropout:
             embedded_text_input = self.dropout(embedded_text_input)
 
         if self.encoder:
-            encoded_text = self.encoder(embedded_text_input, mask)
+            encoded_text = self.encoder(embedded_text_input, buffer["mask"])
         else:
             encoded_text = embedded_text_input
 

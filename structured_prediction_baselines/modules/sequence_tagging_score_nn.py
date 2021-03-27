@@ -27,6 +27,7 @@ class SequenceTaggingScoreNN(ScoreNN):
         mask = buffer.get("mask")
         if mask is None:
             mask = util.get_text_field_mask(x)
+            mask.unsqueeze(dim=1)
             buffer["mask"] = mask
 
         local_score = torch.sum(y_local * y, dim=-1)
@@ -47,8 +48,7 @@ class SequenceTaggingScoreNN(ScoreNN):
     def forward(
         self,
         x: TextFieldTensors,
-        y: torch.Tensor,
-        y_hat: torch.Tensor = None,
+        y: torch.Tensor = None,
         buffer: Dict = None,
         **kwargs: Any,
     ) -> Optional[torch.Tensor]:
@@ -59,6 +59,6 @@ class SequenceTaggingScoreNN(ScoreNN):
 
         local_score = self.compute_local_score(x, y, buffer=buffer)
 
-        global_score = self.compute_global_score(y_hat, buffer)
+        global_score = self.compute_global_score(y, buffer)
 
         return local_score + global_score

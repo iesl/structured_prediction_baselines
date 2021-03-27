@@ -14,7 +14,7 @@ class Loss(torch.nn.Module, Registrable):
     In some cases, this will only act as a wrapper around loss modules from pytorch.
     """
 
-    allowed_reductions = ["sum", "none"]
+    allowed_reductions = ["sum", "mean", "none"]
 
     def __init__(
         self,
@@ -50,8 +50,13 @@ class Loss(torch.nn.Module, Registrable):
             x, labels, y_hat, y_hat_probabilities, **kwargs
         )
 
+        return self.reduce(loss_unreduced)
+
+    def reduce(self, loss_unreduced: torch.Tensor):
         if self.reduction == "sum":
             return torch.sum(loss_unreduced)
+        elif self.reduction == "mean":
+            return torch.mean(loss_unreduced)
         elif self.reduction == "none":
             return loss_unreduced
         else:
