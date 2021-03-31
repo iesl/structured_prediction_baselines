@@ -129,29 +129,32 @@ class SequenceTaggingInference(Sampler):
 
     @contextlib.contextmanager
     def param_grad(self) -> Generator[None, None, None]:
-        trainable_modules = [self.inference_nn, self.cost_augmented_layer]
-        requires_grad_map = {}
-        for module in trainable_modules:
-            if module is not None:
-                try:
-                    for param in module.parameters():
-                        param.requires_grad = True
-                    yield
-                finally:
-                    # set the requires_grad back to false
-                    for param in module.parameters():
-                        param.requires_grad = False
-            else:  # if there is no loss_fn, we have nothing to do.
-                warnings.warn(
-                    (
-                        "There is inference_nn in gradient based inference sampler."
-                        " Are you using the right sampler?"
-                    )
+        if self.inference_nn is not None and self.cost_augmented_layer is not None:
+            trainable_modules = [self.inference_nn, self.cost_augmented_layer]
+            try:
+                for module in trainable_modules:
+                    if module is not None:
+                        for param in module.parameters():
+                            param.requires_grad = True
+                        yield
+            finally:
+                # set the requires_grad back to false
+                for module in trainable_modules:
+                    if module is not None:
+                        for param in module.parameters():
+                            param.requires_grad = False
+        else:
+            warnings.warn(
+                (
+                    "You are using inference network-based model but either one or both of cost_augmented_layer "
+                    "and inference_nn are None. Either you are not using the right Sampler or you have not "
+                    "constructed it correctly"
                 )
-                try:
-                    yield
-                finally:
-                    pass
+            )
+            try:
+                yield
+            finally:
+                pass
 
     def forward(
         self,
@@ -187,6 +190,7 @@ class SequenceTaggingInference(Sampler):
             # gradient based inference to progress.
             with torch.enable_grad():
                 while not self.stopping_criteria(step_number, float(loss_value)):
+                    self.optimizer.zero_grad(set_to_none=True)
                     y_inf: torch.Tensor = self.inference_nn(x, buffer)  # (batch_size, ...)
 
                     labels = labels.unsqueeze(1)

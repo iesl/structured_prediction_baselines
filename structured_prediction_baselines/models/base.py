@@ -92,10 +92,7 @@ class ScoreBasedLearningModel(Model):
         labels: torch.Tensor,
         **kwargs: Any,
     ) -> Dict:
-        mask = util.get_text_field_mask(x)
-        mask.unsqueeze(dim=1)  # (batch_size, 1, ...)
-
-        return {"mask": mask}
+        return {}
 
     def convert_to_one_hot(self, labels: torch.Tensor) -> torch.Tensor:
         """Converts the labels to one-hot if not already"""

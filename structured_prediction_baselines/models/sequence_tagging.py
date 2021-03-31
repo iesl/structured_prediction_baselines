@@ -9,7 +9,7 @@ from allennlp.common.checks import ConfigurationError
 from allennlp.data.vocabulary import Vocabulary
 from allennlp.models import Model
 from allennlp.modules import TimeDistributed
-from allennlp.nn import RegularizerApplicator, InitializerApplicator
+from allennlp.nn import RegularizerApplicator, InitializerApplicator, util
 from allennlp.training.metrics import SpanBasedF1Measure, CategoricalAccuracy
 
 from structured_prediction_baselines.modules.loss import Loss
@@ -105,6 +105,17 @@ class SequenceTagging(ScoreBasedLearningModel):
         # we just need to unsqueeze
 
         return labels.unsqueeze(1)
+
+    def get_extra_args_for_loss(
+        self,
+        x: Any,
+        labels: torch.Tensor,
+        **kwargs: Any,
+    ) -> Dict:
+        mask = util.get_text_field_mask(x)
+        mask.unsqueeze(dim=1)  # (batch_size, 1, ...)
+
+        return {"mask": mask}
 
     def forward(  # type: ignore
         self,
