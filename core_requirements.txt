@@ -12,4 +12,4 @@ jsonlines
 jupyter
 seaborn
 ipywidgets
-allennlp-models>=2.0.0
+allennlp-models==2.0.0
