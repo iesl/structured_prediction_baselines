@@ -1,11 +1,12 @@
 import logging
-from typing import Any, Optional, Dict
+from typing import Any, Optional, Dict, List
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from allennlp.common import Lazy
 from allennlp.common.checks import ConfigurationError
+from allennlp.data import TextFieldTensors
 from allennlp.data.vocabulary import Vocabulary
 from allennlp.models import Model
 from allennlp.modules import TimeDistributed
@@ -59,11 +60,11 @@ class SequenceTagging(ScoreBasedLearningModel):
         if num_tags == 0:
             raise ConfigurationError("num_tags can't be zero")
 
-        cost_augmented_layer = TimeDistributed(  # type: ignore
-            nn.Sequential(nn.Linear(2 * num_tags, num_tags), nn.Softmax(dim=-1))
-        )
+        cost_augmented_layer = nn.Sequential(nn.Linear(2 * num_tags, num_tags), nn.Softmax(dim=-1))
         sampler_ = sampler.construct(
-            cost_augmented_layer=cost_augmented_layer, score_nn=score_nn, oracle_value_function=oracle_value_function
+            cost_augmented_layer=cost_augmented_layer,
+            score_nn=score_nn,
+            oracle_value_function=oracle_value_function,
         )
         loss_fn_ = loss_fn.construct(
             score_nn=score_nn, oracle_value_function=oracle_value_function
@@ -113,26 +114,27 @@ class SequenceTagging(ScoreBasedLearningModel):
         **kwargs: Any,
     ) -> Dict:
         mask = util.get_text_field_mask(x)
-        mask.unsqueeze(dim=1)  # (batch_size, 1, ...)
+        mask = mask.unsqueeze(dim=1)  # (batch_size, 1, ...)
 
         return {"mask": mask}
 
     def forward(  # type: ignore
         self,
-        x: Any,
-        labels: torch.Tensor,
-        meta: Optional[Dict] = None,
-        **kwargs: Any,
+        tokens: TextFieldTensors,
+        tags: torch.LongTensor = None,
+        metadata: List[Dict[str, Any]] = None,
+        ignore_loss_on_o_tags: bool = False,
+        **kwargs,  # to allow for a more general dataset reader that passes args we don't need
     ) -> Dict[str, Any]:
 
-        if meta is None:
-            meta = {}
+        # if meta is None:
+        #     meta = {}
         results: Dict[str, Any] = {}
-        buffer = self.get_extra_args_for_loss(x, labels, **kwargs)
-
-        if labels is not None:
-            labels = self.convert_to_one_hot(labels)  # sampler needs one-hot labels of shape (batch, ...)
-            y_hat, y_probabilities = self.sampler(x, labels, buffer)  # here y_hat = y_cost_aug
+        buffer = self.get_extra_args_for_loss(tokens, tags, **kwargs)
+        # print(tags.max().item())
+        if tags is not None:
+            tags_ohe = self.convert_to_one_hot(tags)  # sampler needs one-hot labels of shape (batch, ...)
+            y_hat, y_probabilities = self.sampler(tokens, tags_ohe, buffer)  # here y_hat = y_cost_aug
             # (batch, num_samples or 1, ...), (batch, num_samples or 1)
             results["y_hat"] = y_hat
             results["y_probabilities"] = y_probabilities
@@ -153,28 +155,28 @@ class SequenceTagging(ScoreBasedLearningModel):
                 # checks this
                 model_state = self.training
                 self.inference_module.eval()
-                y_probabilities, _ = self.inference_module(x)
+                y_probabilities, _ = self.inference_module(tokens)
                 _, y_pred = torch.max(y_probabilities, -1)
                 self.inference_module.train(model_state)
             else:
                 # y_pred = buffer["y_inf"]
                 _, y_pred = torch.max(y_probabilities, -1)
             # Loss needs one-hot labels of shape (batch, 1, ...)
-            labels = self.unsqueeze_labels(labels)
+            tags_ohe = self.unsqueeze_labels(tags_ohe)
             loss = self.loss_fn(
-                x,
-                labels,
+                tokens,
+                tags_ohe,
                 y_probabilities,  # y_inf
                 y_hat,   # y_cost_aug
                 buffer,  # used to compute mask if needed.
             )
             results["loss"] = loss
-            self.calculate_metrics(labels, y_probabilities, mask=buffer["mask"])
+            self.calculate_metrics(tags, y_probabilities, mask=buffer["mask"])
         else:
             # labels not present. Just predict.
             model_state = self.training
             self.inference_module.eval()
-            y_pred, _ = self.inference_module(x)
+            y_pred, _ = self.inference_module(tokens)
             self.inference_module.train(model_state)
 
         results["y_pred"] = y_pred
@@ -182,10 +184,10 @@ class SequenceTagging(ScoreBasedLearningModel):
         return results
 
     def calculate_metrics(  # type: ignore
-        self, labels: torch.Tensor, y_hat: torch.Tensor, mask: torch.tensor = None, **kwargs: Any
+        self, tags: torch.Tensor, y_hat: torch.Tensor, mask: torch.tensor = None, **kwargs: Any
     ) -> None:
 
-        if y_hat.dim() == 3:  # (batch, num_samples or 1, num_labels)
+        if y_hat.dim() == 4:  # (batch, num_samples or 1, num_labels)
             # While calculating metrics, we assume that
             # there aren't multiple samples.
             assert (
@@ -195,15 +197,14 @@ class SequenceTagging(ScoreBasedLearningModel):
         # At this point we assume that y_hat is of shape (batch, num_labels)
         # where each entry in [0,1]
 
-        if labels.dim() == 3:
+        if tags.dim() == 3:
             # we might have added an extra dim to labels
-            labels = labels.squeeze(1)
+            tags = tags.squeeze(1)
 
         if mask.dim() == 3:
             # we might have added an extra dim to mask
             mask = mask.squeeze(1)
-
-        self._f1_metric(y_hat, labels, mask)
+        self._f1_metric(y_hat, tags, mask)
 
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
         metrics = {}

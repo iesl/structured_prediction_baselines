@@ -13,7 +13,7 @@ import torch.nn.functional as F
 import allennlp.nn.util as util
 
 
-@TaskNN.register("seq-tagging")
+@TaskNN.register("seq-tagging-task")
 class SequenceTaggingTaskNN(TaskNN):
     def __init__(
         self,
@@ -69,13 +69,10 @@ class SequenceTaggingTaskNN(TaskNN):
         if buffer is None:
             buffer = {}
             mask = util.get_text_field_mask(tokens)
-            mask.unsqueeze(dim=1)  # (batch_size, 1, ...)
+            mask = mask.unsqueeze(dim=1)  # (batch_size, 1, ...)
             buffer["mask"] = mask
 
         embedded_text_input = self.text_field_embedder(tokens)
-
-        if self.dropout:
-            embedded_text_input = self.dropout(embedded_text_input)
 
         if self.encoder:
             encoded_text = self.encoder(embedded_text_input, buffer["mask"])

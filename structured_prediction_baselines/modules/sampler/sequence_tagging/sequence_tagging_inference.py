@@ -47,13 +47,10 @@ class SequenceTaggingInference(Sampler):
         self.inference_nn = inference_nn
         self.cost_augmented_layer = cost_augmented_layer
         self.loss_fn = loss_fn
-        assert self.loss_fn.reduction == "none", "We do reduction or our own"
         self.optimizer = optimizer
         self.stopping_criteria = stopping_criteria
         if isinstance(stopping_criteria, int):
             self.stopping_criteria = StopAfterNumberOfSteps(stopping_criteria)
-        self.stopping_criteria = stopping_criteria
-        self._different_training_and_eval = True
 
     @classmethod
     def from_partial_objects(
@@ -136,7 +133,7 @@ class SequenceTaggingInference(Sampler):
                     if module is not None:
                         for param in module.parameters():
                             param.requires_grad = True
-                        yield
+                yield
             finally:
                 # set the requires_grad back to false
                 for module in trainable_modules:
@@ -165,7 +162,6 @@ class SequenceTaggingInference(Sampler):
         buffer: Dict = None,
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
-
         if labels is None:
             y_inf: torch.Tensor = self.inference_nn(x, buffer)  # (batch_size, ...)
             return y_inf, None
@@ -174,7 +170,7 @@ class SequenceTaggingInference(Sampler):
             buffer = {}
         # switch on gradients on parameters using context manager
         with self.param_grad():
-
+            labels = labels.unsqueeze(1)
             loss_fn = self.get_loss_fn(
                 x, labels
             )  #: Loss function will expect labels in form (batch, num_samples or 1, ...)
@@ -193,10 +189,8 @@ class SequenceTaggingInference(Sampler):
                     self.optimizer.zero_grad(set_to_none=True)
                     y_inf: torch.Tensor = self.inference_nn(x, buffer)  # (batch_size, ...)
 
-                    labels = labels.unsqueeze(1)
                     y_inf = y_inf.unsqueeze(1)
-
-                    y_cost_aug = self.cost_augmented_layer(torch.cat((y_inf, labels), dim=2))  # (batch_size, ...)
+                    y_cost_aug = self.cost_augmented_layer(torch.cat((y_inf, labels), dim=-1))  # (batch_size, ...)
                     loss_value = self.update(
                         y_inf, y_cost_aug, buffer, loss_fn
                     )
@@ -206,7 +200,6 @@ class SequenceTaggingInference(Sampler):
                     step_number += 1
 
                 # buffer['y_inf'] = y_inf
-
         return y_cost_aug, y_inf
 
     def update(

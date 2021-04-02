@@ -1,4 +1,12 @@
-from typing import Dict, Optional, List, Any, cast, TypedDict
+from typing import Dict, Optional, List, Any, cast
+import sys
+
+if sys.version_info >= (3, 8):
+    from typing import (
+        TypedDict,
+    )  # pylint: disable=no-name-in-module
+else:
+    from typing_extensions import TypedDict
 
 from overrides import overrides
 import torch

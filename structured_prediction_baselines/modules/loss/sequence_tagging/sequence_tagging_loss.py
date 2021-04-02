@@ -17,7 +17,7 @@ def flatten_y(
     _, num_samples, seq_length, _ = y_hat.shape
 
     return (
-               labels.expand_as(y_hat).flatten(),
+               labels.expand_as(y_hat).flatten(0, 2),
                y_hat.flatten(0, 2),
            ), num_samples, seq_length
 
@@ -28,6 +28,7 @@ def unflatten_metric(
     return metric.reshape(-1, num_samples, seq_length, *metric.shape[1:])
 
 
+@Loss.register("sequence-tagging-loss")
 class SequenceTaggingLoss(Loss):
     eps = 1e-9
 
@@ -69,7 +70,7 @@ class SequenceTaggingLoss(Loss):
 
     def forward(self, x: Any,
                 labels: Optional[torch.Tensor],  # (batch, 1, ...)
-                y_hat: torch.Tensor,  # (batch, num_samples, ...)
+                y_inf: torch.Tensor,  # (batch, num_samples, ...)
                 y_cost_aug: torch.Tensor = None,  # (batch, num_samples, ...),
                 buffer: Dict = None,
                 y_hat_probabilities: Optional[torch.Tensor] = None,  # (batch, num_samples, ...)
@@ -77,10 +78,10 @@ class SequenceTaggingLoss(Loss):
         if buffer is None:
             buffer = {}
             mask = util.get_text_field_mask(x)
-            mask.unsqueeze(dim=1)  # (batch_size, 1, ...)
+            mask = mask.unsqueeze(dim=1)  # (batch_size, 1, ...)
             buffer["mask"] = mask
 
-        ground_truth_score, inf_score, cost_aug_score, oracle_score = self._get_values(x, labels, y_hat, y_cost_aug,
+        ground_truth_score, inf_score, cost_aug_score, oracle_score = self._get_values(x, labels, y_inf, y_cost_aug,
                                                                                        buffer)
 
         hinge_score = cost_aug_score - ground_truth_score
@@ -99,10 +100,11 @@ class SequenceTaggingLoss(Loss):
             hinge_inference_score = F.relu(hinge_inference_score)
 
         cross_entropy_loss: torch.Tensor = torch.zeros_like(hinge_score)
-
         if self.cross_entropy:
-            (labels, y_hat), num_samples, seq_length = flatten_y(labels, y_hat)
-            cross_entropy_loss = self.loss_fn(torch.log(self.eps + y_hat), labels)
+            (labels, y_inf), num_samples, seq_length = flatten_y(labels, y_inf)
+            # print(labels.shape)
+            _, label_ids = labels.max(dim=1)
+            cross_entropy_loss = self.loss_fn(torch.log(self.eps + y_inf), label_ids)
             cross_entropy_loss = unflatten_metric(cross_entropy_loss, num_samples, seq_length)
             cross_entropy_loss *= buffer["mask"]
             cross_entropy_loss = torch.sum(cross_entropy_loss, dim=-1)  # (batch_size, num_samples)
@@ -134,7 +136,7 @@ class SequenceTaggingLoss(Loss):
 
         if labels is not None:
             oracle_score: Optional[torch.Tensor] = self.oracle_value_function(
-                labels, y_hat, **kwargs
+                labels, y_hat, mask=buffer["mask"]
             )  # (batch, num_samples)
         else:
             oracle_score = None

@@ -59,7 +59,7 @@ class OracleValueFunction(Registrable):
             labels, y_hat = self.detach_tensors(labels, y_hat)
 
         (labels, y_hat), num_samples = self.flatten_y(labels, y_hat)
-        value = self.compute(labels, y_hat)
+        value = self.compute(labels, y_hat, **kwargs)
         value = self.unflatten_metric(value, num_samples)
 
         return value

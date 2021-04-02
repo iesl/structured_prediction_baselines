@@ -5,7 +5,7 @@ from allennlp.data import TextFieldTensors, Vocabulary
 import allennlp.nn.util as util
 
 
-@ScoreNN.register("seq-tagging")
+@ScoreNN.register("seq-tagging-score")
 class SequenceTaggingScoreNN(ScoreNN):
 
     def compute_local_score(  # type:ignore
@@ -27,7 +27,7 @@ class SequenceTaggingScoreNN(ScoreNN):
         mask = buffer.get("mask")
         if mask is None:
             mask = util.get_text_field_mask(x)
-            mask.unsqueeze(dim=1)
+            mask = mask.unsqueeze(dim=1)
             buffer["mask"] = mask
 
         local_score = torch.sum(y_local * y, dim=-1)
@@ -40,8 +40,12 @@ class SequenceTaggingScoreNN(ScoreNN):
         buffer: Dict = None,
         **kwargs: Any
     ) -> Optional[torch.Tensor]:
+        mask = buffer["mask"]
+        if mask.dim() == 3:
+            # we might have added an extra dim to mask
+            mask = mask.squeeze(1)
         if self.global_score is not None:
-            return self.global_score(y, buffer["mask"])
+            return self.global_score(y, mask)
         else:
             return None
 
