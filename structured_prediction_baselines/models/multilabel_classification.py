@@ -43,7 +43,10 @@ class MultilabelClassification(ScoreBasedLearningModel):
         return labels.unsqueeze(1)
 
     def calculate_metrics(  # type: ignore
-        self, labels: torch.Tensor, y_hat: torch.Tensor
+        self,
+        labels: torch.Tensor,
+        y_hat: torch.Tensor,
+        buffer: Dict,
     ) -> None:
 
         if y_hat.dim() == 3:  # (batch, num_samples or 1, num_labels)

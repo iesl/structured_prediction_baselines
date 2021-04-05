@@ -34,7 +34,7 @@ class GroundTruthSampler(Sampler):
         self.dtype = self.known_dtypes[dtype]
 
     def forward(
-        self, x: Any, labels: Any, **kwargs: Any
+        self, x: Any, labels: Any, buffer: Dict, **kwargs: Any
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         # NOTE: labels might be of dtype long
         # but samples should be float or double

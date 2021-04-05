@@ -15,11 +15,15 @@ class HammingValueFunction(OracleValueFunction):
     1 being the best.
     """
 
+    @property
+    def upper_bound(self) -> float:
+        return 1.0
+
     def compute(
         self,
         labels: torch.Tensor,  #: (batch*num_samples, ...)
         y_hat: torch.Tensor,  #: (batch*num_samples, ...)
-        **kwargs: Any
+        **kwargs: Any,
     ) -> torch.Tensor:
         return 1.0 - torch.mean(
             torch.abs(labels - y_hat), dim=-1

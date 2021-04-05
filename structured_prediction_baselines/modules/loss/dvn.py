@@ -32,12 +32,13 @@ class DVNLoss(Loss):
         x: Any,
         labels: Optional[torch.Tensor],  # (batch, 1, ...)
         y_hat: torch.Tensor,  # (batch, num_samples, ...)
-        y_hat_probabilities: Optional[torch.Tensor],  # (batch, num_samples)
+        y_hat_extra: Optional[torch.Tensor],  # (batch, num_samples)
+        buffer: Dict,
         **kwargs: Any,
     ) -> torch.Tensor:
 
         predicted_score, oracle_value = self._get_values(
-            x, labels, y_hat, y_hat_probabilities, **kwargs
+            x, labels, y_hat, y_hat_extra, buffer, **kwargs
         )
 
         return self.compute_loss(predicted_score, oracle_value)
@@ -47,7 +48,8 @@ class DVNLoss(Loss):
         x: Any,
         labels: Optional[torch.Tensor],
         y_hat: torch.Tensor,
-        y_hat_probabilities: Optional[torch.Tensor],
+        y_hat_extra: Optional[torch.Tensor],
+        buffer: Dict,
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         # labels shape (batch, 1, ...)
@@ -59,9 +61,13 @@ class DVNLoss(Loss):
         self.score_nn = cast(
             ScoreNN, self.score_nn
         )  # purely for typing, no runtime effect
+        # score_nn always expects y to be normalized
+        # do the normalization based on the task
 
+        if self.normalize_y:
+            y_hat = self.normalize(y_hat)
         predicted_score = self.score_nn(
-            x, y_hat, **kwargs
+            x, y_hat, buffer, **kwargs
         )  # (batch, num_samples)
 
         if labels is not None:
@@ -76,6 +82,10 @@ class DVNLoss(Loss):
 
 
 class DVNScoreLoss(Loss):
+    """
+    Just uses score from the score network as the objective.
+    """
+
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
 
@@ -88,17 +98,18 @@ class DVNScoreLoss(Loss):
     ) -> torch.Tensor:
         raise NotImplementedError
 
-    def forward(
+    def _forward(
         self,
         x: Any,
         labels: Optional[torch.Tensor],  # (batch, 1, ...)
         y_hat: torch.Tensor,  # (batch, num_samples, ...)
-        y_hat_probabilities: Optional[torch.Tensor],  # (batch, num_samples)
+        y_hat_extra: Optional[torch.Tensor],  # (batch, num_samples)
+        buffer: Dict,
         **kwargs: Any,
     ) -> torch.Tensor:
 
         predicted_score = self._get_predicted_score(
-            x, labels, y_hat, y_hat_probabilities, **kwargs
+            x, labels, y_hat, y_hat_extra, buffer, **kwargs
         )
 
         return self.compute_loss(predicted_score)
@@ -108,7 +119,8 @@ class DVNScoreLoss(Loss):
         x: Any,
         labels: Optional[torch.Tensor],
         y_hat: torch.Tensor,
-        y_hat_probabilities: Optional[torch.Tensor],
+        y_hat_extra: Optional[torch.Tensor],
+        buffer: Dict,
         **kwargs: Any,
     ) -> torch.Tensor:
         # labels shape (batch, 1, ...)
@@ -117,8 +129,14 @@ class DVNScoreLoss(Loss):
             ScoreNN, self.score_nn
         )  # purely for typing, no runtime effect
 
+        # score_nn always expects y to be normalized
+        # do the normalization based on the task
+
+        if self.normalize_y:
+            y_hat = self.normalize(y_hat)
+
         predicted_score = self.score_nn(
-            x, y_hat, **kwargs
+            x, y_hat, buffer, **kwargs
         )  # (batch, num_samples)
 
         return predicted_score

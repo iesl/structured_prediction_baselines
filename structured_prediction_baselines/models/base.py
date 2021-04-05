@@ -82,14 +82,16 @@ class ScoreBasedLearningModel(Model):
         )
 
     def calculate_metrics(
-        self, labels: torch.Tensor, y_hat: torch.Tensor, **kwargs: Any
+        self,
+        labels: torch.Tensor,  # shape: (batch, ...)
+        y_hat: torch.Tensor,  # shape: (batch, ...)
+        buffer: Dict,
+        **kwargs: Any,
     ) -> None:
         return None
 
-    def get_extra_args_for_loss(
+    def initialize_buffer(
         self,
-        x: Any,
-        labels: torch.Tensor,
         **kwargs: Any,
     ) -> Dict:
         return {}
@@ -104,10 +106,22 @@ class ScoreBasedLearningModel(Model):
 
         return labels
 
-    def forward(  # type: ignore
+    def squeeze_y(self, y: torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError
+
+    def construct_args_for_forward(self, **kwargs: Any) -> Dict:
+        kwargs["buffer"] = self.initialize_buffer(**kwargs)
+
+        return kwargs
+
+    def forward(self, **kwargs: Any) -> Dict:
+        return self._forward(**self.construct_args_for_forward(**kwargs))
+
+    def _forward(  # type: ignore
         self,
         x: Any,
-        labels: torch.Tensor,
+        labels: Optional[torch.Tensor],
+        buffer: Dict,
         meta: Optional[Dict] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -119,10 +133,11 @@ class ScoreBasedLearningModel(Model):
 
         if labels is not None:
             labels = self.convert_to_one_hot(labels)
-            y_hat, probabilities = self.sampler(x, labels)
+            y_hat, y_hat_extra = self.sampler(x, labels, buffer=buffer)
             # (batch, num_samples or 1, ...), (batch, num_samples or 1)
+            # y_hat_extra could be y_cost_augmented, or probabilities for MRT type model, etc.
             results["y_hat"] = y_hat
-            results["sample_probabilities"] = probabilities
+            results["y_hat_extra"] = y_hat_extra
 
             # prepare for calculating metrics
             # y_pred is predictions for metric calculations
@@ -140,7 +155,9 @@ class ScoreBasedLearningModel(Model):
                 # checks this
                 model_state = self.training
                 self.inference_module.eval()
-                y_pred, _ = self.inference_module(x)
+                y_pred, _ = self.inference_module(
+                    x, labels=None, buffer=buffer
+                )
                 self.inference_module.train(model_state)
             else:
                 y_pred = y_hat
@@ -150,18 +167,18 @@ class ScoreBasedLearningModel(Model):
                 x,
                 labels,
                 y_hat,
-                probabilities,
-                **self.get_extra_args_for_loss(
-                    x, labels, **kwargs
-                ),  # used to compute mask if needed.
+                y_hat_extra,
+                buffer,
             )
             results["loss"] = loss
-            self.calculate_metrics(labels, y_pred)
+            self.calculate_metrics(
+                self.squeeze_y(labels), self.squeeze_y(y_pred), buffer
+            )
         else:
             # labels not present. Just predict.
             model_state = self.training
             self.inference_module.eval()
-            y_pred, _ = self.inference_module(x)
+            y_pred, _ = self.inference_module(x, labels=None, buffer=buffer)
             self.inference_module.train(model_state)
 
         results["y_pred"] = y_pred

@@ -13,6 +13,7 @@ class StructuredScore(torch.nn.Module, Registrable):
     def forward(
         self,
         y: torch.Tensor,
+        buffer: Dict,
         **kwargs: Any,
     ) -> torch.Tensor:
         """
@@ -37,11 +38,14 @@ class StructuredScoreContainer(StructuredScore):
     def forward(
         self,
         y: torch.Tensor,
+        buffer: Dict,
         **kwargs: Any,
     ) -> torch.Tensor:
-        total_energy: torch.Tensor = self.constituent_energies[0](y, **kwargs)
+        total_energy: torch.Tensor = self.constituent_energies[0](
+            y, buffer, **kwargs
+        )
 
         for energy in self.constituent_energies[1:]:
-            total_energy = total_energy + energy(y, **kwargs)
+            total_energy = total_energy + energy(y, buffer, **kwargs)
 
         return total_energy

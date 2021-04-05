@@ -1,4 +1,4 @@
-from .task_nn import TaskNN
+from .task_nn import TaskNN, CostAugmentedLayer
 from typing import List, Tuple, Union, Dict, Any, Optional
 import torch
 from allennlp.data import TextFieldTensors, Vocabulary
@@ -13,16 +13,16 @@ import torch.nn.functional as F
 import allennlp.nn.util as util
 
 
-@TaskNN.register("seq-tagging-task")
+@TaskNN.register("sequence-tagging")
 class SequenceTaggingTaskNN(TaskNN):
     def __init__(
         self,
+        vocab: Vocabulary,
         text_field_embedder: TextFieldEmbedder,
-        num_tags: int,
-        output_dim: int = None,
         encoder: Optional[Seq2SeqEncoder] = None,
         feedforward: Optional[FeedForward] = None,
         dropout: float = 0,
+        label_namespace: str = "labels",
     ):
         """
 
@@ -35,26 +35,24 @@ class SequenceTaggingTaskNN(TaskNN):
                 An optional feedforward layer to apply after the encoder.
 
         """
-        super().__init__()
-        self.num_tags = num_tags
+        super().__init__()  # type:ignore
+        self.num_tags = vocab.get_vocab_size(namespace=label_namespace)
         self.text_field_embedder = text_field_embedder
         self.encoder = encoder
         self.feedforward = feedforward
+        output_dim = self.text_field_embedder.get_output_dim()
 
         if feedforward is not None:
             output_dim = feedforward.get_output_dim()  # type: ignore
-        elif encoder is not None:
+        elif self.encoder is not None:
             output_dim = self.encoder.get_output_dim()
 
         if output_dim is None:
             raise ValueError("output_dim cannot be None")
 
-        self.tag_projection_layer = TimeDistributed(  # type: ignore
-            torch.nn.Sequential(
-                Linear(output_dim, num_tags, bias=False),
-                torch.nn.Softmax(dim=-1),
-            )
-        )
+        self.tag_projection_layer = Linear(
+            output_dim, self.num_tags
+        )  # equivalent to Uj.b(x,t) in eq (3)
 
         if dropout:
             self.dropout: Optional[torch.nn.Module] = torch.nn.Dropout(dropout)
@@ -64,18 +62,18 @@ class SequenceTaggingTaskNN(TaskNN):
     def forward(
         self,  # type: ignore
         tokens: TextFieldTensors,
-        buffer: Dict = None,
+        buffer: Dict,
     ) -> torch.Tensor:
-        if buffer is None:
-            buffer = {}
+        mask = buffer.get("mask")
+
+        if mask is None:
             mask = util.get_text_field_mask(tokens)
-            mask = mask.unsqueeze(dim=1)  # (batch_size, 1, ...)
-            buffer["mask"] = mask
+        buffer["mask"] = mask
 
         embedded_text_input = self.text_field_embedder(tokens)
 
         if self.encoder:
-            encoded_text = self.encoder(embedded_text_input, buffer["mask"])
+            encoded_text = self.encoder(embedded_text_input, mask)
         else:
             encoded_text = embedded_text_input
 
@@ -87,4 +85,39 @@ class SequenceTaggingTaskNN(TaskNN):
 
         logits = self.tag_projection_layer(encoded_text)
 
-        return logits  # shape (batch, 1, sequence, num_tags)
+        return (
+            logits  # shape (batch, sequence, num_tags) of unormalized logits
+        )
+
+
+@CostAugmentedLayer.register("sequence-tagging-stacked")
+class SequenceTaggingStackedCostAugmentedLayer(CostAugmentedLayer):
+    def __init__(
+        self,
+        seq2seq: Seq2SeqEncoder,
+        normalize_y: bool = True,
+    ):
+        super().__init__()
+        self.seq2seq = seq2seq
+        self.normalize_y = normalize_y
+
+    def forward(self, yhat_y: torch.Tensor, buffer: Dict) -> torch.Tensor:
+        """
+
+        Args:
+            yhat_y: Will be tensor of shape (batch, seq_len, 2*num_tags), where the first half of
+                the last dimension will contain unnormalized yhat given by the test-time inference network.
+                The second half will be ground truth labels.
+        """
+        assert (
+            yhat_y.shape[-1] % 2 == 0
+        ), "last dim of input to this layer should be 2*num_tags"
+        num_tags = yhat_y.shape[-1] // 2
+
+        if self.normalize_y:
+            y_hat, y = torch.split(yhat_y, [num_tags, num_tags], dim=-1)
+            yhat_y = torch.cat((torch.softmax(y_hat, dim=-1), y), dim=-1)
+        mask = buffer.get("mask")
+        assert mask is not None
+
+        return self.seq2seq(yhat_y, mask=mask)

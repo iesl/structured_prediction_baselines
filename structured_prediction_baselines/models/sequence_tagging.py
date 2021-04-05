@@ -26,78 +26,28 @@ logger = logging.getLogger(__name__)
 
 @Model.register("sequence-tagging", constructor="from_partial_objects")
 class SequenceTagging(ScoreBasedLearningModel):
-    def __init__(self, num_tags: int, vocab: Vocabulary, sampler: Sampler, loss_fn: Loss,
-                 label_namespace: str = "labels", label_encoding: Optional[str] = None,
-                 **kwargs: Any):
+    def __init__(
+        self,
+        vocab: Vocabulary,
+        sampler: Sampler,
+        loss_fn: Loss,
+        label_encoding: str,
+        label_namespace: str = "labels",
+        **kwargs: Any,
+    ):
         super().__init__(vocab, sampler, loss_fn, **kwargs)
-        self.num_tags = num_tags
+        self.num_tags = self.vocab.get_vocab_size(label_namespace)
 
         if not label_encoding:
-            raise ConfigurationError(
-                "no label_encoding was specified."
-            )
+            raise ConfigurationError("label_encoding was specified.")
         self._f1_metric = SpanBasedF1Measure(
             vocab, tag_namespace=label_namespace, label_encoding=label_encoding
-        )
-
-    @classmethod
-    def from_partial_objects(
-        cls,
-        vocab: Vocabulary,
-        loss_fn: Lazy[Loss],
-        sampler: Lazy[Sampler],
-        num_tags: int = 0,
-        label_namespace: str = "labels",
-        label_encoding: Optional[str] = None,
-        inference_module: Optional[Lazy[Sampler]] = None,
-        score_nn: Optional[ScoreNN] = None,
-        oracle_value_function: Optional[OracleValueFunction] = None,
-        regularizer: Optional[RegularizerApplicator] = None,
-        initializer: Optional[InitializerApplicator] = None,
-        **kwargs: Any,
-    ) -> "ScoreBasedLearningModel":
-
-        if num_tags == 0:
-            raise ConfigurationError("num_tags can't be zero")
-
-        cost_augmented_layer = nn.Sequential(nn.Linear(2 * num_tags, num_tags), nn.Softmax(dim=-1))
-        sampler_ = sampler.construct(
-            cost_augmented_layer=cost_augmented_layer,
-            score_nn=score_nn,
-            oracle_value_function=oracle_value_function,
-        )
-        loss_fn_ = loss_fn.construct(
-            score_nn=score_nn, oracle_value_function=oracle_value_function
-        )
-        # if no seperate inference module is given,
-        # we will be using the same sampler
-
-        if inference_module is None:
-            inference_module_ = sampler_
-        else:
-            inference_module_ = inference_module.construct(
-                cost_augmented_layer=cost_augmented_layer, score_nn=score_nn,
-                oracle_value_function=oracle_value_function
-            )
-
-        return cls(
-            num_tags=num_tags,
-            vocab=vocab,
-            label_namespace=label_namespace,
-            label_encoding=label_encoding,
-            sampler=sampler_,
-            loss_fn=loss_fn_,
-            oracle_value_function=oracle_value_function,
-            score_nn=score_nn,
-            inference_module=inference_module_,
-            regularizer=regularizer,
-            initializer=initializer,
-            **kwargs,
         )
 
     def convert_to_one_hot(self, labels: torch.Tensor) -> torch.Tensor:
         """Converts the labels to one-hot if not already"""
         labels = F.one_hot(labels, num_classes=self.num_tags)
+
         return labels
 
     def unsqueeze_labels(self, labels: torch.Tensor) -> torch.Tensor:
@@ -107,108 +57,40 @@ class SequenceTagging(ScoreBasedLearningModel):
 
         return labels.unsqueeze(1)
 
-    def get_extra_args_for_loss(
+    def squeeze_y(self, y: torch.Tensor) -> torch.Tensor:
+        return y.squeeze(1)
+
+    def initialize_buffer(
         self,
-        x: Any,
-        labels: torch.Tensor,
         **kwargs: Any,
     ) -> Dict:
-        mask = util.get_text_field_mask(x)
-        mask = mask.unsqueeze(dim=1)  # (batch_size, 1, ...)
+        return {"mask": util.get_text_field_mask(kwargs.get("tokens"))}
 
-        return {"mask": mask}
+    def construct_args_for_forward(self, **kwargs: Any) -> Dict:
+        _forward_args = {}
+        _forward_args["buffer"] = self.initialize_buffer(**kwargs)
+        _forward_args["x"] = kwargs.pop("tokens")
+        _forward_args["labels"] = kwargs.pop("tags")
+        _forward_args["meta"] = kwargs.pop("metadata")
 
-    def forward(  # type: ignore
-        self,
-        tokens: TextFieldTensors,
-        tags: torch.LongTensor = None,
-        metadata: List[Dict[str, Any]] = None,
-        ignore_loss_on_o_tags: bool = False,
-        **kwargs,  # to allow for a more general dataset reader that passes args we don't need
-    ) -> Dict[str, Any]:
-
-        # if meta is None:
-        #     meta = {}
-        results: Dict[str, Any] = {}
-        buffer = self.get_extra_args_for_loss(tokens, tags, **kwargs)
-        # print(tags.max().item())
-        if tags is not None:
-            tags_ohe = self.convert_to_one_hot(tags)  # sampler needs one-hot labels of shape (batch, ...)
-            y_hat, y_probabilities = self.sampler(tokens, tags_ohe, buffer)  # here y_hat = y_cost_aug
-            # (batch, num_samples or 1, ...), (batch, num_samples or 1)
-            results["y_hat"] = y_hat
-            results["y_probabilities"] = y_probabilities
-
-            # prepare for calculating metrics
-            # y_pred is predictions for metric calculations
-            # y_hat are for loss computation
-            # For some models this two can be different
-
-            if (self.sampler != self.inference_module) or (
-                self.inference_module.different_training_and_eval
-            ):
-                # we have different sampler for training and inference
-                # or the sampler behaves differently
-                # so we need to run it again.
-                # Note: It is vital to set the module in the eval mode
-                # ie with .training = False because the implementation
-                # checks this
-                model_state = self.training
-                self.inference_module.eval()
-                y_probabilities, _ = self.inference_module(tokens)
-                _, y_pred = torch.max(y_probabilities, -1)
-                self.inference_module.train(model_state)
-            else:
-                # y_pred = buffer["y_inf"]
-                _, y_pred = torch.max(y_probabilities, -1)
-            # Loss needs one-hot labels of shape (batch, 1, ...)
-            tags_ohe = self.unsqueeze_labels(tags_ohe)
-            loss = self.loss_fn(
-                tokens,
-                tags_ohe,
-                y_probabilities,  # y_inf
-                y_hat,   # y_cost_aug
-                buffer,  # used to compute mask if needed.
-            )
-            results["loss"] = loss
-            self.calculate_metrics(tags, y_probabilities, mask=buffer["mask"])
-        else:
-            # labels not present. Just predict.
-            model_state = self.training
-            self.inference_module.eval()
-            y_pred, _ = self.inference_module(tokens)
-            self.inference_module.train(model_state)
-
-        results["y_pred"] = y_pred
-
-        return results
+        return {**_forward_args, **kwargs}
 
     def calculate_metrics(  # type: ignore
-        self, tags: torch.Tensor, y_hat: torch.Tensor, mask: torch.tensor = None, **kwargs: Any
+        self,
+        labels: torch.Tensor,
+        y_hat: torch.Tensor,
+        buffer: Dict,
+        **kwargs: Any,
     ) -> None:
-
-        if y_hat.dim() == 4:  # (batch, num_samples or 1, num_labels)
-            # While calculating metrics, we assume that
-            # there aren't multiple samples.
-            assert (
-                y_hat.shape[1] == 1
-            ), f"Incorrect size ({y_hat.shape[1]}) of samples dimension. Expected (1)"
-            y_hat = y_hat.squeeze(1)
-        # At this point we assume that y_hat is of shape (batch, num_labels)
-        # where each entry in [0,1]
-
-        if tags.dim() == 3:
-            # we might have added an extra dim to labels
-            tags = tags.squeeze(1)
-
-        if mask.dim() == 3:
-            # we might have added an extra dim to mask
-            mask = mask.squeeze(1)
-        self._f1_metric(y_hat, tags, mask)
+        mask = buffer.get("mask")
+        assert mask is not None
+        # y_hat: (batch, seq_len, num_labels)
+        # labels: (batch, seq_len, num_labels) ie one-hot
+        # mask: (batch, seq_len)
+        labels_indices = torch.argmax(labels, dim=-1)
+        self._f1_metric(y_hat, labels_indices, mask)
 
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
-        metrics = {}
         f1_dict = self._f1_metric.get_metric(reset=reset)
-        metrics.update({x: y for x, y in f1_dict.items() if "overall" in x})
 
-        return metrics
+        return {x: y for x, y in f1_dict.items() if "overall" in x}

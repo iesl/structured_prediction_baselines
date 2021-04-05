@@ -1,1 +1,5 @@
-from .sequence_tagging_loss import SequenceTaggingLoss
+from .cross_entropy import SequenceTaggingMaskedCrossEntropyWithLogitsLoss
+from .inference_net_loss import (
+    SequenceTaggingMarginBasedLoss,
+    SequenceTaggingInferenceLoss,
+)
