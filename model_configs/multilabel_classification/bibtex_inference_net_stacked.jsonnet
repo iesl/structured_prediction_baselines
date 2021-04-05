@@ -12,14 +12,15 @@ local num_input_features = dataset_metadata.input_features;
 local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
 local label_space_dim = ff_hidden;
 local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
-local ff_activation = std.parseJson(std.extVar('ff_activation'));
+//local ff_activation = std.parseJson(std.extVar('ff_activation'));
+local ff_activation = 'softplus';
 //local ff_activation = 'softplus';
 local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
 local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
 //local global_score_hidden_dim = 150;
 local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
-local inf_lr = std.parseJson(std.extVar('inf_lr'));
-local inf_optim = std.parseJson(std.extVar('inf_optim'));
+local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
+local cross_entorpy_loss_weight = std.parseJson(std.extVar('cross_entorpy_loss_weight'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 
 {
@@ -45,42 +46,53 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
   model: {
     type: 'multi-label-classification',
     sampler: {
-      type: 'appending-container',
-      constituent_samplers: [
-        {
-          type: 'gradient-based-inference',
-          gradient_descent_loop: {
-            optimizer: {
-              lr: inf_lr,  //0.1
-              weight_decay: 0,
-              type: inf_optim,
-            },
-          },
-          loss_fn: { type: 'multi-label-dvn-score', reduction: 'none' },  //This loss can be different from the main loss // change this
-          output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
-          stopping_criteria: 20,
-          sample_picker: { type: 'lastn' },  // {type: 'best'}
-          number_init_samples: 1,
-          random_mixing_in_init: 1.0,
+      type: 'inference-network',
+      optimizer: {
+        lr: 0.001,
+        weight_decay: 1e-4,
+        type: 'adam',
+      },
+      inference_nn: {
+        type: 'multi-label-classification',
+        feature_network: {
+          input_dim: num_input_features,
+          num_layers: ff_linear_layers,
+          activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + [ff_activation]),
+          hidden_dims: ff_hidden,
+          dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
         },
-        { type: 'ground-truth' },
-      ],
-    },
-    inference_module: {
-      type: 'gradient-based-inference',
-      gradient_descent_loop: {
-        optimizer: {
-          lr: inf_lr,  //0.1
-          weight_decay: 0,
-          type: inf_optim,
+        label_embeddings: {
+          embedding_dim: ff_hidden,
+          vocab_namespace: 'labels',
         },
       },
-      loss_fn: { type: 'multi-label-dvn-score', reduction: 'none' },  //This loss can be different from the main loss
-      output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
-      stopping_criteria: 30,
-      sample_picker: { type: 'best' },
-      number_init_samples: 1,
-      random_mixing_in_init: 1.0,
+      cost_augmented_layer: {
+        type: 'multi-label-stacked',
+        feedforward: {
+          input_dim: 2 * num_labels,
+          num_layers: 2,
+          activations: [ff_activation, 'linear'],
+          hidden_dims: num_labels,
+        },
+        normalize_y: true,
+      },
+      loss_fn: {
+        type: 'combination-loss',
+        constituent_losses: [
+          {
+            type: 'multi-label-inference',
+            inference_score_weight: inference_score_weight,
+            reduction: 'none',
+          },  //This loss can be different from the main loss // change this
+          {
+            type: 'multi-label-bce',
+            reduction: 'none',
+          },
+        ],
+        loss_weights: [1.0, cross_entorpy_loss_weight],
+        reduction: 'mean',
+      },
+      stopping_criteria: 10,
     },
     oracle_value_function: { type: 'per-instance-f1' },
     score_nn: {
@@ -109,7 +121,11 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
         },
       },
     },
-    loss_fn: { type: 'multi-label-dvn-bce' },
+    loss_fn: {
+      type: 'multi-label-margin-based',
+      reduction: 'mean',
+      perceptron_loss_weight: inference_score_weight,
+    },
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
@@ -144,13 +160,13 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       num_serialized_models_to_keep: 1,
     },
     callbacks: [
-      'track_epoch_callback',  // not being used/not important
+      'track_epoch_callback',
       {
-        type: 'tensorboard-custom',  // only for some debugging
+        type: 'tensorboard-custom',
         tensorboard_writer: {
           should_log_learning_rate: true,
         },
-        model_outputs_to_log: ['sample_probabilities'],
+        model_outputs_to_log: ['y_hat_extra'],
       },
     ] + (if use_wandb then ['log_metrics_to_wandb'] else []),
   },

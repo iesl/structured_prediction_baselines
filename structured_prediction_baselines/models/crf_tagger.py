@@ -1,4 +1,12 @@
-from typing import Dict, Optional, List, Any, cast, TypedDict
+from typing import Dict, Optional, List, Any, cast
+import sys
+
+if sys.version_info >= (3, 8):
+    from typing import (
+        TypedDict,
+    )  # pylint: disable=no-name-in-module
+else:
+    from typing_extensions import TypedDict
 
 from overrides import overrides
 import torch
@@ -70,9 +78,6 @@ class BaseCrfTagger(Model):
         choice, and will equal the corresponding item in output_dict['tags']
     """
 
-    class Buffer(TypedDict, total=False):
-        mask: torch.BoolTensor
-
     def __init__(
         self,
         vocab: Vocabulary,
@@ -88,7 +93,7 @@ class BaseCrfTagger(Model):
         verbose_metrics: bool = False,
         initializer: InitializerApplicator = InitializerApplicator(),
         top_k: int = 1,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super().__init__(vocab, **kwargs)
 
@@ -246,7 +251,7 @@ class BaseCrfTagger(Model):
         loss : `torch.FloatTensor`, optional
             A scalar loss to be optimised. Only computed if gold label `tags` are provided.
         """
-        buffer = self.Buffer()
+        buffer = {}
 
         # text encoding
         logits = self.get_logits(

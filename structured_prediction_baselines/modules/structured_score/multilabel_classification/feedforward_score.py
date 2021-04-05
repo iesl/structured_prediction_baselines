@@ -24,6 +24,7 @@ class MultilabelClassificationFeedforwardStructuredScore(StructuredScore):
     def forward(
         self,
         y: torch.Tensor,  # (batch, num_samples, num_labels)
+        buffer: Dict,
         **kwargs: Any,
     ) -> torch.Tensor:
         hidden = self.feedforward(y)  # (batch, num_samples, hidden_dim)

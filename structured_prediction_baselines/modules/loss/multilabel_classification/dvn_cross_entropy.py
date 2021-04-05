@@ -4,7 +4,7 @@ import torch
 
 
 @Loss.register("multi-label-dvn-bce")
-class DVNCrossEntropy(DVNLoss):
+class MultiLabelDVNCrossEntropyLoss(DVNLoss):
     def compute_loss(
         self,
         predicted_score: torch.Tensor,  # logits of shape (batch, num_samples)

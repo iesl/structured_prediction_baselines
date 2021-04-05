@@ -9,10 +9,11 @@ class MultilabelClassificationScoreNN(ScoreNN):
         self,
         x: torch.Tensor,  #: (batch, features_size)
         y: torch.Tensor,  #: (batch, num_samples, num_labels)
+        buffer: Dict,
         **kwargs: Any,
     ) -> Optional[torch.Tensor]:
         label_scores = self.task_nn(
-            x
+            x, buffer
         )  # unormalized logit of shape (batch, num_labels)
         local_energy = torch.sum(
             label_scores.unsqueeze(1) * y, dim=-1

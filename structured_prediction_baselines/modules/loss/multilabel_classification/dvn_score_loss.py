@@ -4,7 +4,7 @@ import torch
 
 
 @Loss.register("multi-label-dvn-score")
-class MultilabelDVNScoreLoss(DVNScoreLoss):
+class MultiLabelDVNScoreLoss(DVNScoreLoss):
     def compute_loss(
         self,
         predicted_score: torch.Tensor,  # logits of shape (batch, num_samples)

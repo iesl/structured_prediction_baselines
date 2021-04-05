@@ -10,6 +10,9 @@ class OracleValueFunction(Registrable):
     a continuous relaxations. The shape of input y will be (batch, num_samples or 1, ...).
 
     This will not be an instance of torch.nn.Module because we do not expect it to carry any parameters.
+
+    Note:
+        OracleValueFunction should be such that it is bounded from above.
     """
 
     def __init__(self, differentiable: bool = False, **kwargs: Any):
@@ -17,24 +20,41 @@ class OracleValueFunction(Registrable):
         self.differentiable = differentiable
 
     def flatten_y(
-        self, labels: torch.Tensor, y_hat: torch.Tensor
-    ) -> Tuple[Tuple[torch.Tensor, torch.Tensor], int]:
+        self,
+        labels: torch.Tensor,
+        y_hat: torch.Tensor,
+        mask: Optional[torch.Tensor],
+    ) -> Tuple[Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor]], int]:
         num_samples = y_hat.shape[1]
 
         return (
             labels.expand_as(y_hat).flatten(0, 1),
             y_hat.flatten(0, 1),
+            mask.expand_as(y_hat).flatten(0, 1) if mask is not None else None,
         ), num_samples
 
     def unflatten_metric(
         self, metric: torch.Tensor, num_samples: int
     ) -> torch.Tensor:
-        return metric.reshape(-1, num_samples, *metric.shape[2:])
+        return metric.reshape(-1, num_samples, *metric.shape[1:])
 
     def compute(
-        self, labels: torch.Tensor, y_hat: torch.Tensor
+        self,
+        labels: torch.Tensor,
+        y_hat: torch.Tensor,
+        mask: Optional[torch.Tensor],
+        **kwargs: Any,
     ) -> torch.Tensor:
         raise NotImplementedError
+
+    @property
+    def upper_bound(self) -> float:
+        return 0.0
+
+    def compute_as_cost(
+        self, labels: torch.Tensor, y_hat: torch.Tensor, **kwargs: Any
+    ) -> torch.Tensor:
+        return self.upper_bound - self.__call__(labels, y_hat)
 
     @staticmethod
     def detach_tensors(*tensors: torch.Tensor) -> Iterable[torch.Tensor]:
@@ -53,13 +73,16 @@ class OracleValueFunction(Registrable):
         self,
         labels: torch.Tensor,  #: shape (batch, 1, ...)
         y_hat: torch.Tensor,  #: shape (batch, num_samples, ...)
+        mask: Optional[torch.Tensor] = None,
         **kwargs: Any,
     ) -> torch.Tensor:
         if not self.differentiable:
             labels, y_hat = self.detach_tensors(labels, y_hat)
 
-        (labels, y_hat), num_samples = self.flatten_y(labels, y_hat)
-        value = self.compute(labels, y_hat)
+        (labels, y_hat, mask), num_samples = self.flatten_y(
+            labels, y_hat, mask
+        )
+        value = self.compute(labels, y_hat, mask, **kwargs)
         value = self.unflatten_metric(value, num_samples)
 
         return value

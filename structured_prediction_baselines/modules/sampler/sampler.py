@@ -41,7 +41,11 @@ class Sampler(torch.nn.Module, Registrable):
         self._different_training_and_eval = False
 
     def forward(
-        self, x: Any, labels: Any, **kwargs: Any
+        self,
+        x: Any,
+        labels: Optional[torch.Tensor],
+        buffer: Dict,
+        **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         """
         Returns:
@@ -73,7 +77,7 @@ class AppendingSamplerContainer(Sampler):
         oracle_value_function: Optional[OracleValueFunction] = None,
     ):
         super().__init__(score_nn, oracle_value_function)
-        self.constituent_samplers = constituent_samplers
+        self.constituent_samplers = torch.nn.ModuleList(constituent_samplers)
 
     @classmethod
     def from_partial_constituent_samplers(
@@ -96,12 +100,16 @@ class AppendingSamplerContainer(Sampler):
         )
 
     def forward(
-        self, x: Any, labels: Any, **kwargs: Any
+        self,
+        x: Any,
+        labels: Optional[torch.Tensor],
+        buffer: Dict,
+        **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         samples, probs = list(
             zip(
                 *[
-                    sampler(x, labels, **kwargs)
+                    sampler(x, labels, buffer, **kwargs)
                     for sampler in self.constituent_samplers
                 ]
             )
@@ -168,11 +176,15 @@ class RandomPickingSamplerContainer(Sampler):
         )
 
     def forward(
-        self, x: Any, labels: Any, **kwargs: Any
+        self,
+        x: Any,
+        labels: Optional[torch.Tensor],
+        buffer: Dict,
+        **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
 
         sampler = np.random.choice(
             self.constituent_samplers, p=self.probabilities
         )
 
-        return sampler(x, labels, **kwargs)
+        return sampler(x, labels, buffer, **kwargs)

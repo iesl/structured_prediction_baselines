@@ -27,9 +27,15 @@ class PerInstanceF1(OracleValueFunction):
     as is for the oracle value.
     """
 
+    @property
+    def upper_bound(self) -> float:
+        return 1.0
+
     def compute(
         self,
         labels: torch.Tensor,  #: (batch*num_samples, ...)
         y_hat: torch.Tensor,  #: (batch*num_samples, ...)
+        mask: Optional[torch.Tensor] = None,
+        **kwargs: Any,
     ) -> torch.Tensor:
         return compute(labels, y_hat)

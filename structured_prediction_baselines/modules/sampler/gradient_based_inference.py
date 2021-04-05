@@ -10,6 +10,10 @@ from typing import (
 )
 from types import ModuleType
 from structured_prediction_baselines.modules.sampler import Sampler
+from structured_prediction_baselines.modules.stopping_criteria import (
+    StopAfterNumberOfSteps,
+    StoppingCriteria,
+)
 from structured_prediction_baselines.modules.task_nn import TaskNN
 import torch
 from structured_prediction_baselines.modules.score_nn import ScoreNN
@@ -33,23 +37,6 @@ import logging
 # TODO: Add a general stopping criterion instead of number of gradient steps
 # in GradientDescentLoop
 # TODO: Return loss values along with trajectory
-
-
-class StoppingCriteria(Registrable):
-    default_implementation = "number-of-steps"
-
-    def __call__(self, step_number: int, loss_value: float) -> bool:
-        raise NotImplementedError
-
-
-@StoppingCriteria.register("number-of-steps")
-class StopAfterNumberOfSteps(StoppingCriteria):
-    def __init__(self, number_of_steps: int = 10):
-        super().__init__()
-        self.number_of_steps = number_of_steps
-
-    def __call__(self, step_number: int, loss_value: float) -> bool:
-        return step_number >= self.number_of_steps
 
 
 @contextlib.contextmanager
@@ -308,7 +295,10 @@ class GradientBasedInferenceSampler(Sampler):
         )
 
     def get_loss_fn(
-        self, x: Any, labels: Optional[torch.Tensor]
+        self,
+        x: Any,
+        labels: Optional[torch.Tensor],
+        buffer: Dict,
     ) -> Callable[[torch.Tensor], torch.Tensor]:
         # Sampler gets labels of shape (batch, ...), hence this
         # function will get labels of shape (batch*num_init_samples, ...)
@@ -329,6 +319,7 @@ class GradientBasedInferenceSampler(Sampler):
                 ),
                 inp,  # E:inp.unsqueeze(1),
                 None,
+                buffer,
             )
 
         return loss_fn
@@ -429,7 +420,8 @@ class GradientBasedInferenceSampler(Sampler):
         x: Any,
         labels: Optional[
             torch.Tensor
-        ] = None,  #: If given will have shape (batch, ...)
+        ],  #: If given will have shape (batch, ...)
+        buffer: Dict,
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         init = self.get_initial_output(
@@ -450,7 +442,9 @@ class GradientBasedInferenceSampler(Sampler):
         with self.no_param_grad():
 
             loss_fn = self.get_loss_fn(
-                x, labels
+                x,
+                labels,
+                buffer,
             )  #: Loss function will expect labels in form (batch, num_samples or 1, ...)
             (
                 trajectory,  # new List[Tensor(batch, num_init_samples, ...)]
