@@ -42,26 +42,15 @@ class MultilabelClassification(ScoreBasedLearningModel):
 
         return labels.unsqueeze(1)
 
+    def squeeze_y(self, y: torch.Tensor) -> torch.Tensor:
+        return y.squeeze(1)
+
     def calculate_metrics(  # type: ignore
         self,
         labels: torch.Tensor,
         y_hat: torch.Tensor,
         buffer: Dict,
     ) -> None:
-
-        if y_hat.dim() == 3:  # (batch, num_samples or 1, num_labels)
-            # While calculating metrics, we assume that
-            # there aren't multiple samples.
-            assert (
-                y_hat.shape[1] == 1
-            ), f"Incorrect size ({y_hat.shape[1]}) of samples dimension. Expected (1)"
-            y_hat = y_hat.squeeze(1)
-        # At this point we assume that y_hat is of shape (batch, num_labels)
-        # where each entry in [0,1]
-
-        if labels.dim() == 3:
-            # we might have added an extra dim to labels
-            labels = labels.squeeze(1)
 
         self.f1(y_hat, labels)
         self.map(y_hat, labels)
