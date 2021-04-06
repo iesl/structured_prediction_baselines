@@ -41,7 +41,7 @@ class GroundTruthSampler(Sampler):
         # we have no way of guessing that
 
         return (
-            labels.unsqueeze(1),
+            labels.unsqueeze(1).to(dtype=self.score_nn.input_dtype),
             None,
         )  # because labels will have shape (batch, ...)
         # and samples should have shape (batch, num_samples, ...)
