@@ -47,6 +47,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
     sampler: {
       type: 'appending-container',
       constituent_samplers: [
+        //GBI
         {
           type: 'gradient-based-inference',
           gradient_descent_loop: {
@@ -59,10 +60,31 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
           loss_fn: { type: 'multi-label-dvn-score', reduction: 'none' },  //This loss can be different from the main loss // change this
           output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
           stopping_criteria: 20,
-          sample_picker: { type: 'lastn' },  // {type: 'best'}
+          sample_picker: { type: 'lastn' },
           number_init_samples: 1,
           random_mixing_in_init: 1.0,
         },
+        // Adversarial
+        {
+          type: 'gradient-based-inference',
+          gradient_descent_loop: {
+            optimizer: {
+              lr: inf_lr,  //0.1
+              weight_decay: 0,
+              type: inf_optim,
+            },
+          },
+          loss_fn: {
+            type: 'negative',
+            constituent_loss: { type: 'multi-label-dvn-score', reduction: 'none' },
+          },
+          output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
+          stopping_criteria: 20,
+          sample_picker: { type: 'lastn' },
+          number_init_samples: 1,
+          random_mixing_in_init: 1.0,
+        },
+
         { type: 'ground-truth' },
       ],
     },
@@ -75,7 +97,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
           type: inf_optim,
         },
       },
-      loss_fn: { type: 'multi-label-dvn-score', reduction: 'none' },  //This loss can be different from the main loss
+      loss_fn: { type: 'multi-label-dvn-bce', reduction: 'none' },  //This loss can be different from the main loss
       output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
       stopping_criteria: 30,
       sample_picker: { type: 'best' },
@@ -144,9 +166,9 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       num_serialized_models_to_keep: 1,
     },
     callbacks: [
-      'track_epoch_callback',  // not being used/not important
+      'track_epoch_callback',
       {
-        type: 'tensorboard-custom',  // only for some debugging
+        type: 'tensorboard-custom',
         tensorboard_writer: {
           should_log_learning_rate: true,
         },

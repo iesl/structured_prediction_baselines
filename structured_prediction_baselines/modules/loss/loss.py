@@ -133,7 +133,7 @@ class CombinationLoss(Loss):
         return total_loss
 
 
-@Loss.register("negative-loss")
+@Loss.register("negative")
 class NegativeLoss(Loss):
     """Flips the sign of the loss"""
 
