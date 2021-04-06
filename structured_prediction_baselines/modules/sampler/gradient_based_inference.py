@@ -303,8 +303,6 @@ class GradientBasedInferenceSampler(Sampler):
         # Sampler gets labels of shape (batch, ...), hence this
         # function will get labels of shape (batch*num_init_samples, ...)
         # but Loss expect y or shape (batch, num_samples or 1, ...)
-        # Also during eval the loss is different. We inform the loss function
-        # using None
 
         if self.training and (labels is None):
             warnings.warn("Labels should not be None in training mode!")
@@ -312,11 +310,7 @@ class GradientBasedInferenceSampler(Sampler):
         def loss_fn(inp: torch.Tensor) -> torch.Tensor:
             return self.loss_fn(
                 x,
-                (
-                    labels  # E:labels.unsqueeze(1)
-                    if (self.training and labels is not None)
-                    else None
-                ),
+                labels,  # E:labels.unsqueeze(1)
                 inp,  # E:inp.unsqueeze(1),
                 None,
                 buffer,

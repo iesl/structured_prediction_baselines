@@ -17,6 +17,16 @@ class ScoreNN(torch.nn.Module, Registrable):
         super().__init__()  # type:ignore
         self.task_nn = task_nn
         self.global_score = global_score
+        self._dtype = self.compute_input_dtype()
+
+    def compute_input_dtype(self) -> Optional[torch.dtype]:
+        if self.global_score is not None:
+            for p in self.global_score.parameters():
+                return p.dtype
+        else:
+            return None
+
+        return None
 
     def compute_local_score(
         self, x: Any, y: Any, buffer: Dict, **kwargs: Any
@@ -37,6 +47,10 @@ class ScoreNN(torch.nn.Module, Registrable):
             return self.global_score(y, buffer, **kwargs)
         else:
             return None
+
+    @property
+    def input_dtype(self) -> Optional[torch.dtype]:
+        return self._dtype
 
     def forward(
         self,

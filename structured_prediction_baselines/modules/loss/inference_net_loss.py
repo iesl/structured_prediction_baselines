@@ -147,6 +147,8 @@ class MarginBasedLoss(Loss):
             y_cost_aug = (
                 y_hat if not self.normalize_y else self.normalize(y_hat)
             )
+        elif self.normalize_y:  # y_cost_aug is not None
+            y_cost_aug = self.normalize(y_cost_aug)
 
         if self.normalize_y:
             y_hat = self.normalize(y_hat)
