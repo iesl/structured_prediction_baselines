@@ -33,6 +33,12 @@ class GroundTruthSampler(Sampler):
             raise ValueError(f"dtype should be one of {self.known_dtypes}")
         self.dtype = self.known_dtypes[dtype]
 
+    @property
+    def is_normalized(self) -> bool:
+        """Whether the sampler produces normalized or unnormalized samples"""
+
+        return True
+
     def forward(
         self, x: Any, labels: Any, buffer: Dict, **kwargs: Any
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:

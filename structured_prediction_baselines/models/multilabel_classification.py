@@ -52,10 +52,13 @@ class MultilabelClassification(ScoreBasedLearningModel):
         buffer: Dict,
     ) -> None:
 
-        self.f1(y_hat, labels)
         self.map(y_hat, labels)
         self.micro_map(y_hat, labels)
-        self.relaxed_f1(y_hat, labels)
+
+        if not self.inference_module.is_normalized:
+            y_hat_n = torch.sigmoid(y_hat)
+            self.relaxed_f1(y_hat_n, labels)
+            self.f1(y_hat_n, labels)
 
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
 
