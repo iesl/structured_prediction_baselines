@@ -55,7 +55,7 @@ class MultilabelClassification(ScoreBasedLearningModel):
         self.map(y_hat, labels)
         self.micro_map(y_hat, labels)
 
-        if not self.sampler.is_normalized:
+        if not self.inference_module.is_normalized:
             y_hat_n = torch.sigmoid(y_hat)
             self.relaxed_f1(y_hat_n, labels)
             self.f1(y_hat_n, labels)
