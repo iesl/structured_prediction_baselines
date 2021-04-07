@@ -17,10 +17,11 @@ class CNN(StructuredScore):
     def forward(
         self,
         y: torch.Tensor,
-        mask: torch.BoolTensor = None,
+        buffer: Dict,
         **kwargs: Any,
     ) -> torch.Tensor:
-        output = self.encoder(y, mask)
-        output = output.sum(dim=2)
+        mask = buffer["mask"]
+        output = self.encoder(y, mask)  # (batch_size, num_samples or 1, ...)
+        output = output.sum(dim=-1)  # (batch_size, num_samples or 1, seq_length)
         output = output * mask.unsqueeze(1)
         return output.sum(dim=2)

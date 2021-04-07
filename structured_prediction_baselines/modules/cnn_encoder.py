@@ -12,6 +12,7 @@ from allennlp.nn.util import min_value_of_dtype
 @Seq2VecEncoder.register("cnn_2d")
 class Cnn2dEncoder(Seq2VecEncoder):
     """
+    Same as CnnEncoder, only difference is it uses 2D convolution layers instead of 1D
     # Parameters
     embedding_dim : `int`, required
         This is the input dimension to the encoder.  We need this because we can't do shape
@@ -70,7 +71,7 @@ class Cnn2dEncoder(Seq2VecEncoder):
     def get_output_dim(self) -> int:
         return self._output_dim
 
-    def forward(self, tokens: torch.Tensor, mask: torch.BoolTensor):
+    def forward(self, tokens: torch.Tensor, mask: torch.BoolTensor = None):
         if mask is not None:
             tokens = tokens * mask.unsqueeze(1).unsqueeze(-1)
 

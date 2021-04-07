@@ -52,11 +52,8 @@ class LinearChain(StructuredScore):
                 new_ta_energy = new_ta_energy.squeeze(dim=-1)
                 # [batch_size * n_samples, num_tags] x [num_tags, 1] -> [batch_size * n_samples]
 
-                energy_t += new_ta_energy.view(batch_size, n_samples) * mask[
-                    :, t
-                ].unsqueeze(
-                    -1
-                )  # [batch_size, n_samples]
+                energy_t += new_ta_energy.view(batch_size, n_samples) * mask[:, t].unsqueeze(-1)
+                # [batch_size, n_samples]
 
                 for i in range(t):
                     new_ta_energy = torch.mm(
