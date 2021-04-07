@@ -61,6 +61,12 @@ class InferenceNetSampler(Sampler):
         else:
             self.stopping_criteria = stopping_criteria
 
+    @property
+    def is_normalized(self) -> bool:
+        """Whether the sampler produces normalized or unnormalized samples"""
+
+        return False
+
     @classmethod
     def from_partial_objects(
         cls,

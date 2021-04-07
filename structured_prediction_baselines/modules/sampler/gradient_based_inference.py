@@ -409,6 +409,12 @@ class GradientBasedInferenceSampler(Sampler):
         # *shape[2:],
         # )  # (batch, num_init_samples*num_samples, ...)
 
+    @property
+    def is_normalized(self) -> bool:
+        """Whether the sampler produces normalized or unnormalized samples"""
+
+        return True
+
     def forward(
         self,
         x: Any,

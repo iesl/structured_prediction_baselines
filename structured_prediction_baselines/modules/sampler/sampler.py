@@ -40,6 +40,11 @@ class Sampler(torch.nn.Module, Registrable):
         self.oracle_value_function = oracle_value_function
         self._different_training_and_eval = False
 
+    @property
+    def is_normalized(self) -> bool:
+        """Whether the sampler produces normalized or unnormalized samples"""
+        raise NotImplementedError
+
     def forward(
         self,
         x: Any,
