@@ -76,7 +76,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
           },
           loss_fn: {
             type: 'negative',
-            constituent_loss: { type: 'multi-label-dvn-score', reduction: 'none' },
+            constituent_loss: { type: 'multi-label-dvn-bce', reduction: 'none' },
           },
           output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
           stopping_criteria: 20,
