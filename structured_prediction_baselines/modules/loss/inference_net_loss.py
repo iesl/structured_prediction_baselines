@@ -205,8 +205,8 @@ class InferenceLoss(MarginBasedLoss):
         ) = self._get_values(x, labels, y_inf, y_cost_aug, buffer)
         loss_unreduced = -(
             oracle_cost
-            + cost_augmented_inference_score - ground_truth_score
-            + self.inference_score_weight * (inference_score - ground_truth_score)
+            + cost_augmented_inference_score
+            + self.inference_score_weight * inference_score
         )  # the minus sign turns this into argmin objective
 
         return loss_unreduced
