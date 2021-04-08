@@ -207,7 +207,7 @@ class InferenceNetSampler(Sampler):
                         step_number, float(loss_value)
                     ):
                         self.optimizer.zero_grad(set_to_none=True)
-                        y_inf, y_cost_aug = self._get_values(x, buffer)
+                        y_inf, y_cost_aug = self._get_values(x, labels, buffer)
                         loss_value = self.update(
                             y_inf, y_cost_aug, buffer, loss_fn
                         )
