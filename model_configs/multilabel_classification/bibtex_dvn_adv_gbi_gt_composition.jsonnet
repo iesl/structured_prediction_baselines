@@ -97,7 +97,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
           type: inf_optim,
         },
       },
-      loss_fn: { type: 'multi-label-dvn-bce', reduction: 'none' },  //This loss can be different from the main loss
+      loss_fn: { type: 'multi-label-dvn-score', reduction: 'none' },  //This loss can be different from the main loss
       output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
       stopping_criteria: 30,
       sample_picker: { type: 'best' },
