@@ -25,13 +25,18 @@ class MultilabelClassificationSampler(Sampler):
         )
         self.task_nn = task_nn
 
+    @property
+    def is_normalized(self) -> bool:
+        return False
+
     def forward(
         self,
         x: torch.Tensor,
-        labels: Optional[torch.Tensor] = None,
+        labels: Optional[torch.Tensor],
+        buffer: Dict,
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         return (
-            self.task_nn(x).unsqueeze(1),
+            self.task_nn(x, buffer=buffer).unsqueeze(1),
             None,
         )  # unormalized logits (batch, 1, ...)
