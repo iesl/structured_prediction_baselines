@@ -13,15 +13,15 @@ local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
 local label_space_dim = ff_hidden;
 local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
 local ff_activation = std.parseJson(std.extVar('ff_activation'));
-//local ff_activation = 'softplus';
 local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
 local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
 //local global_score_hidden_dim = 150;
 local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
 local inf_lr = std.parseJson(std.extVar('inf_lr'));
 local inf_optim = std.parseJson(std.extVar('inf_optim'));
+//local inf_optim = 'sgd';
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
-
+local sample_picker = std.parseJson(std.extVar('sample_picker'));
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
   evaluate_on_test: true,
@@ -60,7 +60,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
           loss_fn: { type: 'multi-label-dvn-score', reduction: 'none' },  //This loss can be different from the main loss // change this
           output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
           stopping_criteria: 20,
-          sample_picker: { type: 'lastn' },
+          sample_picker: { type: sample_picker },
           number_init_samples: 1,
           random_mixing_in_init: 1.0,
         },
@@ -77,10 +77,11 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
           loss_fn: {
             type: 'negative',
             constituent_loss: { type: 'multi-label-dvn-bce', reduction: 'none' },
+            reduction: 'none',
           },
           output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
           stopping_criteria: 20,
-          sample_picker: { type: 'lastn' },
+          sample_picker: { type: sample_picker },
           number_init_samples: 1,
           random_mixing_in_init: 1.0,
         },
@@ -160,7 +161,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
     optimizer: {
       lr: 0.001,
       weight_decay: 1e-4,
-      type: 'adam',
+      type: 'adamw',
     },
     checkpointer: {
       num_serialized_models_to_keep: 1,
