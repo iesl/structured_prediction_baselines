@@ -182,10 +182,8 @@ class InferenceNetSampler(Sampler):
             torch.Tensor
         ],  #: If given will have shape (batch, ...)
         buffer: Dict,
-        eval_grad: bool = False,
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
-        self.eval_grad = eval_grad
         if labels is None or (not self.training):
             y_inf: torch.Tensor = self.inference_nn(x, buffer).unsqueeze(
                 1
