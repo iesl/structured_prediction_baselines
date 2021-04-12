@@ -1,0 +1,169 @@
+{
+    "dataset_reader": {
+        "type": "arff",
+        "num_labels": 159
+    },
+    "model": {
+        "type": "multi-label-classification",
+        "inference_module": {
+            "type": "gradient-based-inference",
+            "gradient_descent_loop": {
+                "optimizer": {
+                    "type": "sgd",
+                    "lr": 0.32902362554811393,
+                    "weight_decay": 0
+                }
+            },
+            "loss_fn": {
+                "type": "multi-label-dvn-score",
+                "reduction": "none"
+            },
+            "number_init_samples": 1,
+            "output_space": {
+                "type": "multi-label-relaxed",
+                "default_value": 0,
+                "num_labels": 159
+            },
+            "random_mixing_in_init": 1,
+            "sample_picker": {
+                "type": "best"
+            },
+            "stopping_criteria": 30
+        },
+        "initializer": {
+            "regexes": [
+                [
+                    ".*feedforward._linear_layers.*weight",
+                    {
+                        "gain": 1.6666666666666667,
+                        "type": "xavier_uniform"
+                    }
+                ],
+                [
+                    ".*linear_layers.*bias",
+                    {
+                        "type": "zero"
+                    }
+                ]
+            ]
+        },
+        "loss_fn": {
+            "type": "multi-label-dvn-bce"
+        },
+        "oracle_value_function": {
+            "type": "per-instance-f1"
+        },
+        "sampler": {
+            "type": "appending-container",
+            "constituent_samplers": [
+                {
+                    "gradient_descent_loop": {
+                        "optimizer": {
+                            "lr": 0.32902362554811393,
+                            "type": "sgd",
+                            "weight_decay": 0
+                        }
+                    },
+                    "loss_fn": {
+                        "reduction": "none",
+                        "type": "multi-label-dvn-score"
+                    },
+                    "number_init_samples": 1,
+                    "output_space": {
+                        "default_value": 0,
+                        "num_labels": 159,
+                        "type": "multi-label-relaxed"
+                    },
+                    "random_mixing_in_init": 1,
+                    "sample_picker": {
+                        "type": "lastn"
+                    },
+                    "stopping_criteria": 20,
+                    "type": "gradient-based-inference"
+                },
+                {
+                    "type": "ground-truth"
+                }
+            ]
+        },
+        "score_nn": {
+            "type": "multi-label-classification",
+            "global_score": {
+                "type": "multi-label-feedforward",
+                "feedforward": {
+                    "activations": "tanh",
+                    "hidden_dims": 200,
+                    "input_dim": 159,
+                    "num_layers": 1
+                }
+            },
+            "task_nn": {
+                "type": "multi-label-classification",
+                "feature_network": {
+                    "activations": [
+                        "tanh",
+                        "tanh",
+                        "tanh"
+                    ],
+                    "dropout": [
+                        0.3,
+                        0.3,
+                        0
+                    ],
+                    "hidden_dims": 150,
+                    "input_dim": 1836,
+                    "num_layers": 3
+                },
+                "label_embeddings": {
+                    "embedding_dim": 150,
+                    "vocab_namespace": "labels"
+                }
+            }
+        }
+    },
+    "train_data_path": "./data/bibtex_original/train.arff",
+    "validation_data_path": "./data/bibtex_original/val.arff",
+    "test_data_path": "./data/bibtex_original/test.arff",
+    "trainer": {
+        "callbacks": [
+            "track_epoch_callback",
+            {
+                "model_outputs_to_log": [
+                    "sample_probabilities"
+                ],
+                "tensorboard_writer": {
+                    "should_log_learning_rate": true
+                },
+                "type": "tensorboard-custom"
+            },
+        ],
+        "checkpointer": {
+            "num_serialized_models_to_keep": 1
+        },
+        "cuda_device": 0,
+        "learning_rate_scheduler": {
+            "type": "reduce_on_plateau",
+            "factor": 0.5,
+            "mode": "max",
+            "patience": 5,
+            "verbose": true
+        },
+        "num_epochs": 300,
+        "optimizer": {
+            "type": "adam",
+            "lr": 0.0011708053208557452,
+            "weight_decay": 0.0001
+        },
+        "patience": 20,
+        "validation_metric": "+fixed_f1"
+    },
+    "data_loader": {
+        "batch_size": 32,
+        "shuffle": true
+    },
+    "evaluate_on_test": true,
+    "validation_dataset_reader": {
+        "type": "arff",
+        "num_labels": 159
+    }
+}

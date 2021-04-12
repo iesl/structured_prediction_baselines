@@ -3,7 +3,7 @@ local data_dir = std.extVar('DATA_DIR');
 local cuda_device = std.extVar('CUDA_DEVICE');
 local use_wandb = (if test == '1' then false else true);
 
-local dataset_name = 'bibtex';
+local dataset_name = 'bibtex_original';
 local dataset_metadata = (import 'datasets.jsonnet')[dataset_name];
 local num_labels = dataset_metadata.num_labels;
 local num_input_features = dataset_metadata.input_features;
@@ -13,8 +13,8 @@ local num_input_features = dataset_metadata.input_features;
 local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
 local label_space_dim = ff_hidden;
 local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
-//local ff_activation = std.parseJson(std.extVar('ff_activation'));
-local ff_activation = 'sigmoid';
+local ff_activation = std.parseJson(std.extVar('ff_activation'));
+//local ff_activation = 'tanh';
 local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
 local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
 
@@ -58,11 +58,10 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
         },
       },
     },
-    loss_fn: { type: 'multi-label-bce' },
+    loss_fn: { type: 'multi-label-bce', reduction: 'mean' },
     initializer: {
       regexes: [
-        //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
-        [@'.*_feedforward._linear_layers.*weight', (if std.member(['tanh', 'sigmoid'], ff_activation) then { type: 'xavier_uniform', gain: gain } else { type: 'kaiming_uniform', nonlinearity: 'relu' })],
+        [@'.*feature_network._linear_layers.*weight', (if std.member(['tanh', 'sigmoid'], ff_activation) then { type: 'xavier_uniform', gain: gain } else { type: 'kaiming_uniform', nonlinearity: 'relu' })],
         [@'.*linear_layers.*bias', { type: 'zero' }],
       ],
     },
@@ -72,22 +71,22 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
     batch_size: 64,
   },
   trainer: {
-    num_epochs: if test == '1' then 2 else 100,
+    num_epochs: if test == '1' then 5 else 100,
     //grad_norm: 10.0,
-    patience: 3,
+    patience: 8,
     validation_metric: '+fixed_f1',
     cuda_device: std.parseInt(cuda_device),
     learning_rate_scheduler: {
       type: 'reduce_on_plateau',
       factor: 0.5,
       mode: 'max',
-      patience: 0,
+      patience: 2,
       verbose: true,
     },
     optimizer: {
-      parameter_groups: [[[@'.*feedforward._linear_layers.*weight', @'.*linear_layers.*bias'], { weight_decay: ff_weight_decay }]],
+      parameter_groups: [[[@'.*linear_layers.*weight', @'.*linear_layers.*bias'], { weight_decay: ff_weight_decay }]],
       lr: 0.001,
-      weight_decay: ff_weight_decay,
+      weight_decay: 0,
       type: 'adamw',
     },
     checkpointer: {
