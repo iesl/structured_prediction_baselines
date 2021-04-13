@@ -88,7 +88,7 @@ local cross_entorpy_loss_weight = 1;
         type: 'combination-loss',
         constituent_losses: [
           {
-            type: 'multi-label-dvn-score',
+            type: 'multi-label-dvn-ca-score',
             reduction: 'none',
           },  //This loss can be different from the main loss // change this
           {
@@ -129,7 +129,7 @@ local cross_entorpy_loss_weight = 1;
       },
     },
     loss_fn: { // for maximzing score (in SPEN, min step of energy)
-      type: 'multi-label-dvn-bce',
+      type: 'multi-label-dvn-ca-bce',
       reduction: 'mean',
     },
     initializer: {

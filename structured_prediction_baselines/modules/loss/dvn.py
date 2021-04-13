@@ -266,8 +266,10 @@ class DVNScoreCostAugLoss(Loss):
         pred_score_infnet, pred_score_costaugnet = self._get_predicted_score(
             x, labels, y_hat, y_hat_extra, buffer, **kwargs
         )
-
-        return self.compute_loss(pred_score_infnet)+self.compute_loss(pred_score_costaugnet)
+        
+        loss = (  self.compute_loss(pred_score_infnet) 
+                + self.compute_loss(pred_score_costaugnet))
+        return loss
 
     def _get_predicted_score(
         self,
