@@ -69,7 +69,6 @@ class MarginBasedLoss(Loss):
         margin_type: one of [''] as described here https://arxiv.org/pdf/1803.03376.pdf
         cross_entropy: set True when training inference network and false for energy function, default True
         zero_truncation: set True when training for energy function, default False
-
         """
         super().__init__(
             score_nn=score_nn,
@@ -111,6 +110,7 @@ class MarginBasedLoss(Loss):
             inference_score,
             ground_truth_score,
         ) = self._get_values(x, labels, y_inf, y_cost_aug, buffer)
+        
         loss_unreduced = self.margin_types[self.margin_type](
             oracle_cost, cost_aug_score, ground_truth_score
         )
@@ -208,5 +208,5 @@ class InferenceLoss(MarginBasedLoss):
             + cost_augmented_inference_score
             + self.inference_score_weight * inference_score
         )  # the minus sign turns this into argmin objective
-
+        
         return loss_unreduced

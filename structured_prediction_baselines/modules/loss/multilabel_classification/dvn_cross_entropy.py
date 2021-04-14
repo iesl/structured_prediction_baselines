@@ -1,5 +1,5 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
-from structured_prediction_baselines.modules.loss import DVNCostAugLoss DVNLoss, Loss
+from structured_prediction_baselines.modules.loss import DVNLossCostAugNet, DVNLoss, Loss
 import torch
 
 
@@ -24,7 +24,7 @@ class MultiLabelDVNCrossEntropyLoss(DVNLoss):
 
 
 @Loss.register("multi-label-dvn-ca-bce")
-class MultiLabelDVNCostAugCrossEntropyLoss(DVNCostAugLoss):
+class MultiLabelDVNCostAugCrossEntropyLoss(DVNLossCostAugNet):
     def compute_loss(
         self,
         predicted_score: torch.Tensor,  # logits of shape (batch, num_samples)

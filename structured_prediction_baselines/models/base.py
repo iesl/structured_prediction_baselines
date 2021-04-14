@@ -19,7 +19,7 @@ class ScoreBasedLearningModel(Model):
         vocab: Vocabulary,
         sampler: Sampler,
         loss_fn: Loss,
-        oracle_value_function: Optional[OracleValueFunction] = None,
+        # oracle_value_function: Optional[OracleValueFunction] = None,
         score_nn: Optional[ScoreNN] = None,
         inference_module: Optional[Sampler] = None,
         regularizer: Optional[RegularizerApplicator] = None,
@@ -54,14 +54,15 @@ class ScoreBasedLearningModel(Model):
         **kwargs: Any,
     ) -> "ScoreBasedLearningModel":
         sampler_ = sampler.construct(
-            score_nn=score_nn, oracle_value_function=oracle_value_function
+            score_nn=score_nn #, oracle_value_function=oracle_value_function
         )
         loss_fn_ = loss_fn.construct(
-            score_nn=score_nn, oracle_value_function=oracle_value_function
+            score_nn=score_nn #, oracle_value_function=oracle_value_function
         )
         # if no seperate inference module is given,
         # we will be using the same sampler
-
+        
+        # test-time inference.
         if inference_module is None:
             inference_module_ = sampler_
         else:

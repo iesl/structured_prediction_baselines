@@ -1,5 +1,6 @@
 from typing import List, Tuple, Union, Dict, Any, Optional, cast
 from structured_prediction_baselines.modules.loss import Loss
+from structured_prediction_baselines.modules.loss.inference_net_loss import MarginBasedLoss
 from allennlp.common.checks import ConfigurationError
 from structured_prediction_baselines.modules.score_nn import ScoreNN
 from structured_prediction_baselines.modules.oracle_value_function import (
@@ -145,7 +146,7 @@ class DVNScoreLoss(Loss):
         return predicted_score
 
 
-class DVNCostAugLoss(Loss):
+class DVNLossCostAugNet(Loss):
     """
     Loss function to train DVN, typically soft BCE loss.
     """
@@ -181,9 +182,10 @@ class DVNCostAugLoss(Loss):
             x, labels, y_hat, y_hat_extra, buffer, **kwargs
         )
 
-        loss = (  self.compute_loss(predicted_score_list[0], oracle_value_list[0]) 
-                + self.compute_loss(predicted_score_list[1], oracle_value_list[1]))
-        
+        loss = self.compute_loss(predicted_score_list[0], oracle_value_list[0])
+        if predicted_score_list[1] is not None: 
+            loss += self.compute_loss(predicted_score_list[1], oracle_value_list[1])
+    
         return loss
 
     def _get_values(
@@ -214,28 +216,36 @@ class DVNCostAugLoss(Loss):
         predicted_score = self.score_nn(
             x, y_hat, buffer, **kwargs
         )  # (batch, num_samples)
-        predicted_score_extra = self.score_nn(
-            x, y_hat_extra, buffer, **kwargs
-        )  # (batch, num_samples)
-
+        
         if labels is not None:
             # For dvn we do not take gradient of oracle_score, so we detach y_hat
             oracle_score: Optional[torch.Tensor] = self.oracle_value_function(
                 labels, y_hat.detach().clone(), **kwargs
             )  # (batch, num_samples)
-            oracle_score_extra: Optional[torch.Tensor] = self.oracle_value_function(
-                labels, y_hat_extra.detach().clone(), **kwargs
-            )  # (batch, num_samples)
+            if y_hat_extra is not None:
+                oracle_score_extra: Optional[torch.Tensor] = self.oracle_value_function(
+                    labels, y_hat_extra.detach().clone(), **kwargs
+                )  # (batch, num_samples)
+            else: 
+                oracle_score_extra = None
         else:
             oracle_score = None
             oracle_score_extra = None
         
+        if y_hat_extra is not None:
+            predicted_score_extra = self.score_nn(
+                x, y_hat_extra, buffer, **kwargs
+            )  # (batch, num_samples)
+        else:
+            predicted_score_extra = None
+
         predicted_score_list = [predicted_score, predicted_score_extra]
         oracle_score_list = [oracle_score, oracle_score_extra]
         return predicted_score_list, oracle_score_list
 
 
-class DVNScoreCostAugLoss(Loss):
+
+class DVNScoreCostAugNet(Loss):
     """
     Just uses score from the score network as the objective, 
     but also train CostAug network (i.e. Cost-Augmented Network).
@@ -246,6 +256,9 @@ class DVNScoreCostAugLoss(Loss):
 
         if self.score_nn is None:
             raise ConfigurationError("score_nn cannot be None for DVNLoss")
+        ## if I want to add "weight to the infnet vs. cost-augmented net"
+        ## uncomment the following line and put it as hyperparamter.
+        # self.inference_score_weight = inference_score_weight
 
     def compute_loss(
         self,
@@ -266,9 +279,10 @@ class DVNScoreCostAugLoss(Loss):
         pred_score_infnet, pred_score_costaugnet = self._get_predicted_score(
             x, labels, y_hat, y_hat_extra, buffer, **kwargs
         )
-        
-        loss = (  self.compute_loss(pred_score_infnet) 
-                + self.compute_loss(pred_score_costaugnet))
+
+        loss = self.compute_loss(pred_score_infnet) 
+        if pred_score_costaugnet is not None:
+            loss += self.compute_loss(pred_score_costaugnet)
         return loss
 
     def _get_predicted_score(
@@ -295,12 +309,56 @@ class DVNScoreCostAugLoss(Loss):
         predicted_score_infnet = self.score_nn(
             x, y_hat, buffer, **kwargs
         )  # (batch, num_samples)
-
-        predicted_score_costaug = self.score_nn(
-            x, y_hat_extra, buffer, **kwargs
-        )  # (batch, num_samples)
+        
+        if y_hat_extra is not None:
+            predicted_score_costaug = self.score_nn(
+                x, y_hat_extra, buffer, **kwargs
+            )  # (batch, num_samples)
+        else:
+            predicted_score_costaug = None
 
         return [predicted_score_infnet, predicted_score_costaug]
 
 
 
+class DVNScoreAndCostAugLoss(MarginBasedLoss):
+    """
+    The class exclusively outputs loss (lower the better) to train the paramters of the inference net.
+    Last equation in the section 2.3 in "An Exploration of Arbitrary-Order Sequence Labeling via Energy-Based Inference Networks".
+
+    Note:
+        Right now we always drop zero truncation.
+    """
+
+    def __init__(self, inference_score_weight: float, **kwargs: Any):
+        super().__init__(**kwargs)
+        self.inference_score_weight = inference_score_weight
+
+    def _forward(
+        self,
+        x: Any,
+        labels: Optional[torch.Tensor],  # (batch, 1, ...)
+        y_hat: torch.Tensor,  # (batch, num_samples, ...) might be unnormalized
+        y_hat_extra: Optional[
+            torch.Tensor
+        ],  # (batch, num_samples, ...), might be unnormalized
+        buffer: Dict,
+        **kwargs: Any,
+    ) -> torch.Tensor:
+        y_inf = y_hat
+        y_cost_aug = y_hat_extra
+        assert buffer is not None
+        (
+            oracle_cost,
+            cost_augmented_inference_score,
+            inference_score,
+            ground_truth_score,
+        ) = self._get_values(x, labels, y_inf, y_cost_aug, buffer)
+        loss_unreduced = -(
+            oracle_cost
+            + self.compute_loss(cost_augmented_inference_score)
+            + self.inference_score_weight * self.compute_loss(inference_score)
+          # the minus sign turns this into argmin objective
+          # DVN scores are normalized by compute_loss of sigmoid.
+        ) 
+        return loss_unreduced
