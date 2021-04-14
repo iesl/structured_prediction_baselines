@@ -42,7 +42,7 @@ class InferenceNetSampler(Sampler):
         cost_augmented_layer: Optional[CostAugmentedLayer] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
-        eval_grad: bool = False,
+        eval_grad: bool = True,
         **kwargs: Any,
     ):
         assert ScoreNN is not None
@@ -79,7 +79,7 @@ class InferenceNetSampler(Sampler):
         cost_augmented_layer: Optional[CostAugmentedLayer] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
-        eval_grad: bool = False,
+        eval_grad: bool = True,
     ) -> "InferenceNetSampler":
         loss_fn_ = loss_fn.construct(
             score_nn=score_nn, oracle_value_function=oracle_value_function
@@ -216,7 +216,7 @@ class InferenceNetSampler(Sampler):
 
                         step_number += 1
                 else:
-                    y_inf, y_cost_aug = self._get_values(x, buffer)
+                    y_inf, y_cost_aug = self._get_values(x, labels, buffer)
                     self.eval_grad = True
 
             # once out of Sampler, y_inf and y_cost_aug should not get gradients
