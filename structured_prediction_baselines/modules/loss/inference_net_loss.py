@@ -25,31 +25,31 @@ class MarginBasedLoss(Loss):
     margin_types: Dict[
         str,
         Callable[
-            [torch.Tensor, torch.Tensor, torch.Tensor],
+            [torch.Tensor, float, torch.Tensor, torch.Tensor],
             torch.Tensor,
         ],
     ] = {
         "margin-rescaled-zero-truncation": (
-            lambda oracle_cost, cost_augmented_inference_score, ground_truth_score: torch.relu(
-                oracle_cost
+            lambda oracle_cost, oracle_cost_weight, cost_augmented_inference_score, ground_truth_score: torch.relu(
+                oracle_cost * (1/oracle_cost_weight)
                 - (ground_truth_score - cost_augmented_inference_score)
             )
         ),
         "slack-rescaled-zero-truncation": (
-            lambda oracle_cost, cost_augmented_inference_score, ground_truth_score: (
-                oracle_cost
+            lambda oracle_cost, oracle_cost_weight, cost_augmented_inference_score, ground_truth_score: (
+                oracle_cost * (1/oracle_cost_weight)
                 * torch.relu(
                     1.0 - (ground_truth_score - cost_augmented_inference_score)
                 )
             )
         ),
         "perceptron-zero-truncation": (
-            lambda oracle_cost, cost_augmented_inference_score, ground_truth_score: torch.relu(
+            lambda oracle_cost, oracle_cost_weight, cost_augmented_inference_score, ground_truth_score: torch.relu(
                 cost_augmented_inference_score - ground_truth_score
             )
         ),
         "contrastive-zero-truncation": (
-            lambda oracle_cost, cost_augmented_inference_score, ground_truth_score: torch.relu(
+            lambda oracle_cost, oracle_cost_weight, cost_augmented_inference_score, ground_truth_score: torch.relu(
                 1.0 - (ground_truth_score - cost_augmented_inference_score)
             )
         ),
@@ -59,6 +59,7 @@ class MarginBasedLoss(Loss):
         self,
         score_nn: ScoreNN,
         oracle_value_function: OracleValueFunction,
+        oracle_cost_weight: float = 1.0,
         reduction: Optional[str] = "none",
         normalize_y: bool = True,
         margin_type: str = "margin-rescaled-zero-truncation",
@@ -88,6 +89,11 @@ class MarginBasedLoss(Loss):
             raise ConfigurationError(
                 f"margin_type must be one of {self.margin_types}"
             )
+
+        if oracle_cost_weight == 0:
+            raise ConfigurationError("oracle_cost_weight must be non zero")
+
+        self.oracle_cost_weight = oracle_cost_weight
         self.margin_type = margin_type
         self.perceptron_loss_weight = perceptron_loss_weight
 
@@ -112,7 +118,7 @@ class MarginBasedLoss(Loss):
             ground_truth_score,
         ) = self._get_values(x, labels, y_inf, y_cost_aug, buffer)
         loss_unreduced = self.margin_types[self.margin_type](
-            oracle_cost, cost_aug_score, ground_truth_score
+            oracle_cost, self.oracle_cost_weight, cost_aug_score, ground_truth_score
         )
 
         if self.perceptron_loss_weight:
@@ -179,12 +185,9 @@ class InferenceLoss(MarginBasedLoss):
         Right now we always drop zero truncation.
     """
 
-    def __init__(self, inference_score_weight: float, oracle_cost_weight: float, **kwargs: Any):
+    def __init__(self, inference_score_weight: float, **kwargs: Any):
         super().__init__(**kwargs)
         self.inference_score_weight = inference_score_weight
-        if oracle_cost_weight == 0:
-            raise ConfigurationError("oracle_cost_weight must be non zero")
-        self.oracle_cost_weight = oracle_cost_weight
 
     def _forward(
         self,
