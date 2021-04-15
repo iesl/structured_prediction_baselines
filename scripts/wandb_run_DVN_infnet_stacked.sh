@@ -43,7 +43,7 @@ export margin_based_loss_weight=0.5
 wandb_allennlp --subcommand=train \
   --config_file=./model_configs/multilabel_classification/bibtex_inference_net_wDVN_stacked.jsonnet \
   --include-package=structured_prediction_baselines \
-  --wandb_run_name=bibtex_inference_net_wDVN_stacked_fixed \
+  --wandb_run_name=bibtex_inference_net_wDVN_stacked_diffmargin \
   --wandb_project structured_prediction_baselines \
   --wandb_entity score-based-learning \
   --wandb_tags="bibtex,infnet_wDVN_stacked,without_sampling"

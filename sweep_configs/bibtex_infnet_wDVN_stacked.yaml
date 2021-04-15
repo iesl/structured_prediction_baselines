@@ -1,4 +1,4 @@
-name: bibtex_inference_net_wDVN_stacked_modified
+name: bibtex_inference_net_wDVN_stacked_diffmargin
 program: wandb_allennlp
 method: bayes
 command:

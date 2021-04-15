@@ -93,6 +93,26 @@ class Loss(torch.nn.Module, Registrable):
         """
         raise NotImplementedError
 
+@Loss.register("zero-loss")
+class ZeroLoss(Loss):
+    """
+    Loss function to give zero signal to DVN
+    """
+    def __init__(self, **kwargs: Any):
+        super().__init__(**kwargs)        
+
+    def _forward(
+        self,
+        x: Any,
+        labels: Optional[torch.Tensor],  # (batch, 1, ...)
+        y_hat: torch.Tensor,  # (batch, num_samples, ...)
+        y_hat_extra: Optional[torch.Tensor],  # (batch, num_samples)
+        buffer: Dict,
+        **kwargs: Any,
+    ) -> torch.Tensor:
+        return 0
+
+
 
 @Loss.register("combination-loss")
 class CombinationLoss(Loss):
