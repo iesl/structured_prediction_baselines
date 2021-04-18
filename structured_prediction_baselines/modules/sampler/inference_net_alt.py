@@ -212,11 +212,9 @@ class InferenceNetSampler(Sampler):
                         loss_values.append(float(loss_value))
 
                         step_number += 1
-                    print("inference_net eval_grad")
                     self._eval_grad = False
                 else:
                     y_inf, y_cost_aug = self._get_values(x, labels, buffer)
-                    print("!inference net eval_grad")
                     self._eval_grad = True
 
             # once out of Sampler, y_inf and y_cost_aug should not get gradients

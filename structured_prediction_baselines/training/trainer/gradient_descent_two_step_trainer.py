@@ -187,14 +187,12 @@ class GradientDescentNStepTrainer(GradientDescentTrainer):
                         world_size=self._world_size,
                         cuda_device=self.cuda_device,
                     )
-                    print("trainer eval_grad")
                     self._eval_grad = False
                 else:
                     for batch in batch_group:
                         with amp.autocast(self._use_amp):
                             self.batch_outputs(batch, for_training=False)
                     self._eval_grad = True
-                    print("!trainer eval_grad")
 
                 step_number += 1
 
