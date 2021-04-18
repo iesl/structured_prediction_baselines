@@ -57,8 +57,11 @@ class MultilabelClassification(ScoreBasedLearningModel):
 
         if not self.inference_module.is_normalized:
             y_hat_n = torch.sigmoid(y_hat)
-            self.relaxed_f1(y_hat_n, labels)
-            self.f1(y_hat_n, labels)
+        else:
+            y_hat_n = y_hat
+
+        self.relaxed_f1(y_hat_n, labels)
+        self.f1(y_hat_n, labels)
 
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
 
