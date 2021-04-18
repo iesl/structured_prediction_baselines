@@ -3,6 +3,7 @@ from structured_prediction_baselines.modules.loss import DVNLossCostAugNet, DVNL
 import torch
 
 
+
 @Loss.register("multi-label-dvn-bce")
 class MultiLabelDVNCrossEntropyLoss(DVNLoss):
     def compute_loss(
@@ -41,3 +42,24 @@ class MultiLabelDVNCostAugCrossEntropyLoss(DVNLossCostAugNet):
             oracle_value,
             reduction=self.reduction,
         )
+
+@Loss.register("zero-dvn-loss")
+class ZeroLoss(MultiLabelDVNCrossEntropyLoss):
+    """
+    Loss function to give zero signal to DVN
+    """
+    def __init__(self, **kwargs: Any):
+        super().__init__(**kwargs)        
+
+    def forward(
+        self,
+        x: Any,
+        labels: Optional[torch.Tensor],  # (batch, 1, ...)
+        y_hat: torch.Tensor,  # (batch, num_samples, ...)
+        y_hat_extra: Optional[torch.Tensor],  # (batch, num_samples)
+        buffer: Dict,
+        **kwargs: Any,
+    ) -> torch.Tensor:
+        return 0 * super().forward(
+                x, labels, y_hat, y_hat_extra, buffer, **kwargs
+                )

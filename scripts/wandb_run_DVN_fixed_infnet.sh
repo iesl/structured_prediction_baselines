@@ -31,7 +31,7 @@ export score_loss_weight=1
 #   --config_file=model_configs/multilabel_classification/Infnet_wDVN.config \
 ## running with config file.
 wandb_allennlp --subcommand=train \
-  --config_file=./model_configs/multilabel_classification/bibtex_inference_net_wDVN.jsonnet \
+  --config_file=./model_configs/multilabel_classification/bibtex_inference_net_wDVN_fixed.jsonnet \
   --include-package=structured_prediction_baselines \
   --wandb_run_name=bibtex_inference_net_wDVN \
   --wandb_project structured_prediction_baselines \
