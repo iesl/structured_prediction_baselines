@@ -158,6 +158,13 @@ local cross_entorpy_loss_weight = 1;
     callbacks: [
       'track_epoch_callback',
       {
+        type: 'lossweight-set-callback',
+        loss_idx_list: [0],
+        epoch_to_turn_on: [8],
+      },
+    ] + [
+      'track_epoch_callback',
+      {
         type: 'tensorboard-custom',
         tensorboard_writer: {
           should_log_learning_rate: true,
