@@ -1,5 +1,8 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
-from structured_prediction_baselines.modules.sampler import Sampler
+from structured_prediction_baselines.modules.sampler import (
+    Sampler,
+    SamplerModifier,
+)
 import torch
 from structured_prediction_baselines.modules.score_nn import ScoreNN
 from structured_prediction_baselines.modules.oracle_value_function import (
@@ -40,3 +43,15 @@ class MultilabelClassificationSampler(Sampler):
             self.task_nn(x, buffer=buffer).unsqueeze(1),
             None,
         )  # unormalized logits (batch, 1, ...)
+
+
+@SamplerModifier.register("multi-label-normalize")
+class MultiLabelNormalize(SamplerModifier):
+    def __call__(
+        self, samples: torch.Tensor, samples_extra: torch.Tensor
+    ) -> torch.Tensor:
+        return torch.sigmoid(samples)
+
+    @property
+    def is_normalized(self) -> bool:
+        return True

@@ -10,3 +10,6 @@ class MultiLabelDVNScoreLoss(DVNScoreLoss):
         predicted_score: torch.Tensor,  # logits of shape (batch, num_samples)
     ) -> torch.Tensor:
         return -torch.sigmoid(predicted_score)
+
+    def normalize(self, y: torch.Tensor) -> torch.Tensor:
+        return torch.sigmoid(y)

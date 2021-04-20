@@ -77,6 +77,7 @@ class InferenceNetSampler(Sampler):
         cost_augmented_layer: Optional[CostAugmentedLayer] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
+        **kwargs: Any,
     ) -> "InferenceNetSampler":
         loss_fn_ = loss_fn.construct(
             score_nn=score_nn, oracle_value_function=oracle_value_function
@@ -101,6 +102,7 @@ class InferenceNetSampler(Sampler):
             cost_augmented_layer=cost_augmented_layer,
             oracle_value_function=oracle_value_function,
             stopping_criteria=stopping_criteria,
+            **kwargs,
         )
 
     def get_loss_fn(
@@ -180,6 +182,7 @@ class InferenceNetSampler(Sampler):
         buffer: Dict,
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+
         if labels is None or (not self.training):
             y_inf: torch.Tensor = self.inference_nn(x, buffer).unsqueeze(
                 1
