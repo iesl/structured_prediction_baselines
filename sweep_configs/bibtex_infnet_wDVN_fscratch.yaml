@@ -18,7 +18,7 @@ parameters:
   env.ff_dropout:
     values: [0.1, 0.2, 0.3, 0.4, 0.5]
   model.sampler.stopping_criteria:
-    values: [3,5,7,9,10,11]
+    values: [7,10,13,15]
   env.ff_linear_layers:
     values: [2, 3, 4, 5]
   env.score_loss_weight:

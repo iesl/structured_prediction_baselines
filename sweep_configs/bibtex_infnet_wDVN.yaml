@@ -1,11 +1,11 @@
-name: bibtex_inference_net_wDVN
+name: bibtex_inference_net_wDVN_TaskNNwarmup
 program: wandb_allennlp
-method: bayes
+method: random
 command:
   - ${program}
   - "--subcommand=train"
   - "--include-package=structured_prediction_baselines"
-  - "--config_file=model_configs/multilabel_classification/bibtex_inference_net_wDVN_fscratch.jsonnet"
+  - "--config_file=model_configs/multilabel_classification/bibtex_inference_net_wDVN.jsonnet"
   - "--wandb_project structured_prediction_baselines"
   - "--wandb_entity score-based-learning"
   - "--wandb_tags=task=mlc,model=dvn,sampler=inference_net,dataset=bibtex"
@@ -16,7 +16,7 @@ metric:
   goal: maximize
 parameters:
   env.ff_dropout:
-    values: [0.1, 0.2, 0.3, 0.4, 0.5]
+    values: [0.2, 0.3, 0.4, 0.5]
   model.sampler.stopping_criteria:
     values: [3,5,7,9,10,11]
   env.ff_linear_layers:
@@ -24,7 +24,7 @@ parameters:
   env.score_loss_weight:
     min: 0
     max: 1
-    distribution: uniform
+    distribution: uniform  
   trainer.optimizer.lr:
     min: -5.0
     max: 0
