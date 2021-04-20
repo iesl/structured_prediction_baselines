@@ -5,7 +5,7 @@ command:
   - ${program}
   - "--subcommand=train"
   - "--include-package=structured_prediction_baselines"
-  - "--config_file=model_configs/multilabel_classification/bibtex_inference_net_wDVN.jsonnet"
+  - "--config_file=model_configs/multilabel_classification/bibtex_inference_net_wDVN_fscratch.jsonnet"
   - "--wandb_project structured_prediction_baselines"
   - "--wandb_entity score-based-learning"
   - "--wandb_tags=task=mlc,model=dvn,sampler=inference_net,dataset=bibtex"
