@@ -93,9 +93,11 @@ local cross_entorpy_loss_weight = std.parseJson(std.extVar('cross_entorpy_loss_w
         { type: 'ground-truth' },
         // Inference Net/ TaskNN
         {
-          type: 'multi-label-inference-net-normalized',
+          type: 'multi-label-inference-net-normalized-or-sampled',
+          num_samples: 10,
+          keep_probs: true,
           optimizer: {
-            lr: 0.001,
+            lr: 0.0001,
             weight_decay: 0,
             type: 'adamw',
           },
@@ -129,7 +131,7 @@ local cross_entorpy_loss_weight = std.parseJson(std.extVar('cross_entorpy_loss_w
             loss_weights: [1.0, cross_entorpy_loss_weight],
             reduction: 'sum',
           },
-          stopping_criteria: 5,
+          stopping_criteria: 2,
         },
       ],
     },

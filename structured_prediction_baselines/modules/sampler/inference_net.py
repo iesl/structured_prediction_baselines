@@ -95,8 +95,8 @@ class InferenceNetSampler(Sampler):
         )
 
         return cls(
-            optimizer_,
-            loss_fn_,
+            optimizer=optimizer_,
+            loss_fn=loss_fn_,
             inference_nn=inference_nn,
             score_nn=score_nn,
             cost_augmented_layer=cost_augmented_layer,

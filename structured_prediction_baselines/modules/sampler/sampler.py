@@ -65,7 +65,7 @@ class Sampler(torch.nn.Module, Registrable):
         return self._different_training_and_eval
 
 
-class SamplerModifier(Registrable):
+class SamplerModifier(torch.nn.Module, Registrable):
     """Takes in samples and modifies them to produce
     samples again. Example use cases include:
 
@@ -73,13 +73,17 @@ class SamplerModifier(Registrable):
         2. Normalizing unnormalized samples.
     """
 
-    def __call__(
+    def forward(
         self, samples: torch.Tensor, samples_extra: torch.Tensor
     ) -> torch.Tensor:
         raise NotImplementedError
 
     @property
     def is_normalized(self) -> bool:
+        raise NotImplementedError
+
+    @property
+    def different_training_and_eval(self) -> bool:
         raise NotImplementedError
 
 
@@ -285,6 +289,13 @@ class SamplerWithModifier(Sampler):
         self.sampler_modifier = sampler_modifier
 
     @property
+    def different_training_and_eval(self) -> bool:
+        return (
+            self.constituent_sampler.different_training_and_eval
+            or self.sampler_modifier.different_training_and_eval
+        )
+
+    @property
     def is_normalized(self) -> bool:
         if self.sampler_modifier:
             return self.sampler_modifier.is_normalized
@@ -315,7 +326,7 @@ class SamplerFromContainer(Sampler):
 
     def __init__(
         self,
-        main_sampler: Lazy[SamplerContainer],
+        main_sampler: SamplerContainer,
         index: int = -1,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
