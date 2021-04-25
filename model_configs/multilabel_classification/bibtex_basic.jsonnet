@@ -71,16 +71,16 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
     batch_size: 64,
   },
   trainer: {
-    num_epochs: if test == '1' then 5 else 100,
+    num_epochs: if test == '1' then 5 else 200,
     //grad_norm: 10.0,
-    patience: 8,
+    patience: 10,
     validation_metric: '+fixed_f1',
     cuda_device: std.parseInt(cuda_device),
     learning_rate_scheduler: {
       type: 'reduce_on_plateau',
       factor: 0.5,
       mode: 'max',
-      patience: 2,
+      patience: 3,
       verbose: true,
     },
     optimizer: {
