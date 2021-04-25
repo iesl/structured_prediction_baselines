@@ -2,18 +2,21 @@ from typing import List, Tuple, Union, Dict, Any, Optional
 import torch
 from allennlp.common.lazy import Lazy
 from allennlp.common.checks import ConfigurationError
+# from allennlp.training.callbacks import TrainerCallback, TrackEpochCallback
 
 from allennlp.training.trainer import (
-    TrainerCallback, # shouldn't it be #from allennlp.training.callbacks.callback import TrainerCallback 
     GradientDescentTrainer,
+    TrainerCallback,
+    TrackEpochCallback,
 )
+
 import warnings
 import logging
 
 logger = logging.getLogger(__name__)
 
 @TrainerCallback.register("lossweight-set-callback")
-class TurnOnLossAfterEpochs(TrainerCallback):
+class TurnOnLossAfterEpochs(TrackEpochCallback):
     """
     This callback sets provided loss index (losses in the loss_idx_list) 
     to be turned on/off if `model.epoch`> self.epoch_to_turn_on which can be read inside `forward()`. 
@@ -25,11 +28,10 @@ class TurnOnLossAfterEpochs(TrainerCallback):
         serialization_dir: str,
         loss_idx_list: Optional[List[int]] = None,
         epoch_to_turn_on: Optional[List[int]]=None,
-        initial_weight_list: None,
+        initial_weight_list: Optional[List[int]]=None,
     ) -> None:
         super().__init__(
             serialization_dir=serialization_dir,
-            tensorboard_writer=tensorboard_writer,
         )
         self.loss_idx_list = loss_idx_list
         self.epoch_to_turn_on = epoch_to_turn_on
@@ -51,7 +53,7 @@ class TurnOnLossAfterEpochs(TrainerCallback):
             )
 
     def get_loss_weights_then_set0(self, trainer: "GradientDescentTrainer"):
-        for idx in self.loss_idx_list:
+        for loss_idx in self.loss_idx_list:
             self.initial_weight_list[loss_idx] = trainer.model.sampler.loss_fn.loss_weights[loss_idx] 
             trainer.model.sampler.loss_fn.loss_weights[loss_idx]  = 0
 
@@ -61,7 +63,7 @@ class TurnOnLossAfterEpochs(TrainerCallback):
     def on_start(
         self, trainer: "GradientDescentTrainer", is_primary: bool = True, **kwargs
     ) -> None:
-        super().on_start(trainer, is_primary) # --> trainer.model.epoch = 0  # type: ignore[assignment]
+        super().on_start(trainer, is_primary,**kwargs) # --> trainer.model.epoch = 0  # type: ignore[assignment]
         self.get_loss_weights_then_set0(trainer)
 
     def on_epoch(
@@ -75,7 +77,7 @@ class TurnOnLossAfterEpochs(TrainerCallback):
         """
         Overriding on_epoch to control the weights.
         """
-        super.on_epoch() # --> trainer.model.epoch = epoch + 1  # type: ignore[assignment]
+        super().on_epoch(trainer, metrics, epoch, is_primary,**kwargs) # --> trainer.model.epoch = epoch + 1  # type: ignore[assignment]
         if self.loss_idx_list is not None and self.epoch_to_turn_on is not None:
             for i, epoch_thresh in enumerate(self.epoch_to_turn_on):
                 if trainer.model.epoch > epoch_thresh:

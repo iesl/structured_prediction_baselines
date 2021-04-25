@@ -11,7 +11,7 @@ local num_input_features = dataset_metadata.input_features;
 // model variables 
 // score_loss_weight (small to large) & learning rate & cross_entorpy_loss_weight=1
 // DVN model variables (hyperparameter sweep on: ff_linear_layers (2,3,4,5), inference_score_weight, cross_entorpy_loss_weight)
-local ff_hidden = 150; // std.parseJson(std.extVar('ff_hidden')); // pre-trained 150
+local ff_hidden = 150; //std.parseJson(std.extVar('ff_hidden'));
 local label_space_dim = ff_hidden;
 local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
 local ff_dropout_score = 0.3;                // std.parseJson(std.extVar('ff_dropout'));
@@ -23,8 +23,11 @@ local global_score_hidden_dim = 200;            // local global_score_hidden_dim
 // local inf_lr = std.parseJson(std.extVar('inf_lr'));                      --> used in orig DVN sampler but not used here.
 // local inf_optim = std.parseJson(std.extVar('inf_optim'));                --> used in orig DVN sampler but not used here.
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
-local score_loss_weight = std.parseJson(std.extVar('score_loss_weight'));
+// local score_loss_weight = std.parseJson(std.extVar('score_loss_weight')); 
 local cross_entorpy_loss_weight = 1;
+local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
+local margin_based_loss_weight = std.parseJson(std.extVar('margin_based_loss_weight'));
+local oracle_cost_weight = std.parseJson(std.extVar('oracle_cost_weight'));
 
 // ToDo:
 // 1. turn off the optimizer score_NN.
@@ -56,10 +59,11 @@ local cross_entorpy_loss_weight = 1;
     sampler: {
       type: 'inference-network',
       optimizer: {
-        lr: 0.001,
+        lr: 0.0005,
         weight_decay: 1e-4,
         type: 'adam',
       },
+      oracle_value_function: { type: 'per-instance-f1', differentiable: true },
       inference_nn: {
         type: 'multi-label-classification',
         feature_network: {
@@ -74,24 +78,36 @@ local cross_entorpy_loss_weight = 1;
           vocab_namespace: 'labels',
         },
       },
+      cost_augmented_layer: {
+        type: 'multi-label-stacked',
+        feedforward: {
+          input_dim: 2 * num_labels,
+          num_layers: 2,
+          activations: [ff_activation, 'linear'],
+          hidden_dims: num_labels,
+        },
+        normalize_y: true,
+      },
       loss_fn: {
         type: 'combination-loss',
         constituent_losses: [
           {
-            type: 'multi-label-dvn-score',
+            type: 'multi-label-dvn-plus-ca-loss',
+            inference_score_weight: inference_score_weight,
+            oracle_cost_weight: oracle_cost_weight,
             reduction: 'none',
           },  //This loss can be different from the main loss // change this
           {
-            type: 'multi-label-bce',
+            type: 'multi-label-bce', //cross entropy loss.
             reduction: 'none',
           },
-        ],
-        loss_weights: [score_loss_weight, cross_entorpy_loss_weight],
+        ], //xtropy weight set to 1 for now.
+        loss_weights: [margin_based_loss_weight, cross_entorpy_loss_weight], 
         reduction: 'mean',
       },
       stopping_criteria: 10,
     },
-    oracle_value_function: { type: 'per-instance-f1' },
+    // oracle_value_function: { type: 'per-instance-f1' },
     score_nn: {
       type: 'multi-label-classification',
       task_nn: {
@@ -119,8 +135,9 @@ local cross_entorpy_loss_weight = 1;
       },
     },
     loss_fn: { // for maximzing score (in SPEN, min step of energy)
-      type: 'multi-label-dvn-bce',
+      type: 'multi-label-dvn-ca-bce',
       reduction: 'mean',
+      oracle_value_function: { type: 'per-instance-f1', differentiable: false },
     },
     initializer: {
       regexes: [
@@ -148,7 +165,7 @@ local cross_entorpy_loss_weight = 1;
       verbose: true,
     },
     optimizer: {
-      lr: 0.001,
+      lr: 0.8,
       weight_decay: 1e-4,
       type: 'adam',
     },

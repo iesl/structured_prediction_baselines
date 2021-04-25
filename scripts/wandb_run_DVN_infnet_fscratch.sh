@@ -17,7 +17,6 @@ export ff_linear_layers=2
 export ff_weight_decay=0.1
 export score_loss_weight=1
 
-
 #wandb_allennlp --subcommand=train \
 # --config_file=model_configs/<path_to_config_file> \
 # --include-package=structured_prediction_baselines \

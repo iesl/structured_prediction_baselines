@@ -1,11 +1,11 @@
-name: bibtex_inference_net_wDVN_fscractch
+name: bibtex_inference_net_wDVN_stacked_fscractch
 program: wandb_allennlp
 method: random
 command:
   - ${program}
   - "--subcommand=train"
   - "--include-package=structured_prediction_baselines"
-  - "--config_file=model_configs/multilabel_classification/bibtex_inference_net_wDVN_fscratch.jsonnet"
+  - "--config_file=model_configs/multilabel_classification/bibtex_inference_net_wDVN_stacked_fscratch.jsonnet"
   - "--wandb_project structured_prediction_baselines"
   - "--wandb_entity score-based-learning"
   - "--wandb_tags=task=mlc,scoreNN=dvn_scratch,taskNN=inference_net,dataset=bibtex"
@@ -20,9 +20,21 @@ parameters:
   env.ff_dropout_score:
     values: [0.1, 0.2, 0.3, 0.4, 0.5]
   model.sampler.stopping_criteria:
-    values: [7,10,13,15]
+    values: [5,7,10,13,15]
+  env.margin_based_loss_weight:
+    min: 0
+    max: 2
+    distribution: uniform
+  env.inference_score_weight:
+    min: 0
+    max: 5
+    distribution: uniform
+  env.oracle_cost_weight:
+    min: 0.1
+    max: 5
+    distribution: uniform
   env.ff_linear_layers:
-    values: [2, 3, 4, 5]
+    values: [2, 3, 4]
   env.ff_linear_layers_score:
     values: [2, 3, 4]
   env.ff_hidden:
