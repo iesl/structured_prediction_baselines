@@ -63,6 +63,9 @@ class Sampler(torch.nn.Module, Registrable):
     def different_training_and_eval(self) -> bool:
         return self._different_training_and_eval
 
+    def get_metrics(self):
+        raise NotImplementedError
+
 
 @Sampler.register(
     "appending-container", constructor="from_partial_constituent_samplers"
@@ -127,6 +130,12 @@ class AppendingSamplerContainer(Sampler):
 
         return all_samples, None
 
+    def get_metrics(self):
+        metrics = {}
+        for sampler in self.constituent_samplers:
+            metrics.update(sampler.get_metrics())
+
+        return metrics
 
 @Sampler.register(
     "random-picking-container", constructor="from_partial_constituent_samplers"
@@ -193,3 +202,10 @@ class RandomPickingSamplerContainer(Sampler):
         )
 
         return sampler(x, labels, buffer, **kwargs)
+
+    def get_metrics(self):
+        metrics = {}
+        for sampler in self.constituent_samplers:
+            metrics.update(sampler.get_metrics())
+
+        return metrics
