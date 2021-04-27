@@ -25,9 +25,6 @@ logger = logging.getLogger(__name__)
 
 @Trainer.register("gradient_descent_custom", constructor="from_partial_objects")
 class GradientDescentCustomTrainer(GradientDescentTrainer):
-    """
-
-    """
 
     def __init__(self, model: Model, optimizer: torch.optim.Optimizer,
                  data_loader: DataLoader, **kwargs):
