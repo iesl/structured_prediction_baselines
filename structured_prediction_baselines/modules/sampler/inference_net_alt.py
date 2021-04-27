@@ -11,6 +11,7 @@ from typing import (
     Generator,
 )
 
+import numpy as np
 import torch
 from allennlp.common.lazy import Lazy
 from allennlp.training.optimizers import Optimizer
@@ -212,6 +213,8 @@ class InferenceNetSampler(Sampler):
                         loss_values.append(float(loss_value))
 
                         step_number += 1
+                    self._metrics['sampler_loss'] = np.mean(loss_values)
+                    self._total_loss += np.mean(loss_values)
                     self._eval_grad = False
                 else:
                     y_inf, y_cost_aug = self._get_values(x, labels, buffer)
@@ -276,3 +279,10 @@ class InferenceNetSampler(Sampler):
             y_cost_aug = None
 
         return y_inf, y_cost_aug
+
+    def get_metrics(self, reset: bool = False) -> dict:
+        metrics = self.metrics
+        metrics['total_sampler_loss'] = self._total_loss
+        if reset:
+            self._metrics = {}
+        return metrics

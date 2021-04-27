@@ -23,6 +23,7 @@ from allennlp.training.optimizers import Optimizer
 from torch.cuda import amp
 
 from structured_prediction_baselines.modules.stopping_criteria import StoppingCriteria, StopAfterNumberOfSteps
+from structured_prediction_baselines.training import utils
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +178,7 @@ class GradientDescentNStepTrainer(GradientDescentTrainer):
                         self._moving_average.apply(batch_num_total)
 
                     # Update the description with the latest metrics
-                    metrics = training_util.get_metrics(
+                    metrics = utils.get_metrics(
                         self.model,
                         train_loss,
                         train_reg_loss,
@@ -231,7 +232,7 @@ class GradientDescentNStepTrainer(GradientDescentTrainer):
         if self._distributed:
             dist.barrier()
 
-        metrics = training_util.get_metrics(
+        metrics = utils.get_metrics(
             self.model,
             train_loss,
             train_reg_loss,
