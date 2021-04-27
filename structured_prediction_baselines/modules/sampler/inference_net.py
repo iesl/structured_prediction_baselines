@@ -283,7 +283,7 @@ class InferenceNetSampler(Sampler):
         return y_inf, y_cost_aug
 
     def get_metrics(self, reset: bool = False):
-        metrics = self.metrics
+        metrics = self._metrics
         metrics['total_sampler_loss'] = self._total_loss
         if reset:
             self._metrics = {}
