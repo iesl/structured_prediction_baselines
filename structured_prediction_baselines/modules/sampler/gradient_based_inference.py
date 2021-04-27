@@ -458,6 +458,8 @@ class GradientBasedInferenceSampler(Sampler):
             )
 
         # print(f"\nloss_values:\n{loss_values}")
+        self._metrics['sampler_loss'] = np.mean(loss_values)
+        self._total_loss += np.mean(loss_values)
 
         return (
             self.get_samples_from_trajectory(
@@ -465,3 +467,10 @@ class GradientBasedInferenceSampler(Sampler):
             ),  # (batch, num_samples, ...)
             torch.tensor(loss_values),
         )
+
+    def get_metrics(self, reset: bool = False) -> dict:
+        metrics = self.metrics
+        metrics['total_sampler_loss'] = self._total_loss
+        if reset:
+            self._metrics = {}
+        return metrics

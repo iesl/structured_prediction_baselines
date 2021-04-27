@@ -40,3 +40,6 @@ class MultilabelClassificationSampler(Sampler):
             self.inference_nn(x, buffer=buffer).unsqueeze(1),
             None,
         )  # unormalized logits (batch, 1, ...)
+
+    def get_metrics(self, reset: bool = False) -> dict:
+        pass
