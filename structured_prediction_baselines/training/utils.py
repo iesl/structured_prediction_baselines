@@ -24,6 +24,6 @@ def get_metrics(
     sampler_loss = metrics.get('sampler_loss', None)
     if sampler_loss is not None:
         metrics["batch_sampler_loss"] = sampler_loss
-        metrics["sampler_loss"] = float(metrics['total_sampler_loss'] / num_batches) if num_batches > 0 else 0.0
-
+        # metrics["sampler_loss"] = float(metrics['total_sampler_loss'] / num_batches) if num_batches > 0 else 0.0
+        metrics.pop('sampler_loss')
     return metrics
