@@ -42,6 +42,7 @@ class Sampler(torch.nn.Module, Registrable):
         self._metrics = {}
         self._total_loss = 0.0
         self._num_batches = 0
+        self.name = 'sampler'
 
     @property
     def is_normalized(self) -> bool:
@@ -135,13 +136,11 @@ class AppendingSamplerContainer(Sampler):
 
     def get_metrics(self, reset: bool = False):
         metrics = {}
-        i = 0
         for sampler in self.constituent_samplers:
-            sampler_metrics = sampler.get_metrics(reset)
-            if 'sampler_loss' in sampler_metrics:
-                metrics['sampler{i}_loss'.format(i=i)] = sampler_metrics['sampler_loss']
+            metrics.update(sampler.get_metrics(reset))
 
         return metrics
+
 
 @Sampler.register(
     "random-picking-container", constructor="from_partial_constituent_samplers"

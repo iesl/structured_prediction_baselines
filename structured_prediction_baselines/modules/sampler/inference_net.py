@@ -62,7 +62,7 @@ class InferenceNetSampler(Sampler):
             )
         else:
             self.stopping_criteria = stopping_criteria
-        self.eval_grad = eval_grad
+        self.name = 'inf_net'
 
     @property
     def is_normalized(self) -> bool:
@@ -203,25 +203,21 @@ class InferenceNetSampler(Sampler):
                 step_number = 0
                 loss_value: Union[torch.Tensor, float] = float("inf")
 
-                if self.eval_grad:
-                    while not self.stopping_criteria(
-                        step_number, float(loss_value)
-                    ):
-                        self.optimizer.zero_grad(set_to_none=True)
-                        y_inf, y_cost_aug = self._get_values(x, labels, buffer)
-                        loss_value = self.update(
-                            y_inf, y_cost_aug, buffer, loss_fn
-                        )
-
-                        loss_values.append(float(loss_value))
-
-                        step_number += 1
-                    self._metrics['inf_net_loss'] = np.mean(loss_values)
-                    self._total_loss += np.mean(loss_values)
-                    self._num_batches += 1
-                else:
+                while not self.stopping_criteria(
+                    step_number, float(loss_value)
+                ):
+                    self.optimizer.zero_grad(set_to_none=True)
                     y_inf, y_cost_aug = self._get_values(x, labels, buffer)
-                    self.eval_grad = True
+                    loss_value = self.update(
+                        y_inf, y_cost_aug, buffer, loss_fn
+                    )
+
+                    loss_values.append(float(loss_value))
+
+                    step_number += 1
+                self._metrics[self.name + '_loss'] = np.mean(loss_values)
+                self._total_loss += np.mean(loss_values)
+                self._num_batches += 1
 
             # once out of Sampler, y_inf and y_cost_aug should not get gradients
             return (
@@ -285,10 +281,11 @@ class InferenceNetSampler(Sampler):
 
     def get_metrics(self, reset: bool = False):
         metrics = self._metrics
-        metrics['total_inf_net_loss'] = float(self._total_loss / self._num_batches) if self._num_batches > 0 else 0.0
+        metrics['total_' + self.name + '_loss'] = float(
+            self._total_loss / self._num_batches) if self._num_batches > 0 else 0.0
         if reset:
             self._metrics = {}
             self._total_loss = 0.0
             self._num_batches = 0
-            metrics.pop('inf_net_loss', None)
+            metrics.pop(self.name + '_loss', None)
         return metrics
