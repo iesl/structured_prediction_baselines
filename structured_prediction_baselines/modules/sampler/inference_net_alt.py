@@ -81,6 +81,7 @@ class InferenceNetSampler(Sampler):
         cost_augmented_layer: Optional[CostAugmentedLayer] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
+        name: str = 'inf_net',
     ) -> "InferenceNetSampler":
         loss_fn_ = loss_fn.construct(
             score_nn=score_nn, oracle_value_function=oracle_value_function
@@ -105,6 +106,7 @@ class InferenceNetSampler(Sampler):
             cost_augmented_layer=cost_augmented_layer,
             oracle_value_function=oracle_value_function,
             stopping_criteria=stopping_criteria,
+            name=name
         )
 
     def get_loss_fn(
