@@ -249,11 +249,13 @@ class GradientBasedInferenceSampler(Sampler):
         sample_picker: SamplePicker = None,
         number_init_samples: int = 1,
         random_mixing_in_init: float = 0.5,
+        name: str = 'gbi',
         **kwargs: Any,
     ):
         super().__init__(
             score_nn,
             oracle_value_function,
+            name
         )
         self.loss_fn = loss_fn
         assert self.loss_fn.reduction == "none", "We do reduction or our own"
@@ -263,7 +265,6 @@ class GradientBasedInferenceSampler(Sampler):
         self.output_space = output_space
         self.number_init_samples = number_init_samples
         self.random_mixing_in_init = random_mixing_in_init
-        self.name = 'gbi'
         self._different_training_and_eval = True
 
     @classmethod
@@ -441,7 +442,6 @@ class GradientBasedInferenceSampler(Sampler):
             labels = labels.unsqueeze(1)
         # switch of gradients on parameters using context manager
         with self.no_param_grad():
-
             loss_fn = self.get_loss_fn(
                 x,
                 labels,
