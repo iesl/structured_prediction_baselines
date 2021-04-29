@@ -279,6 +279,7 @@ class GradientBasedInferenceSampler(Sampler):
         sample_picker: SamplePicker = None,
         number_init_samples: int = 1,
         random_mixing_in_init: float = 0.5,
+        name: str = 'gbi',
     ) -> "GradientBasedInferenceSampler":
         loss_fn_ = loss_fn.construct(
             score_nn=score_nn, oracle_value_function=oracle_value_function
@@ -294,6 +295,7 @@ class GradientBasedInferenceSampler(Sampler):
             sample_picker=sample_picker,
             number_init_samples=number_init_samples,
             random_mixing_in_init=random_mixing_in_init,
+            name=name
         )
 
     def get_loss_fn(
