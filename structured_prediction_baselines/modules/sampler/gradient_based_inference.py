@@ -473,4 +473,6 @@ class GradientBasedInferenceSampler(Sampler):
         # metrics['total_sampler_loss'] = self._total_loss
         if reset:
             self._metrics = {}
+            self._total_loss = 0.0
+            metrics.pop('sampler_loss', None)
         return metrics

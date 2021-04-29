@@ -21,9 +21,10 @@ def get_metrics(
     """
     metrics = training_util.get_metrics(
         model, total_loss, total_reg_loss, batch_loss, batch_reg_loss, num_batches, reset, world_size, cuda_device)
-    sampler_loss = metrics.get('sampler_loss', None)
-    if sampler_loss is not None:
-        metrics["batch_sampler_loss"] = sampler_loss
-        # metrics["sampler_loss"] = float(metrics['total_sampler_loss'] / num_batches) if num_batches > 0 else 0.0
+    if 'sampler_loss' in metrics:
+        metrics["batch_sampler_loss"] = metrics['sampler_loss']
         metrics.pop('sampler_loss')
+    if 'total_sampler_loss' in metrics:
+        metrics["sampler_loss"] = float(metrics['total_sampler_loss'] / num_batches) if num_batches > 0 else 0.0
+        metrics.pop('total_sampler_loss')
     return metrics
