@@ -263,6 +263,7 @@ class GradientBasedInferenceSampler(Sampler):
         self.output_space = output_space
         self.number_init_samples = number_init_samples
         self.random_mixing_in_init = random_mixing_in_init
+        self.name = 'gbi'
         self._different_training_and_eval = True
 
     @classmethod
@@ -458,7 +459,7 @@ class GradientBasedInferenceSampler(Sampler):
             )
 
         # print(f"\nloss_values:\n{loss_values}")
-        self._metrics['gbi_loss'] = np.mean(loss_values)
+        self._metrics[self.name + '_loss'] = np.mean(loss_values)
         self._total_loss += np.mean(loss_values)
         self._num_batches += 1
 
@@ -471,10 +472,11 @@ class GradientBasedInferenceSampler(Sampler):
 
     def get_metrics(self, reset: bool = False) -> dict:
         metrics = self._metrics
-        metrics['total_gbi_loss'] = float(self._total_loss / self._num_batches) if self._num_batches > 0 else 0.0
+        metrics['total_' + self.name + '_loss'] = float(
+            self._total_loss / self._num_batches) if self._num_batches > 0 else 0.0
         if reset:
             self._metrics = {}
             self._total_loss = 0.0
             self._num_batches = 0
-            metrics.pop('gbi_loss', None)
+            metrics.pop(self.name + '_loss', None)
         return metrics

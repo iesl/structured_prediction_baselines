@@ -61,6 +61,7 @@ class InferenceNetSampler(Sampler):
             )
         else:
             self.stopping_criteria = stopping_criteria
+        self.name = 'inf_net'
         self._eval_grad = False
 
     @property
@@ -283,10 +284,11 @@ class InferenceNetSampler(Sampler):
 
     def get_metrics(self, reset: bool = False) -> dict:
         metrics = self._metrics
-        metrics['total_inf_net_loss'] = float(self._total_loss / self._num_batches) if self._num_batches > 0 else 0.0
+        metrics['total_' + self.name + '_loss'] = float(
+            self._total_loss / self._num_batches) if self._num_batches > 0 else 0.0
         if reset:
             self._metrics = {}
             self._total_loss = 0.0
             self._num_batches = 0
-            metrics.pop('inf_net_loss', None)
+            metrics.pop(self.name + '_loss', None)
         return metrics
