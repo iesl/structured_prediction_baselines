@@ -33,6 +33,7 @@ class Sampler(torch.nn.Module, Registrable):
         self,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
+        name: str = 'sampler',
         **kwargs: Any,
     ):
         super().__init__()  # type: ignore
@@ -42,7 +43,7 @@ class Sampler(torch.nn.Module, Registrable):
         self._metrics = {}
         self._total_loss = 0.0
         self._num_batches = 0
-        self.name = 'sampler'
+        self.name = name
 
     @property
     def is_normalized(self) -> bool:

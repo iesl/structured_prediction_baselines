@@ -43,12 +43,14 @@ class InferenceNetSampler(Sampler):
         cost_augmented_layer: Optional[CostAugmentedLayer] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
+        name: str = 'inf_net',
         **kwargs: Any,
     ):
         assert ScoreNN is not None
         super().__init__(
             score_nn,
             oracle_value_function,
+            name
         )
         self.inference_nn = inference_nn
         self.cost_augmented_layer = cost_augmented_layer
@@ -61,7 +63,6 @@ class InferenceNetSampler(Sampler):
             )
         else:
             self.stopping_criteria = stopping_criteria
-        self.name = 'inf_net'
         self._eval_grad = False
 
     @property
