@@ -458,8 +458,9 @@ class GradientBasedInferenceSampler(Sampler):
             )
 
         # print(f"\nloss_values:\n{loss_values}")
-        self._metrics['sampler_loss'] = np.mean(loss_values)
+        self._metrics['gbi_loss'] = np.mean(loss_values)
         self._total_loss += np.mean(loss_values)
+        self._num_batches += 1
 
         return (
             self.get_samples_from_trajectory(
@@ -470,9 +471,10 @@ class GradientBasedInferenceSampler(Sampler):
 
     def get_metrics(self, reset: bool = False) -> dict:
         metrics = self._metrics
-        # metrics['total_sampler_loss'] = self._total_loss
+        metrics['total_gbi_loss'] = float(self._total_loss / self._num_batches) if self._num_batches > 0 else 0.0
         if reset:
             self._metrics = {}
             self._total_loss = 0.0
-            metrics.pop('sampler_loss', None)
+            self._num_batches = 0
+            metrics.pop('gbi_loss', None)
         return metrics
