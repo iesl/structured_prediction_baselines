@@ -216,8 +216,9 @@ class InferenceNetSampler(Sampler):
                         loss_values.append(float(loss_value))
 
                         step_number += 1
-                    self._metrics['sampler_loss'] = np.mean(loss_values)
+                    self._metrics['inf_net_loss'] = np.mean(loss_values)
                     self._total_loss += np.mean(loss_values)
+                    self._num_batches += 1
                 else:
                     y_inf, y_cost_aug = self._get_values(x, labels, buffer)
                     self.eval_grad = True
@@ -284,9 +285,10 @@ class InferenceNetSampler(Sampler):
 
     def get_metrics(self, reset: bool = False):
         metrics = self._metrics
-        metrics['total_sampler_loss'] = self._total_loss
+        metrics['total_inf_net_loss'] = float(self._total_loss / self._num_batches) if self._num_batches > 0 else 0.0
         if reset:
             self._metrics = {}
             self._total_loss = 0.0
-            metrics.pop('sampler_loss', None)
+            self._num_batches = 0
+            metrics.pop('inf_net_loss', None)
         return metrics

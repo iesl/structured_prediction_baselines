@@ -41,6 +41,7 @@ class Sampler(torch.nn.Module, Registrable):
         self._different_training_and_eval = False
         self._metrics = {}
         self._total_loss = 0.0
+        self._num_batches = 0
 
     @property
     def is_normalized(self) -> bool:
