@@ -2,32 +2,21 @@ import datetime
 import logging
 import math
 import os
-import re
 import time
 import traceback
-from contextlib import contextmanager
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import torch
 import torch.distributed as dist
 import torch.optim.lr_scheduler
-
-from allennlp.common import Lazy, Tqdm
+from allennlp.common import Tqdm
 from allennlp.common import util as common_util
-from allennlp.common.checks import ConfigurationError, check_for_gpu
-from allennlp.data import DataLoader, TensorDict
+from allennlp.common.checks import ConfigurationError
+from allennlp.data import DataLoader
 from allennlp.models.model import Model
-from allennlp.training import Trainer, TrainerCallback
+from allennlp.training import Trainer, GradientDescentTrainer
 from allennlp.training import util as training_util
-from allennlp.training.checkpointer import Checkpointer
-from allennlp.training.learning_rate_schedulers import LearningRateScheduler
-from allennlp.training.metric_tracker import MetricTracker
-from allennlp.training.momentum_schedulers import MomentumScheduler
-from allennlp.training.moving_average import MovingAverage
-from allennlp.training.optimizers import Optimizer
 from torch.cuda import amp
-from torch.nn.parallel import DistributedDataParallel
-from torch.nn.utils import clip_grad_norm_
 
 from structured_prediction_baselines.training import utils
 
@@ -35,149 +24,11 @@ logger = logging.getLogger(__name__)
 
 
 @Trainer.register("gradient_descent_custom", constructor="from_partial_objects")
-class GradientDescentCustomTrainer(Trainer):
+class GradientDescentCustomTrainer(GradientDescentTrainer):
 
-    def __init__(
-        self,
-        model: Model,
-        optimizer: torch.optim.Optimizer,
-        data_loader: DataLoader,
-        patience: Optional[int] = None,
-        validation_metric: Union[str, List[str]] = "-loss",
-        validation_data_loader: DataLoader = None,
-        num_epochs: int = 20,
-        serialization_dir: Optional[str] = None,
-        checkpointer: Checkpointer = None,
-        cuda_device: Optional[Union[int, torch.device]] = None,
-        grad_norm: Optional[float] = None,
-        grad_clipping: Optional[float] = None,
-        learning_rate_scheduler: Optional[LearningRateScheduler] = None,
-        momentum_scheduler: Optional[MomentumScheduler] = None,
-        moving_average: Optional[MovingAverage] = None,
-        callbacks: List[TrainerCallback] = None,
-        distributed: bool = False,
-        local_rank: int = 0,
-        world_size: int = 1,
-        num_gradient_accumulation_steps: int = 1,
-        use_amp: bool = False,
-    ) -> None:
-        super().__init__(serialization_dir, cuda_device, distributed, local_rank, world_size)
-
-        # I am not calling move_to_gpu here, because if the model is
-        # not already on the GPU then the optimizer is going to be wrong.
-        self.model = model
-
-        self.data_loader = data_loader
-        self.data_loader.set_target_device(self.cuda_device)
-        self._validation_data_loader = validation_data_loader
-        if self._validation_data_loader is not None:
-            self._validation_data_loader.set_target_device(self.cuda_device)
-        self.optimizer = optimizer
-
-        if patience is None:  # no early stopping
-            if validation_data_loader is not None:
-                logger.warning(
-                    "You provided a validation dataset but patience was set to None, "
-                    "meaning that early stopping is disabled"
-                )
-        elif (not isinstance(patience, int)) or patience <= 0:
-            raise ConfigurationError(
-                '{} is an invalid value for "patience": it must be a positive integer '
-                "or None (if you want to disable early stopping)".format(patience)
-            )
-
-        # For tracking is_best_so_far and should_stop_early
-        self._metric_tracker = MetricTracker(validation_metric, patience)
-
-        self._num_epochs = num_epochs
-
-        self._checkpointer: Optional[Checkpointer] = checkpointer
-        if checkpointer is None and serialization_dir is not None:
-            self._checkpointer = Checkpointer(serialization_dir)
-
-        self._grad_norm = grad_norm
-        self._grad_clipping = grad_clipping
-
-        self._learning_rate_scheduler = learning_rate_scheduler
-        self._momentum_scheduler = momentum_scheduler
-        self._moving_average = moving_average
-
-        self._callbacks = callbacks or []
-
-        # We keep the total batch number as an instance variable because it
-        # is used inside a closure for the hook which logs activations in
-        # `_enable_activation_logging`.
-        self._batch_num_total = 0
-
-        self._last_log = 0.0  # time of last logging
-
-        self._num_gradient_accumulation_steps = num_gradient_accumulation_steps
-
-        # Enable automatic mixed precision training.
-        self._scaler: Optional[amp.GradScaler] = None
-        self._use_amp = use_amp
-        if self._use_amp:
-            if self.cuda_device == torch.device("cpu"):
-                raise ValueError("Using AMP requires a cuda device")
-            self._scaler = amp.GradScaler()
-
-        # Using `DistributedDataParallel`(ddp) brings in a quirk wrt AllenNLP's `Model` interface and its
-        # usage. A `Model` object is wrapped by `ddp`, but assigning the wrapped model to `self.model`
-        # will break the usages such as `Model.get_regularization_penalty`, `Model.get_metrics`, etc.
-        #
-        # Hence a reference to Pytorch's object is maintained in the case of distributed training and in the
-        # normal case, reference to `Model` is retained. This reference is only used in
-        # these places: `model.__call__`, `model.train` and `model.eval`.
-        if self._distributed:
-            self._pytorch_model = DistributedDataParallel(
-                self.model,
-                device_ids=None if self.cuda_device == torch.device("cpu") else [self.cuda_device],
-                find_unused_parameters=True,
-            )
-        else:
-            self._pytorch_model = self.model
-
-    def rescale_gradients(self) -> float:
-        """
-        Performs gradient rescaling. Is a no-op if gradient rescaling is not enabled.
-
-        Returns the norm of the gradients.
-        """
-        parameters_to_clip = [p for p in self.model.parameters() if p.grad is not None]
-        if self._grad_norm:
-            if self._scaler is not None:
-                # Need to first unscale gradients in order to clip as usual.
-                self._scaler.unscale_(self.optimizer)
-            return clip_grad_norm_(parameters_to_clip, self._grad_norm)
-        else:
-            return torch.norm(
-                torch.stack([torch.norm(p.grad.detach()) for p in parameters_to_clip])
-            )
-
-    def batch_outputs(self, batch: TensorDict, for_training: bool) -> Dict[str, torch.Tensor]:
-        """
-        Does a forward pass on the given batch and returns the output dictionary that the model
-        returns, after adding any specified regularization penalty to the loss (if training).
-        """
-        output_dict = self._pytorch_model(**batch)
-
-        if for_training:
-            try:
-                assert "loss" in output_dict
-                regularization_penalty = self.model.get_regularization_penalty()
-
-                if regularization_penalty is not None:
-                    output_dict["reg_loss"] = regularization_penalty
-                    output_dict["loss"] += regularization_penalty
-
-            except AssertionError:
-                if for_training:
-                    raise RuntimeError(
-                        "The model you are trying to optimize does not contain a"
-                        " 'loss' key in the output of model.forward(inputs)."
-                    )
-
-        return output_dict
+    def __init__(self, model: Model, optimizer: torch.optim.Optimizer,
+                 data_loader: DataLoader, **kwargs):
+        super().__init__(model, optimizer, data_loader, **kwargs)
 
     def _train_epoch(self, epoch: int) -> Dict[str, float]:
         """
@@ -490,25 +341,6 @@ class GradientDescentCustomTrainer(Trainer):
 
         return val_loss, val_reg_loss, batches_this_epoch
 
-    def train(self) -> Dict[str, Any]:
-        """
-        Trains the supplied model with the supplied parameters.
-        """
-
-        for callback in self._callbacks:
-            callback.on_start(self, is_primary=self._primary)
-
-        # Set default values in case of failure
-        epoch = None
-        metrics = None
-
-        try:
-            metrics, epoch = self._try_train()
-            return metrics
-        finally:
-            for callback in self._callbacks:
-                callback.on_end(self, metrics=metrics, epoch=epoch, is_primary=self._primary)
-
     def _try_train(self) -> Tuple[Dict[str, Any], int]:
         try:
             epoch_counter = self._restore_checkpoint()
@@ -650,210 +482,3 @@ class GradientDescentCustomTrainer(Trainer):
             self.model.load_state_dict(best_model_state)
 
         return metrics, epoch
-
-    @contextmanager
-    def get_checkpoint_state(self) -> Iterator[Tuple[Dict[str, Any], Dict[str, Any]]]:
-        if self._moving_average is not None:
-            # Assigning average value to model parameters.  The checkpointer will call
-            # `restore_state_after_checkpointing` when it is done to put this back to what it was.
-            self._moving_average.assign_average_value()
-
-        model_state = self.model.state_dict()
-
-        # These are the training states we need to persist.
-        training_states = {
-            "metric_tracker": self._metric_tracker.state_dict(),
-            "optimizer": self.optimizer.state_dict(),
-            "batch_num_total": self._batch_num_total,
-        }
-
-        # If we have a learning rate or momentum scheduler, we should persist them too.
-        if self._learning_rate_scheduler is not None:
-            training_states["learning_rate_scheduler"] = self._learning_rate_scheduler.state_dict()
-        if self._momentum_scheduler is not None:
-            training_states["momentum_scheduler"] = self._momentum_scheduler.state_dict()
-
-        try:
-            yield model_state, training_states
-        finally:
-            if self._moving_average is not None:
-                self._moving_average.restore()
-
-    def _restore_checkpoint(self) -> int:
-        """
-        Restores the model and training state from the last saved checkpoint.
-        This includes an epoch count and optimizer state, which is serialized separately
-        from model parameters. This function should only be used to continue training -
-        if you wish to load a model for inference/load parts of a model into a new
-        computation graph, you should use the native Pytorch functions:
-        ` model.load_state_dict(torch.load("/path/to/model/weights.th"))`
-
-        If `self._serialization_dir` does not exist or does not contain any checkpointed weights,
-        this function will do nothing and return 0.
-
-        # Returns
-
-        epoch: `int`
-            The epoch at which to resume training, which should be one after the epoch
-            in the saved training state.
-        """
-        if self._checkpointer is None:
-            return 0
-
-        model_state, training_state = self._checkpointer.restore_checkpoint()
-
-        if not training_state:
-            # No checkpoint to restore, start at 0
-            return 0
-
-        self.model.load_state_dict(model_state)
-        self.optimizer.load_state_dict(training_state["optimizer"])
-        if (
-            self._learning_rate_scheduler is not None
-            and "learning_rate_scheduler" in training_state
-        ):
-            self._learning_rate_scheduler.load_state_dict(training_state["learning_rate_scheduler"])
-        if self._momentum_scheduler is not None and "momentum_scheduler" in training_state:
-            self._momentum_scheduler.load_state_dict(training_state["momentum_scheduler"])
-        training_util.move_optimizer_to_cuda(self.optimizer)
-
-        # Currently the `training_state` contains a serialized `MetricTracker`.
-        if "metric_tracker" in training_state:
-            self._metric_tracker.load_state_dict(training_state["metric_tracker"])
-        else:
-            self._metric_tracker.clear()
-
-        if isinstance(training_state["epoch"], int):
-            epoch_to_return = training_state["epoch"] + 1
-        else:
-            epoch_to_return = int(training_state["epoch"].split(".")[0]) + 1
-
-        # For older checkpoints with batch_num_total missing, default to old behavior where
-        # it is unchanged.
-        batch_num_total = training_state.get("batch_num_total")
-        if batch_num_total is not None:
-            self._batch_num_total = batch_num_total
-
-        return epoch_to_return
-
-    @classmethod
-    def from_partial_objects(
-        cls,
-        model: Model,
-        serialization_dir: str,
-        data_loader: DataLoader,
-        validation_data_loader: DataLoader = None,
-        local_rank: int = 0,
-        patience: int = None,
-        validation_metric: Union[str, List[str]] = "-loss",
-        num_epochs: int = 20,
-        cuda_device: Optional[Union[int, torch.device]] = None,
-        grad_norm: float = None,
-        grad_clipping: float = None,
-        distributed: bool = False,
-        world_size: int = 1,
-        num_gradient_accumulation_steps: int = 1,
-        use_amp: bool = False,
-        no_grad: List[str] = None,
-        optimizer: Lazy[Optimizer] = Lazy(Optimizer.default),
-        learning_rate_scheduler: Lazy[LearningRateScheduler] = None,
-        momentum_scheduler: Lazy[MomentumScheduler] = None,
-        moving_average: Lazy[MovingAverage] = None,
-        checkpointer: Lazy[Checkpointer] = Lazy(Checkpointer),
-        callbacks: List[Lazy[TrainerCallback]] = None,
-        trainer_callbacks: List[Lazy[TrainerCallback]] = None,
-    ) -> "Trainer":
-        """
-        This method exists so that we can have a documented method to construct this class using
-        `FromParams`. If you are not using `FromParams` or config files, you can safely ignore this
-        method.
-
-        The reason we can't just use `__init__` with `FromParams` here is because there are
-        sequential dependencies to this class's arguments.  Anything that has a `Lazy[]` type
-        annotation needs something from one of the non-`Lazy` arguments.  The `Optimizer` needs to
-        have the parameters from the `Model` before it's constructed, and the `Schedulers` need to
-        have the `Optimizer`. Because of this, the typical way we construct things `FromParams`
-        doesn't work, so we use `Lazy` to allow for constructing the objects sequentially.
-
-        If you're not using `FromParams`, you can just construct these arguments in the right order
-        yourself in your code and call the constructor directly.
-        """
-        if cuda_device is None:
-            from torch import cuda
-
-            if cuda.device_count() > 0:
-                cuda_device = 0
-            else:
-                cuda_device = -1
-
-        check_for_gpu(cuda_device)
-        if cuda_device >= 0:
-            # Moving model to GPU here so that the optimizer state gets constructed on
-            # the right device.
-            model = model.cuda(cuda_device)
-
-        if no_grad:
-            for name, parameter in model.named_parameters():
-                if any(re.search(regex, name) for regex in no_grad):
-                    parameter.requires_grad_(False)
-
-        parameters = [[n, p] for n, p in model.named_parameters() if p.requires_grad]
-        optimizer_ = optimizer.construct(model_parameters=parameters)
-
-        common_util.log_frozen_and_tunable_parameter_names(model)
-
-        batches_per_epoch: Optional[int]
-        try:
-            batches_per_epoch = len(data_loader)
-            batches_per_epoch = math.ceil(batches_per_epoch / num_gradient_accumulation_steps)
-        except TypeError:
-            batches_per_epoch = None
-
-        moving_average_ = (
-            None if moving_average is None else moving_average.construct(parameters=parameters)
-        )
-        learning_rate_scheduler_ = (
-            None
-            if learning_rate_scheduler is None
-            else learning_rate_scheduler.construct(
-                optimizer=optimizer_, num_epochs=num_epochs, num_steps_per_epoch=batches_per_epoch
-            )
-        )
-        momentum_scheduler_ = (
-            None
-            if momentum_scheduler is None
-            else momentum_scheduler.construct(optimizer=optimizer_)
-        )
-        checkpointer_ = checkpointer.construct(serialization_dir=serialization_dir)
-
-        callbacks = callbacks or trainer_callbacks or []
-
-        callbacks_: List[TrainerCallback] = []
-
-        for callback in callbacks:
-            callback_ = callback.construct(serialization_dir=serialization_dir)
-            callbacks_.append(callback_)
-
-        return cls(
-            model,
-            optimizer_,
-            data_loader,
-            patience=patience,
-            validation_metric=validation_metric,
-            validation_data_loader=validation_data_loader,
-            num_epochs=num_epochs,
-            serialization_dir=serialization_dir,
-            cuda_device=cuda_device,
-            grad_norm=grad_norm,
-            grad_clipping=grad_clipping,
-            learning_rate_scheduler=learning_rate_scheduler_,
-            momentum_scheduler=momentum_scheduler_,
-            checkpointer=checkpointer_,
-            moving_average=moving_average_,
-            callbacks=callbacks_,
-            distributed=distributed,
-            local_rank=local_rank,
-            world_size=world_size,
-            num_gradient_accumulation_steps=num_gradient_accumulation_steps,
-            use_amp=use_amp,
-        )
