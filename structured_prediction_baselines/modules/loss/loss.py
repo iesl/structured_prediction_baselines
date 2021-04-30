@@ -40,7 +40,6 @@ class Loss(torch.nn.Module, Registrable):
             )
         self.reduction = reduction
         self.normalize_y = normalize_y
-        self._metrics = {}
 
     def forward(
         self,
