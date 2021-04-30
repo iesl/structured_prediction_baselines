@@ -171,10 +171,10 @@ class MarginBasedLoss(Loss):
             labels, y_cost_aug, mask=buffer.get("mask")
         )  # (batch, num_samples)
 
-        self._oracle_cost_values.append(float(oracle_cost))
-        self._cost_augmented_score_values.append(float(cost_aug_score))
-        self._inference_score_values.append(float(inference_score))
-        self._ground_truth_score_values.append(float(ground_truth_score))
+        self._oracle_cost_values.append(np.mean(oracle_cost))
+        self._cost_augmented_score_values.append(np.mean(cost_aug_score))
+        self._inference_score_values.append(np.mean(inference_score))
+        self._ground_truth_score_values.append(np.mean(ground_truth_score))
 
         return (
             oracle_cost,
