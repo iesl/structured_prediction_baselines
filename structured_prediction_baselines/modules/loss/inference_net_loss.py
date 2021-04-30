@@ -184,12 +184,15 @@ class MarginBasedLoss(Loss):
         )
 
     def get_metrics(self, reset: bool = False):
-        metrics = {
-            'oracle_cost': np.mean(self._oracle_cost_values),
-            'cost_augmented_score': np.mean(self._cost_augmented_score_values),
-            'inference_score': np.mean(self._inference_score_values),
-            'ground_truth_score': np.mean(self._ground_truth_score_values)
-        }
+        metrics = {}
+
+        if self._oracle_cost_values:
+            metrics = {
+                'oracle_cost': np.mean(self._oracle_cost_values),
+                'cost_augmented_score': np.mean(self._cost_augmented_score_values),
+                'inference_score': np.mean(self._inference_score_values),
+                'ground_truth_score': np.mean(self._ground_truth_score_values)
+            }
 
         if reset:
             self._oracle_cost_values = []

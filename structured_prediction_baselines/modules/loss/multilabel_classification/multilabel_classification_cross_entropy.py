@@ -28,7 +28,9 @@ class MultiLabelBCELoss(Loss):
         return loss
 
     def get_metrics(self, reset: bool = False):
-        metrics = {'cross_entropy_loss': np.mean(self._loss_values)}
+        metrics = {}
+        if self._loss_values:
+            metrics = {'cross_entropy_loss': np.mean(self._loss_values)}
         if reset:
             self._loss_values = []
         return metrics
