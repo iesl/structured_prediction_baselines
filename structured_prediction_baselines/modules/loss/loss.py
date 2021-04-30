@@ -40,6 +40,7 @@ class Loss(torch.nn.Module, Registrable):
             )
         self.reduction = reduction
         self.normalize_y = normalize_y
+        self._metrics = {}
 
     def forward(
         self,
@@ -93,6 +94,9 @@ class Loss(torch.nn.Module, Registrable):
         """
         raise NotImplementedError
 
+    def get_metrics(self, reset: bool = False):
+        raise NotImplementedError
+
 
 @Loss.register("combination-loss")
 class CombinationLoss(Loss):
@@ -132,6 +136,13 @@ class CombinationLoss(Loss):
 
         return total_loss
 
+    def get_metrics(self, reset: bool = False):
+        metrics = {}
+        for loss in self.constituent_losses:
+            metrics.update(loss.get_metrics(reset))
+
+        return metrics
+
 
 @Loss.register("negative")
 class NegativeLoss(Loss):
@@ -159,3 +170,10 @@ class NegativeLoss(Loss):
         return -self.constituent_loss(
             x, labels, y_hat, y_hat_extra, buffer, **kwargs
         )
+
+    def get_metrics(self, reset: bool = False):
+        metrics = self.constituent_loss.get_metrics(reset)
+        for key in metrics:
+            metrics[key] *= -1
+
+        return metrics

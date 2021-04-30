@@ -290,4 +290,10 @@ class InferenceNetSampler(Sampler):
             self._total_loss = 0.0
             self._num_batches = 0
             metrics.pop(self.name + '_loss', None)
+        else:
+            loss_metrics = self.loss_fn.get_metrics(reset=True)
+            for metric in loss_metrics:
+                loss_metrics[metric] /= self.stopping_criteria.number_of_steps
+            metrics.update(loss_metrics)
+
         return metrics

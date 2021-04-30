@@ -96,6 +96,10 @@ class MarginBasedLoss(Loss):
         self.oracle_cost_weight = oracle_cost_weight
         self.margin_type = margin_type
         self.perceptron_loss_weight = perceptron_loss_weight
+        self._oracle_cost = 0.0
+        self._cost_augmented_score = 0.0
+        self._inference_score = 0.0
+        self._ground_truth_score = 0.0
 
     def _forward(
         self,
@@ -168,12 +172,33 @@ class MarginBasedLoss(Loss):
             labels, y_cost_aug, mask=buffer.get("mask")
         )  # (batch, num_samples)
 
+        self._oracle_cost += oracle_cost
+        self._cost_augmented_score += cost_aug_score
+        self._inference_score += inference_score
+        self._ground_truth_score += ground_truth_score
+
         return (
             oracle_cost,
             cost_aug_score,
             inference_score,
             ground_truth_score,
         )
+
+    def get_metrics(self, reset: bool = False):
+        metrics = {
+            'oracle_cost': self._oracle_cost,
+            'cost_augmented_score': self._cost_augmented_score,
+            'inference_score': self._inference_score,
+            'ground_truth_score': self._ground_truth_score
+        }
+
+        if reset:
+            self._oracle_cost = 0.0
+            self._cost_augmented_score = 0.0
+            self._inference_score = 0.0
+            self._ground_truth_score = 0.0
+
+        return metrics
 
 
 class InferenceLoss(MarginBasedLoss):
