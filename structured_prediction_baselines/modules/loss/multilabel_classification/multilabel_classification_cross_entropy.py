@@ -24,7 +24,7 @@ class MultiLabelBCELoss(Loss):
         loss = self.loss_fn(y_hat, labels.to(dtype=y_hat.dtype)).sum(
             dim=-1
         )  # (batch, 1,)
-        self._loss_values.append(float(loss))
+        self._loss_values.append(float(torch.mean(loss)))
         return loss
 
     def get_metrics(self, reset: bool = False):
