@@ -1,9 +1,8 @@
-from typing import Any, Optional, Tuple, cast, Union, Dict, Callable
+from typing import Any, Optional, Tuple, cast, Dict, Callable
+
+import numpy as np
 import torch
 from allennlp.common.checks import ConfigurationError
-from allennlp.nn import util
-from torch.nn.functional import relu
-import torch.nn.functional as F
 
 from structured_prediction_baselines.modules.loss import Loss
 from structured_prediction_baselines.modules.oracle_value_function import (
@@ -96,10 +95,10 @@ class MarginBasedLoss(Loss):
         self.oracle_cost_weight = oracle_cost_weight
         self.margin_type = margin_type
         self.perceptron_loss_weight = perceptron_loss_weight
-        self._oracle_cost = 0.0
-        self._cost_augmented_score = 0.0
-        self._inference_score = 0.0
-        self._ground_truth_score = 0.0
+        self._oracle_cost_values = []
+        self._cost_augmented_score_values = []
+        self._inference_score_values = []
+        self._ground_truth_score_values = []
 
     def _forward(
         self,
@@ -172,10 +171,10 @@ class MarginBasedLoss(Loss):
             labels, y_cost_aug, mask=buffer.get("mask")
         )  # (batch, num_samples)
 
-        self._oracle_cost += oracle_cost
-        self._cost_augmented_score += cost_aug_score
-        self._inference_score += inference_score
-        self._ground_truth_score += ground_truth_score
+        self._oracle_cost_values.append(float(oracle_cost))
+        self._cost_augmented_score_values.append(float(cost_aug_score))
+        self._inference_score_values.append(float(inference_score))
+        self._ground_truth_score_values.append(float(ground_truth_score))
 
         return (
             oracle_cost,
@@ -186,17 +185,17 @@ class MarginBasedLoss(Loss):
 
     def get_metrics(self, reset: bool = False):
         metrics = {
-            'oracle_cost': self._oracle_cost,
-            'cost_augmented_score': self._cost_augmented_score,
-            'inference_score': self._inference_score,
-            'ground_truth_score': self._ground_truth_score
+            'oracle_cost': np.mean(self._oracle_cost_values),
+            'cost_augmented_score': np.mean(self._cost_augmented_score_values),
+            'inference_score': np.mean(self._inference_score_values),
+            'ground_truth_score': np.mean(self._ground_truth_score_values)
         }
 
         if reset:
-            self._oracle_cost = 0.0
-            self._cost_augmented_score = 0.0
-            self._inference_score = 0.0
-            self._ground_truth_score = 0.0
+            self._oracle_cost_values = []
+            self._cost_augmented_score_values = []
+            self._inference_score_values = []
+            self._ground_truth_score_values = []
 
         return metrics
 
