@@ -1,25 +1,17 @@
 import logging
 import math
-import re
 import time
-from typing import Dict, List, Optional, Union
+from typing import Dict, Optional, Union
 
 import torch
 import torch.distributed as dist
 import torch.optim.lr_scheduler
-from allennlp.common import Lazy
 from allennlp.common import Tqdm
 from allennlp.common import util as common_util
-from allennlp.common.checks import check_for_gpu
 from allennlp.data import DataLoader
 from allennlp.models import Model
-from allennlp.training import GradientDescentTrainer, Trainer, TrainerCallback
+from allennlp.training import GradientDescentTrainer, Trainer
 from allennlp.training import util as training_util
-from allennlp.training.checkpointer import Checkpointer
-from allennlp.training.learning_rate_schedulers import LearningRateScheduler
-from allennlp.training.momentum_schedulers import MomentumScheduler
-from allennlp.training.moving_average import MovingAverage
-from allennlp.training.optimizers import Optimizer
 from torch.cuda import amp
 
 from structured_prediction_baselines.modules.stopping_criteria import StoppingCriteria, StopAfterNumberOfSteps
