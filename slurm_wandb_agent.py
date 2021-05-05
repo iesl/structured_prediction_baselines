@@ -25,11 +25,10 @@ def main(args):
     template_str['sbatch.sh'] = '\n'.join((
         "#!/bin/bash",
         "#SBATCH --gres=gpu:1",
-        "#SBATCH --partition=gpu",
-        "#SBATCH --cpus-per-task=2",
+        "#SBATCH --partition=m40-long",
+        "#SBATCH --cpus-per-task=4",
         "#SBATCH --mem=16GB",
     ))
-
     for fname in ['srun.sh', 'sbatch.sh']:
         if not template_path[fname].exists():
             with open(template_path[fname], 'w') as f:

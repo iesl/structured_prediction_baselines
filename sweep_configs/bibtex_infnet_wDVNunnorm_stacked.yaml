@@ -1,11 +1,11 @@
-name: bibtex_inference_net_wDVN_stacked_oracleweight
+name: bibtex_inference_net_wDVN_unnorm_score_stacked_diffmargin
 program: wandb_allennlp
 method: bayes
 command:
   - ${program}
   - "--subcommand=train"
   - "--include-package=structured_prediction_baselines"
-  - "--config_file=model_configs/multilabel_classification/bibtex_inference_net_wDVN_stacked.jsonnet"
+  - "--config_file=model_configs/multilabel_classification/bibtex_inference_net_wDVNunnorm_stacked.jsonnet"
   - "--wandb_project structured_prediction_baselines"
   - "--wandb_entity score-based-learning"
   - "--wandb_tags=task=mlc,model=dvn,sampler=inference_net,dataset=bibtex"
@@ -27,10 +27,6 @@ parameters:
     distribution: uniform
   env.inference_score_weight:
     min: 0
-    max: 5
-    distribution: uniform
-  env.oracle_cost_weight:
-    min: 0.1
     max: 5
     distribution: uniform
   trainer.optimizer.lr:
