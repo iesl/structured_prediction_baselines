@@ -190,6 +190,35 @@ class InfnetMultiSampleLearner(Sampler):
                 for p in g["params"]:
                     p.requires_grad_(False)
 
+    def draw_samples(self, y_inf):
+        assert y_inf.dim() == 3
+        assert y_inf.shape[1] == 1
+        y_hat_n = torch.sigmoid(y_inf)
+        ## commented out as we won't really sample from cost_aug layer.
+        # y_hat_extra_n = ( 
+        #     torch.sigmoid(y_cost_aug) if y_cost_aug is not None else None
+        # )                    
+        if self.training and self.num_samples>0:  # sample during training --> already above so delete (later). 
+            p = y_hat_n.squeeze(1)  # (batch, num_labels)
+
+            discrete_samples = torch.transpose(
+                torch.distributions.Bernoulli(probs=p).sample(
+                    [self.num_samples]  # (num_samples, batch, num_labels)
+                ),
+                0,
+                1,
+            )  # (batch, num_samples, num_labels)
+            if self.keep_probs:
+                samples = torch.cat(
+                    (discrete_samples, y_hat_n), dim=1
+                )  # (batch, num_samples+1, num_labels)
+            else:
+                samples = discrete_samples
+        else: # if self.num_sample <= 0 then return None.
+            samples = None 
+        
+        return samples
+
     def forward(
         self,
         x: Any,
@@ -244,74 +273,8 @@ class InfnetMultiSampleLearner(Sampler):
                         )  # (batch_size,1, ...)
                     else:
                         y_cost_aug = None
-
-                    ##################### This block is better to be written as a separate function later #####################
-                    # up to here is the same as inference_net.py
-                    # I couldn't use super().forward() as the forward backprops within the forward loop.
-                    #
-                    ## sampling process copied from Dhruvesh's code
-                    #  https://github.com/dhruvdcoder/structured_prediction_baselines/blob/feat/inference_module_from_constituent_samplers/structured_prediction_baselines/modules/sampler/multilabel_classification/multilabel_classification_base_sampler.py#L81
-                    #           this line was commented out as I have to modify the loss itself.
-                    #          samples, samples_extra = super().forward(x, labels, buffer, **kwargs)
-                    # change of variables.
-                    #          samples --> y_inf
-                    #          samples_extra --> y_cost_aug
-                    #          maybe make this as a separate function passing y_inf & y_cost_aug.
-                    assert y_inf.dim() == 3
-                    assert y_inf.shape[1] == 1
-                    y_hat_n = torch.sigmoid(y_inf)
-                    ## commented out as we won't really sample from cost_aug layer.
-                    # y_hat_extra_n = ( 
-                    #     torch.sigmoid(y_cost_aug) if y_cost_aug is not None else None
-                    # )                    
-                    if self.training and self.num_samples>0:  # sample during training --> already above so delete (later). 
-                        p = y_hat_n.squeeze(1)  # (batch, num_labels)
-
-                        discrete_samples = torch.transpose(
-                            torch.distributions.Bernoulli(probs=p).sample(
-                                [self.num_samples]  # (num_samples, batch, num_labels)
-                            ),
-                            0,
-                            1,
-                        )  # (batch, num_samples, num_labels)
-                        if self.keep_probs:
-                            samples = torch.cat(
-                                (discrete_samples, y_hat_n), dim=1
-                            )  # (batch, num_samples+1, num_labels)
-                        else:
-                            samples = discrete_samples
-                        ## added part ends. Do I need to update how I design loss function as well? ###
-                        ## --> modify the update function.
-                        # labels --> samples.
-                        ## let's remove get_loss_fn.
-                        # loss_fn = self.get_loss_fn(
-                        #     x, labels
-                        # )  #: Loss function will expect labels in form (batch, num_samples or 1, ...)
                         
-                        # labels --> samples.
-                        #                     
-                        '''
-                        make loss function list to iterate & make it use pseudo_labels & labels appropriately.
-                        pass added loss function to the update function.
-                        '''
-                        ## 1. Grab the gradient from loss[0] on another function.
-                        ## 2. while self.loss_list, compute each losses. 
-
-                        ## 3. Follow following code from constituent loss calculation.
-                        # losses = [
-                        #     l_(x, labels, y_hat, y_hat_extra, buffer, **kwargs)
-                        #     for l_ in self.constituent_losses
-                        # ]
-                        # total_loss = self.loss_weights[0] * losses[0]
-
-                        # for w, l in zip(self.loss_weights[1:], losses[1:]):
-                        #     total_loss = total_loss + w * l
-
-                        ## 4. I  don't think I need separte update function, simply call backward().
-                        ####################################################################################
-                    else:
-                        samples = None
-
+                    samples = self.draw_samples(y_inf)
                     loss_value = self.update( # made self.update to be the same as Loss class forward()
                         x, labels, samples, y_inf, y_cost_aug, buffer 
                     )
