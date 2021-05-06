@@ -25,6 +25,8 @@ local global_score_hidden_dim = 200;            // local global_score_hidden_dim
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local score_loss_weight = std.parseJson(std.extVar('score_loss_weight'));
 local cross_entorpy_loss_weight = 1;
+local sample_loss_weight = std.parseJson(std.extVar('sample_loss_weight'));
+local num_samples = std.parseJson(std.extVar('num_samples'));
 
 // ToDo:
 // 1. turn off the optimizer score_NN.
@@ -54,7 +56,7 @@ local cross_entorpy_loss_weight = 1;
   model: {
     type: 'multi-label-classification',
     sampler: {
-      type: 'inference-network',
+      type: 'infnet-multi-sample-learner',
       optimizer: {
         lr: 0.001,
         weight_decay: 1e-4,
@@ -74,7 +76,7 @@ local cross_entorpy_loss_weight = 1;
           vocab_namespace: 'labels',
         },
       },
-      loss_fn: {
+      loss_fn: { # loss_fn --> loss_fn_list: [..],
         type: 'combination-loss',
         constituent_losses: [
           {
@@ -89,6 +91,16 @@ local cross_entorpy_loss_weight = 1;
         loss_weights: [score_loss_weight, cross_entorpy_loss_weight],
         reduction: 'mean',
       },
+      loss_fn_sample: {
+        reduction: "none",
+        type: "multi-label-bce-unreduced"
+      },
+      loss_fn_for_grad: {
+        reduction: "none",
+        type: "multi-label-dvn-score"
+      },
+      sample_loss_weight: sample_loss_weight,
+      num_samples: num_samples,
       stopping_criteria: 10,
     },
     oracle_value_function: { type: 'per-instance-f1' },
@@ -156,13 +168,6 @@ local cross_entorpy_loss_weight = 1;
       num_serialized_models_to_keep: 1,
     },
     callbacks: [
-      'track_epoch_callback',
-      {
-        type: 'lossweight-set-callback',
-        loss_idx_list: [0],
-        epoch_to_turn_on: [8],
-      },
-    ] + [
       'track_epoch_callback',
       {
         type: 'tensorboard-custom',

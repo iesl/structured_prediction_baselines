@@ -11,7 +11,7 @@ local num_input_features = dataset_metadata.input_features;
 // model variables 
 // score_loss_weight (small to large) & learning rate & cross_entorpy_loss_weight=1
 // DVN model variables (hyperparameter sweep on: ff_linear_layers (2,3,4,5), inference_score_weight, cross_entorpy_loss_weight)
-local ff_hidden = 150; //std.parseJson(std.extVar('ff_hidden'));
+local ff_hidden = 150; // std.parseJson(std.extVar('ff_hidden')); // pre-trained 150
 local label_space_dim = ff_hidden;
 local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
 local ff_dropout_score = 0.3;                // std.parseJson(std.extVar('ff_dropout'));
@@ -124,7 +124,7 @@ local cross_entorpy_loss_weight = 1;
     },
     initializer: {
       regexes: [
-        [@'score_nn.*', { type: 'pretrained', weights_file_path: 'wandb/DVN/4mepc65o/dvn.th' }],
+        // [@'score_nn.*', { type: 'pretrained', weights_file_path: 'wandb/DVN/4mepc65o/dvn.th' }],
         [@'.*feedforward._linear_layers.*weight', (if std.member(['tanh', 'sigmoid'], ff_activation) then { type: 'xavier_uniform', gain: gain } else { type: 'kaiming_uniform', nonlinearity: 'relu' })],
         [@'.*linear_layers.*bias', { type: 'zero' }],
       ],
@@ -156,13 +156,6 @@ local cross_entorpy_loss_weight = 1;
       num_serialized_models_to_keep: 1,
     },
     callbacks: [
-      'track_epoch_callback',
-      {
-        type: 'lossweight-set-callback',
-        loss_idx_list: [0],
-        epoch_to_turn_on: [8],
-      },
-    ] + [
       'track_epoch_callback',
       {
         type: 'tensorboard-custom',
