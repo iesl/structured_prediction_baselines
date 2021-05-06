@@ -8,6 +8,9 @@ from structured_prediction_baselines.modules.oracle_value_function import (
 )
 import torch
 
+# DVNLoss* are loss functions to train DVN,
+# DVNScoreLoss* are loss functions to train infrence network with DVN.
+
 
 class DVNLoss(Loss):
     """
@@ -84,72 +87,11 @@ class DVNLoss(Loss):
 
         return predicted_score, oracle_score
 
-
-class DVNScoreLoss(Loss):
-    """
-    Just uses score from the score network as the objective.
-    """
-
-    def __init__(self, **kwargs: Any):
-        super().__init__(**kwargs)
-
-        if self.score_nn is None:
-            raise ConfigurationError("score_nn cannot be None for DVNLoss")
-
-    def compute_loss(
-        self,
-        predicted_score: torch.Tensor,  # (batch, num_samples)
-    ) -> torch.Tensor:
-        raise NotImplementedError
-
-    def _forward(
-        self,
-        x: Any,
-        labels: Optional[torch.Tensor],  # (batch, 1, ...)
-        y_hat: torch.Tensor,  # (batch, num_samples, ...)
-        y_hat_extra: Optional[torch.Tensor],  # (batch, num_samples)
-        buffer: Dict,
-        **kwargs: Any,
-    ) -> torch.Tensor:
-
-        predicted_score = self._get_predicted_score(
-            x, labels, y_hat, y_hat_extra, buffer, **kwargs
-        )
-
-        return self.compute_loss(predicted_score)
-
-    def _get_predicted_score(
-        self,
-        x: Any,
-        labels: Optional[torch.Tensor],
-        y_hat: torch.Tensor,
-        y_hat_extra: Optional[torch.Tensor],
-        buffer: Dict,
-        **kwargs: Any,
-    ) -> torch.Tensor:
-        # labels shape (batch, 1, ...)
-        # y_hat shape (batch, num_samples, ...)
-        self.score_nn = cast(
-            ScoreNN, self.score_nn
-        )  # purely for typing, no runtime effect
-
-        # score_nn always expects y to be normalized
-        # do the normalization based on the task
-
-        if self.normalize_y:
-            y_hat = self.normalize(y_hat)
-
-        predicted_score = self.score_nn(
-            x, y_hat, buffer, **kwargs
-        )  # (batch, num_samples)
-
-        return predicted_score
-
-
 class DVNLossCostAugNet(Loss):
     """
     Loss function to train DVN, typically soft BCE loss.
     """
+    
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
 
@@ -244,6 +186,66 @@ class DVNLossCostAugNet(Loss):
         return predicted_score_list, oracle_score_list
 
 
+
+class DVNScoreLoss(Loss):
+    """
+    Just uses score from the score network as the objective.
+    """
+
+    def __init__(self, **kwargs: Any):
+        super().__init__(**kwargs)
+
+        if self.score_nn is None:
+            raise ConfigurationError("score_nn cannot be None for DVNLoss")
+
+    def compute_loss(
+        self,
+        predicted_score: torch.Tensor,  # (batch, num_samples)
+    ) -> torch.Tensor:
+        raise NotImplementedError
+
+    def _forward(
+        self,
+        x: Any,
+        labels: Optional[torch.Tensor],  # (batch, 1, ...)
+        y_hat: torch.Tensor,  # (batch, num_samples, ...)
+        y_hat_extra: Optional[torch.Tensor],  # (batch, num_samples)
+        buffer: Dict,
+        **kwargs: Any,
+    ) -> torch.Tensor:
+
+        predicted_score = self._get_predicted_score(
+            x, labels, y_hat, y_hat_extra, buffer, **kwargs
+        )
+
+        return self.compute_loss(predicted_score)
+
+    def _get_predicted_score(
+        self,
+        x: Any,
+        labels: Optional[torch.Tensor],
+        y_hat: torch.Tensor,
+        y_hat_extra: Optional[torch.Tensor],
+        buffer: Dict,
+        **kwargs: Any,
+    ) -> torch.Tensor:
+        # labels shape (batch, 1, ...)
+        # y_hat shape (batch, num_samples, ...)
+        self.score_nn = cast(
+            ScoreNN, self.score_nn
+        )  # purely for typing, no runtime effect
+
+        # score_nn always expects y to be normalized
+        # do the normalization based on the task
+
+        if self.normalize_y:
+            y_hat = self.normalize(y_hat)
+
+        predicted_score = self.score_nn(
+            x, y_hat, buffer, **kwargs
+        )  # (batch, num_samples)
+
+        return predicted_score
 
 class DVNScoreCostAugNet(Loss):
     """
