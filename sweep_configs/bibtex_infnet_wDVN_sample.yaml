@@ -1,14 +1,14 @@
-name: bibtex_inference_net_wDVN_rerun
+name: bibtex_inference_net_wDVN_wsample_reducefix
 program: wandb_allennlp
 method: bayes
 command:
   - ${program}
   - "--subcommand=train"
   - "--include-package=structured_prediction_baselines"
-  - "--config_file=model_configs/multilabel_classification/bibtex_inference_net_wDVN.jsonnet"
+  - "--config_file=model_configs/multilabel_classification/bibtex_inference_net_wDVN_samples_real_reducefix.jsonnet"
   - "--wandb_project structured_prediction_baselines"
   - "--wandb_entity score-based-learning"
-  - "--wandb_tags=task=mlc,model=dvn,sampler=inference_net,dataset=bibtex"
+  - "--wandb_tags=task=mlc,model=dvn+infnet,sampler=inference_net_samples,dataset=bibtex"
   - ${args} 
 parameters:
 metric:
@@ -21,6 +21,12 @@ parameters:
     values: [3,5,7,9,10,11]
   env.ff_linear_layers:
     values: [2, 3, 4, 5]
+  env.sample_loss_weight:
+    min: -8.0
+    max: 0
+    distribution: log_uniform  
+  env.num_samples:
+    values: [1, 2, 3, 4, 5] 
   env.score_loss_weight:
     min: 0
     max: 1
