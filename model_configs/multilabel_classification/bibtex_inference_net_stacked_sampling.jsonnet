@@ -8,28 +8,23 @@ local dataset_metadata = (import 'datasets.jsonnet')[dataset_name];
 local num_labels = dataset_metadata.num_labels;
 local num_input_features = dataset_metadata.input_features;
 
-// model variables 
-// score_loss_weight (small to large) & learning rate & cross_entorpy_loss_weight=1
-// DVN model variables (hyperparameter sweep on: ff_linear_layers (2,3,4,5), inference_score_weight, cross_entorpy_loss_weight)
-local ff_hidden = 150; //std.parseJson(std.extVar('ff_hidden'));
+// model variables
+local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
 local label_space_dim = ff_hidden;
 local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
-local ff_dropout_score = 0.3;                // std.parseJson(std.extVar('ff_dropout'));
-local ff_activation = 'tanh';                   // std.parseJson(std.extVar('ff_activation'));
-local ff_linear_layers_score = 3;                // std.parseJson(std.extVar('ff_linear_layers'));
+//local ff_activation = std.parseJson(std.extVar('ff_activation'));
+local ff_activation = 'softplus';
+//local ff_activation = 'softplus';
 local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
-// local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));    --> not used below (also not used in InfNN)
-local global_score_hidden_dim = 200;            // local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
-// local inf_lr = std.parseJson(std.extVar('inf_lr'));                      --> used in orig DVN sampler but not used here.
-// local inf_optim = std.parseJson(std.extVar('inf_optim'));                --> used in orig DVN sampler but not used here.
+//local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
+//local global_score_hidden_dim = 150;
+local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
+local cross_entorpy_loss_weight = std.parseJson(std.extVar('cross_entorpy_loss_weight'));
+local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
+local oracle_cost_weight = std.parseJson(std.extVar('oracle_cost_weight'));
+local sample_loss_weight = std.parseJson(std.extVar('sample_loss_weight'));
+local num_samples = std.parseJson(std.extVar('num_samples'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
-local score_loss_weight = std.parseJson(std.extVar('score_loss_weight'));
-local cross_entorpy_loss_weight = 1;
-
-// ToDo:
-// 1. turn off the optimizer score_NN.
-// 2. constituent sampler problem --> We cannot have one sampler in test time. 
-
 
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
@@ -54,7 +49,7 @@ local cross_entorpy_loss_weight = 1;
   model: {
     type: 'multi-label-classification',
     sampler: {
-      type: 'inference-network',
+      type: 'infnet-multi-sample-learner',
       optimizer: {
         lr: 0.001,
         weight_decay: 1e-4,
@@ -74,11 +69,23 @@ local cross_entorpy_loss_weight = 1;
           vocab_namespace: 'labels',
         },
       },
+      cost_augmented_layer: {
+        type: 'multi-label-stacked',
+        feedforward: {
+          input_dim: 2 * num_labels,
+          num_layers: 2,
+          activations: [ff_activation, 'linear'],
+          hidden_dims: num_labels,
+        },
+        normalize_y: true,
+      },
       loss_fn: {
         type: 'combination-loss',
         constituent_losses: [
           {
-            type: 'multi-label-dvn-score',
+            type: 'multi-label-inference',
+            inference_score_weight: inference_score_weight,
+            oracle_cost_weight: oracle_cost_weight,
             reduction: 'none',
           },  //This loss can be different from the main loss // change this
           {
@@ -86,22 +93,33 @@ local cross_entorpy_loss_weight = 1;
             reduction: 'none',
           },
         ],
-        loss_weights: [score_loss_weight, cross_entorpy_loss_weight],
+        loss_weights: [1.0, cross_entorpy_loss_weight],
         reduction: 'mean',
       },
+      loss_fn_sample: {
+        reduction: "none",
+        type: "multi-label-bce-unreduced"
+      },
+      loss_fn_for_grad: {
+        type: 'multi-label-inference-score',
+        inference_score_weight: inference_score_weight,
+        reduction: 'none'
+      },
+      sample_loss_weight: sample_loss_weight,
+      num_samples: num_samples,
       stopping_criteria: 10,
     },
-    oracle_value_function: { type: 'per-instance-f1' },
+    oracle_value_function: { type: 'per-instance-f1', differentiable: true },
     score_nn: {
       type: 'multi-label-classification',
       task_nn: {
         type: 'multi-label-classification',
         feature_network: {
           input_dim: num_input_features,
-          num_layers: ff_linear_layers_score,
-          activations: ([ff_activation for i in std.range(0, ff_linear_layers_score - 2)] + [ff_activation]),
+          num_layers: ff_linear_layers,
+          activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + [ff_activation]),
           hidden_dims: ff_hidden,
-          dropout: ([ff_dropout_score for i in std.range(0, ff_linear_layers_score - 2)] + [0]),
+          dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
         },
         label_embeddings: {
           embedding_dim: ff_hidden,
@@ -118,13 +136,15 @@ local cross_entorpy_loss_weight = 1;
         },
       },
     },
-    loss_fn: { // for maximzing score (in SPEN, min step of energy)
-      type: 'multi-label-dvn-bce',
+    loss_fn: {
+      type: 'multi-label-margin-based',
       reduction: 'mean',
+      perceptron_loss_weight: inference_score_weight,
+      oracle_cost_weight: oracle_cost_weight,
     },
     initializer: {
       regexes: [
-        [@'score_nn.*', { type: 'pretrained', weights_file_path: 'wandb/DVN/4mepc65o/dvn.th' }],
+        //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
         [@'.*feedforward._linear_layers.*weight', (if std.member(['tanh', 'sigmoid'], ff_activation) then { type: 'xavier_uniform', gain: gain } else { type: 'kaiming_uniform', nonlinearity: 'relu' })],
         [@'.*linear_layers.*bias', { type: 'zero' }],
       ],
@@ -156,13 +176,6 @@ local cross_entorpy_loss_weight = 1;
       num_serialized_models_to_keep: 1,
     },
     callbacks: [
-      'track_epoch_callback',
-      {
-        type: 'lossweight-set-callback',
-        loss_idx_list: [0],
-        epoch_to_turn_on: [8],
-      },
-    ] + [
       'track_epoch_callback',
       {
         type: 'tensorboard-custom',

@@ -1,5 +1,5 @@
 from .loss import Loss
-from .dvn import DVNLoss, DVNScoreLoss
+from .dvn import DVNLoss, DVNScoreLoss, DVNLossCostAugNet, DVNScoreCostAugNet, DVNScoreAndCostAugLoss
 from .multilabel_classification import (
     MultiLabelBCELoss,
     MultiLabelInferenceLoss,

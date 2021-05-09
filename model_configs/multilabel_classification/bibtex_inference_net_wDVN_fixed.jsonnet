@@ -119,7 +119,7 @@ local cross_entorpy_loss_weight = 1;
       },
     },
     loss_fn: { // for maximzing score (in SPEN, min step of energy)
-      type: 'multi-label-dvn-bce',
+      type: 'zero-dvn-loss',
       reduction: 'mean',
     },
     initializer: {
@@ -156,13 +156,6 @@ local cross_entorpy_loss_weight = 1;
       num_serialized_models_to_keep: 1,
     },
     callbacks: [
-      'track_epoch_callback',
-      {
-        type: 'lossweight-set-callback',
-        loss_idx_list: [0],
-        epoch_to_turn_on: [8],
-      },
-    ] + [
       'track_epoch_callback',
       {
         type: 'tensorboard-custom',

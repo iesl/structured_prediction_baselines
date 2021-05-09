@@ -1,3 +1,4 @@
 from .sampler import Sampler
+from .infnet_multisample_backprop import InfnetMultiSampleLearner
 from .gradient_based_inference import GradientBasedInferenceSampler
 from .ground_truth_sampler import GroundTruthSampler
