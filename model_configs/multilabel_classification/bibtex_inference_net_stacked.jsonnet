@@ -85,6 +85,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
             inference_score_weight: inference_score_weight,
             oracle_cost_weight: oracle_cost_weight,
             reduction: 'none',
+            normalize_y: true,
           },  //This loss can be different from the main loss // change this
           {
             type: 'multi-label-bce',
@@ -128,6 +129,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       reduction: 'mean',
       perceptron_loss_weight: inference_score_weight,
       oracle_cost_weight: oracle_cost_weight,
+      normalize_y: true
     },
     initializer: {
       regexes: [
