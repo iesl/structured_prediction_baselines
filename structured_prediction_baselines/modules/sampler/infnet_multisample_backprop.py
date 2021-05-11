@@ -359,12 +359,12 @@ class InfnetMultiSampleLearner(Sampler):
             )
             loss = torch.mean(loss_for_grad) #ToDo: change this mean to torch.sum(), and chagne sum() on the update funciton. 
             grad_samples = torch.autograd.grad(outputs=loss, inputs=samples, only_inputs=True   )
-            
+
         return grad_samples[0].clone().detach() # grad returns tuple. list of length 1.
 
 
-@Sampler.register("infnet-multi-sample-normscore", constructor="from_partial_objects")
-class InfnetMultiSampleNormScore(InfnetMultiSampleLearner):
+@Sampler.register("infnet-multi-sample-std-norm", constructor="from_partial_objects")
+class InfnetMultiSampleStdNormScore(InfnetMultiSampleLearner):
     """
     Makes the InfnetMultiSampleLearner to work probability loss rather than logP. 
     i.e. loss_function: g * binary_cross_entropy(labels=s_i,y_hat) 
@@ -429,6 +429,83 @@ class InfnetMultiSampleNormScore(InfnetMultiSampleLearner):
         grad_samples = torch.div( 
                             (grad_samples-grad_mean_labels.expand_as(samples) ),
                             grad_var_labels.expand_as(samples)
+        )
+        return grad_samples
+
+
+# print("self.sample_loss_weight {}".format(self.sample_loss_weight))
+# print("self.num_samples {}".format(self.num_samples))
+# print(samples.size())
+# print(grad_samples)
+# print(len(grad_samples))
+# print(grad_samples[0].size())
+# print("===========len(grad_samples): {}===========".format(len(grad_samples)))
+
+@Sampler.register("infnet-multi-sample-mean-norm", constructor="from_partial_objects")
+class InfnetMultiSampleMeanNormScore(InfnetMultiSampleLearner):
+    """
+    Makes the InfnetMultiSampleLearner to work probability loss rather than logP. 
+    i.e. loss_function: g * binary_cross_entropy(labels=s_i,y_hat) 
+                    --> g * torch.exp(binary_cross_entropy(labels=s_i,y_hat))
+    
+    Also made reducing sequence change. 
+
+    In InfnetMultiSampleLearner:
+        We were taking "mean" reducing in the get_sample_grads(), 
+        and add "sum" of sample_loss on top of "mean" of total loss.
+    Now:
+        We are not taking any "mean" reducing before the end.
+        When adding the sample_loss, we only take torch.mean() across samples,
+        but the rest of reduce happens after all the addition of the losses.
+    """
+    def __init__(
+        self,
+        optimizer: Optimizer, #loss_fn: Loss,  
+        inference_nn: TaskNN,
+        score_nn: ScoreNN,
+        loss_fn: Loss,
+        loss_fn_sample: Optional[Loss] = None, 
+        loss_fn_for_grad: Optional[Loss] = None,
+        sample_loss_weight: Optional[float] = 1.0,
+        num_samples: int = 1,
+        keep_probs: bool = False, # newly added
+        cost_augmented_layer: Optional[CostAugmentedLayer] = None,
+        oracle_value_function: Optional[OracleValueFunction] = None,
+        stopping_criteria: Union[int, StoppingCriteria] = 1,
+        **kwargs: Any,
+    ):
+        assert ScoreNN is not None
+        super().__init__(
+            optimizer,
+            inference_nn,
+            score_nn,
+            loss_fn,
+            loss_fn_sample,
+            loss_fn_for_grad,
+            sample_loss_weight,
+            num_samples,
+            keep_probs,
+            cost_augmented_layer,
+            oracle_value_function,
+            stopping_criteria
+        )
+
+    def get_sample_grads(
+        self, 
+        x: Any, 
+        samples: torch.Tensor,
+        buffer: Dict,
+    ) -> torch.Tensor:
+        """
+        Returns:
+            loss: loss value at the previous point (unreduced)
+        """
+        
+        grad_samples = super.get_sample_grads(x, samples, buffer)
+        grad_mean_labels = torch.mean(grad_samples, dim=2, keepdim=True)
+        grad_samples = torch.div( 
+                            (grad_samples-grad_mean_labels.expand_as(samples) ),
+                            grad_mean_labels.expand_as(samples)
         )
         return grad_samples
 
