@@ -422,15 +422,15 @@ class InfnetMultiSampleStdNormScore(InfnetMultiSampleLearner):
         Returns:
             loss: loss value at the previous point (unreduced)
         """
-        
-        grad_samples = super.get_sample_grads(x, samples, buffer)
+        grad_samples = super().get_sample_grads(x, samples, buffer)
+        eps=1e-8
         grad_mean_labels = torch.mean(grad_samples, dim=2, keepdim=True)
-        grad_var_labels = torch.var(grad_samples, dim=2, keepdim=True)
+        grad_var_labels = torch.var(grad_samples, dim=2, keepdim=True)        
         grad_samples = torch.div( 
                             (grad_samples-grad_mean_labels.expand_as(samples) ),
-                            grad_var_labels.expand_as(samples)
+                            grad_var_labels.expand_as(samples)+eps
         )
-        return grad_samples
+        return grad_samples.clone().detach()
 
 
 # print("self.sample_loss_weight {}".format(self.sample_loss_weight))
@@ -501,13 +501,14 @@ class InfnetMultiSampleMeanNormScore(InfnetMultiSampleLearner):
             loss: loss value at the previous point (unreduced)
         """
         
-        grad_samples = super.get_sample_grads(x, samples, buffer)
+        grad_samples = super().get_sample_grads(x, samples, buffer)
+        eps=1e-8
         grad_mean_labels = torch.mean(grad_samples, dim=2, keepdim=True)
         grad_samples = torch.div( 
                             (grad_samples-grad_mean_labels.expand_as(samples) ),
-                            grad_mean_labels.expand_as(samples)
+                            grad_mean_labels.expand_as(samples)+ eps
         )
-        return grad_samples
+        return grad_samples.clone().detach()
 
 
 # print("self.sample_loss_weight {}".format(self.sample_loss_weight))
