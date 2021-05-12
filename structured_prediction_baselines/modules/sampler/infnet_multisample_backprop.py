@@ -362,6 +362,21 @@ class InfnetMultiSampleLearner(Sampler):
 
         return grad_samples[0].clone().detach() # grad returns tuple. list of length 1.
 
+    def get_metrics(self, reset: bool = False):
+        metrics = self._metrics
+        metrics['total_' + self.name + '_loss'] = float(
+            self._total_loss / self._num_batches) if self._num_batches > 0 else 0.0
+        if reset:
+            self._metrics = {}
+            self._total_loss = 0.0
+            self._num_batches = 0
+            metrics.pop(self.name + '_loss', None)
+        else:
+            loss_metrics = self.loss_fn.get_metrics(reset=True)
+            metrics.update(loss_metrics)
+
+        return metrics
+
 
 @Sampler.register("infnet-multi-sample-std-norm", constructor="from_partial_objects")
 class InfnetMultiSampleStdNormScore(InfnetMultiSampleLearner):
