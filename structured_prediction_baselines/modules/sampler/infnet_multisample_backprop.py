@@ -437,7 +437,7 @@ class InfnetMultiSampleNormScore(InfnetMultiSampleLearner):
             loss: loss value at the previous point (unreduced)
         """
         eps = 1e-8
-        grad_samples = super.get_sample_grads(x, samples, buffer)
+        grad_samples = super().get_sample_grads(x, samples, buffer)
         grad_mean_labels = torch.mean(grad_samples, dim=2, keepdim=True)
         grad_var_labels = torch.var(grad_samples, dim=2, keepdim=True)
         grad_samples = torch.div(
@@ -507,7 +507,7 @@ class InfnetMultiSampleMeanNormScore(InfnetMultiSampleLearner):
             loss: loss value at the previous point (unreduced)
         """
         eps = 1e-8
-        grad_samples = super.get_sample_grads(x, samples, buffer)
+        grad_samples = super().get_sample_grads(x, samples, buffer)
         grad_mean_labels = torch.mean(grad_samples, dim=2, keepdim=True)
         grad_samples = torch.div(
             (grad_samples - grad_mean_labels.expand_as(samples)),
