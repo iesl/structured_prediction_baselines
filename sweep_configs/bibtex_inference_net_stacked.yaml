@@ -17,13 +17,13 @@ metric:
   goal: maximize
 parameters:
   env.ff_hidden:
-    values: [50, 100, 150, 200, 300]
+    values: [100, 200, 300, 400]
   env.ff_dropout:
-    values: [0.1, 0.2, 0.3]
+    values: [0.3, 0.4, 0.5]
   env.ff_linear_layers:
-    values: [1, 2, 3]
+    values: [2, 3]
   env.global_score_hidden_dim:
-    values: [50, 100, 150, 200, 300]
+    values: [150, 200, 300, 400]
   env.inference_score_weight:
     min: 0
     max: 1
@@ -32,8 +32,16 @@ parameters:
     min: 0
     max: 1
     distribution: uniform
+  env.oracle_cost_weight:
+    min: 0
+    max: 1
+    distribution: uniform
+  model.sampler.optimizer.lr:
+    min: -10.0
+    max: 0
+    distribution: log_uniform
   model.sampler.stopping_criteria:
-    values: [1, 5, 10, 20]
+    values: [1, 5, 10]
   trainer.optimizer.lr:
     min: -7.0
     max: 0

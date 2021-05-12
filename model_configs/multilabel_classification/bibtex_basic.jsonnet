@@ -13,8 +13,8 @@ local num_input_features = dataset_metadata.input_features;
 local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
 local label_space_dim = ff_hidden;
 local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
-local ff_activation = std.parseJson(std.extVar('ff_activation'));
-//local ff_activation = 'tanh';
+//local ff_activation = std.parseJson(std.extVar('ff_activation'));
+local ff_activation = 'softplus';
 local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
 local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
 
@@ -44,7 +44,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
     type: 'multi-label-classification',
     sampler: {
       type: 'multi-label-basic',
-      task_nn: {
+      inference_nn: {
         feature_network: {
           input_dim: num_input_features,
           num_layers: ff_linear_layers,
@@ -84,10 +84,10 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       verbose: true,
     },
     optimizer: {
-      parameter_groups: [[[@'.*linear_layers.*weight', @'.*linear_layers.*bias'], { weight_decay: ff_weight_decay }]],
+     // parameter_groups: [[[@'.*linear_layers.*weight', @'.*linear_layers.*bias'], { weight_decay: ff_weight_decay }]],
       lr: 0.001,
-      weight_decay: 0,
-      type: 'adamw',
+      weight_decay: 1e-4,
+      type: 'adam',
     },
     checkpointer: {
       num_serialized_models_to_keep: 1,

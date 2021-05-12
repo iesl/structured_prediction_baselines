@@ -3,7 +3,7 @@ local data_dir = std.extVar('DATA_DIR');
 local cuda_device = std.extVar('CUDA_DEVICE');
 local use_wandb = (if test == '1' then false else true);
 
-local dataset_name = 'bibtex_original';
+local dataset_name = 'bibtex';
 local dataset_metadata = (import 'datasets.jsonnet')[dataset_name];
 local num_labels = dataset_metadata.num_labels;
 local num_input_features = dataset_metadata.input_features;
@@ -49,7 +49,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
     sampler: {
       type: 'inference-network',
       optimizer: {
-        lr: 0.001,
+        lr: 0.00018499935136572,
         weight_decay: 1e-4,
         type: 'adam',
       },
@@ -95,7 +95,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
         loss_weights: [1.0, cross_entorpy_loss_weight],
         reduction: 'mean',
       },
-      stopping_criteria: 10,
+      stopping_criteria: 5,
     },
     oracle_value_function: { type: 'per-instance-f1', differentiable: true },
     score_nn: {
@@ -129,7 +129,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       reduction: 'mean',
       perceptron_loss_weight: inference_score_weight,
       oracle_cost_weight: oracle_cost_weight,
-      normalize_y: true
+      normalize_y: true,
     },
     initializer: {
       regexes: [
@@ -157,8 +157,8 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       verbose: true,
     },
     optimizer: {
-      lr: 0.001,
-      weight_decay: 1e-4,
+      lr: 0.000935172080948353,
+      weight_decay: 0.00000783288760818887,
       type: 'adam',
     },
     checkpointer: {
