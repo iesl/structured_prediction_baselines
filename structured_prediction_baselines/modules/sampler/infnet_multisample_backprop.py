@@ -324,7 +324,7 @@ class InfnetMultiSampleLearner(Sampler):
             ) # (batch, num_samples, num_labels) grab gradients w.r.t.samples from score loss.
 
             loss_samples = grad_samples*loss_samples
-            self._metrics["sampling_loss"] = torch.sum(loss_samples)
+            self._metrics["sampling_loss"] = float(torch.sum(loss_samples))
             total_loss = total_loss + torch.sum(self.sample_loss_weight * loss_samples) # shouldn't it be mean?
         total_loss.backward()  # type:ignore
         # y_inf.expand_as(pseudo_labels)
