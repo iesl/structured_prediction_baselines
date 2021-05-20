@@ -118,6 +118,7 @@ class InfnetMultiSampleProbReduceFix(InfnetMultiSampleLearner):
             ) # (batch, num_samples, num_labels) grab gradients w.r.t.samples from score loss.
 
             loss_samples = grad_samples*sample_prob
+            self._metrics["sampling_loss"] = float(torch.mean(loss_samples))
             total_loss = torch.mean(
                     total_loss + torch.mean(self.sample_loss_weight * loss_samples, dim=1, keepdim=True)
             )
@@ -244,6 +245,7 @@ class InfnetMultiSampleReduceFix(InfnetMultiSampleProbReduceFix):
                     buffer,
             ) # (batch, num_samples, num_labels) grab gradients w.r.t.samples from score loss.
             loss_samples = grad_samples*sample_prob
+            self._metrics["sampling_loss"] = float(torch.mean(loss_samples))
             total_loss = torch.mean(
                     total_loss + torch.mean(self.sample_loss_weight * loss_samples, dim=1, keepdim=True)
             )
@@ -380,6 +382,7 @@ class InfnetMultiSampleDebug(InfnetMultiSampleLearner):
         # print(loss_samples.size())
         # print(grad_samples.size())
         loss_samples = grad_samples*loss_samples
+        self._metrics["sampling_loss"] = float(torch.mean(loss_samples))
         total_loss = torch.mean( total_loss + self.sample_loss_weight * loss_samples )
         total_loss.backward()  # type:ignore
         # y_inf.expand_as(pseudo_labels)
