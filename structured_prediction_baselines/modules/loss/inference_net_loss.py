@@ -251,7 +251,7 @@ class InferenceScoreLoss(MarginBasedLoss):
     task-nn in the inference net.
     """
 
-    def __init__(self, inference_score_weight: float, **kwargs: Any):
+    def __init__(self, inference_score_weight: float = 1.0, **kwargs: Any):
         super().__init__(**kwargs)
         self.inference_score_weight = inference_score_weight
 
