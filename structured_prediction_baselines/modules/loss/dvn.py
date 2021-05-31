@@ -251,6 +251,9 @@ class DVNScoreLoss(Loss):
 
         return predicted_score
 
+    def get_metrics(self, reset: bool = False):
+        pass
+
 class DVNScoreCostAugNet(Loss):
     """
     Just uses score from the score network as the objective, 
@@ -325,6 +328,8 @@ class DVNScoreCostAugNet(Loss):
 
         return [predicted_score_infnet, predicted_score_costaug]
 
+    def get_metrics(self, reset: bool = False):
+        pass
 
 
 class DVNScoreAndCostAugLoss(MarginBasedLoss):
