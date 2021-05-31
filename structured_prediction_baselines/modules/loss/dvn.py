@@ -18,7 +18,7 @@ class DVNLoss(Loss):
     """
 
     def get_metrics(self, reset: bool = False):
-        pass
+        return {}
 
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
@@ -252,7 +252,7 @@ class DVNScoreLoss(Loss):
         return predicted_score
 
     def get_metrics(self, reset: bool = False):
-        pass
+        return {}
 
 class DVNScoreCostAugNet(Loss):
     """
@@ -329,7 +329,7 @@ class DVNScoreCostAugNet(Loss):
         return [predicted_score_infnet, predicted_score_costaug]
 
     def get_metrics(self, reset: bool = False):
-        pass
+        return {}
 
 
 class DVNScoreAndCostAugLoss(MarginBasedLoss):
