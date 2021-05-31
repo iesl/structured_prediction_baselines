@@ -1,5 +1,6 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
 import torch
+import numpy as np
 from .base import ScoreBasedLearningModel
 from structured_prediction_baselines.modules.sampler import Sampler
 from structured_prediction_baselines.modules.oracle_value_function import (
@@ -71,4 +72,41 @@ class MultilabelClassification(ScoreBasedLearningModel):
             "relaxed_f1": self.relaxed_f1.get_metric(reset),
         }
         metrics.update(self.sampler.get_metrics(reset))
+        if reset:
+            print(self.eval_only_metrics)
+            for key in self.eval_only_metrics:
+                metrics[key] = float(np.mean(self.eval_only_metrics[key]))
+            self.eval_only_metrics = {}
         return metrics
+
+    @torch.no_grad()
+    def on_epoch(self, x: Any, labels: torch.Tensor, y_pred: torch.Tensor, buffer: Dict, num_samples: int, **kwargs: Any):
+        if not self.inference_module.is_normalized:
+            y_pred = torch.sigmoid(y_pred)
+
+        p = y_pred.squeeze(1)  # (batch, num_labels)
+        distribution = torch.distributions.Bernoulli(probs=p)
+        distribution_samples = torch.transpose(distribution.sample([num_samples]), 0, 1)
+        random_samples = torch.transpose(
+            torch.randint(low=0, high=2, size=(num_samples,) + p.shape, dtype=p.dtype, device=p.device), 0, 1)
+
+        distribution_samples_score = torch.mean(self.score_nn(x, distribution_samples, buffer))
+        random_samples_score = torch.mean(self.score_nn(x, random_samples, buffer))
+        self.eval_only_metrics['distribution_samples_score'] = self.eval_only_metrics.get(
+            'distribution_samples_score', []) + [distribution_samples_score]
+        self.eval_only_metrics['random_samples_score'] = self.eval_only_metrics.get(
+            'random_samples_score', []) + [random_samples_score]
+
+        # call sampler on distribution samples
+        self.eval_only_module(x, labels, buffer, distribution_samples)
+        dist_sampler_loss = self.eval_only_module.get_metrics(reset=True).get(
+            'total_' + self.eval_only_module.name + '_loss')
+        self.eval_only_metrics['dist_sampler_loss'] = self.eval_only_metrics.get(
+            'dist_sampler_loss', []) + [dist_sampler_loss]
+
+        # call sampler on random samples
+        self.eval_only_module(x, labels, buffer, random_samples)
+        random_sampler_loss = self.eval_only_module.get_metrics(reset=True).get(
+            'total_' + self.eval_only_module.name + '_loss')
+        self.eval_only_metrics['random_sampler_loss'] = self.eval_only_metrics.get(
+            'random_sampler_loss', []) + [random_sampler_loss]

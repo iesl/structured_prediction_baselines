@@ -22,6 +22,8 @@ class ScoreBasedLearningModel(Model):
         oracle_value_function: Optional[OracleValueFunction] = None,
         score_nn: Optional[ScoreNN] = None,
         inference_module: Optional[Sampler] = None,
+        eval_only_module: Optional[Sampler] = None,
+        num_eval_samples: int = 10,
         regularizer: Optional[RegularizerApplicator] = None,
         initializer: Optional[InitializerApplicator] = None,
         **kwargs: Any,
@@ -37,6 +39,9 @@ class ScoreBasedLearningModel(Model):
         else:
             self.inference_module = sampler
 
+        self.eval_only_module = eval_only_module
+        self.num_eval_samples = num_eval_samples
+        self.eval_only_metrics = {}
         if initializer is not None:
             initializer(self)
 
@@ -49,6 +54,7 @@ class ScoreBasedLearningModel(Model):
         inference_module: Optional[Lazy[Sampler]] = None,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
+        eval_only_module: Optional[Lazy[Sampler]] = None,
         regularizer: Optional[RegularizerApplicator] = None,
         initializer: Optional[InitializerApplicator] = None,
         **kwargs: Any,
@@ -80,6 +86,13 @@ class ScoreBasedLearningModel(Model):
                 score_nn=score_nn, oracle_value_function=oracle_value_function
             )
 
+        if eval_only_module is not None:
+            eval_only_module_ = eval_only_module.construct(
+                score_nn=score_nn, oracle_value_function=oracle_value_function
+            )
+        else:
+            eval_only_module_ = None
+
         return cls(
             vocab=vocab,
             sampler=sampler_,
@@ -87,6 +100,7 @@ class ScoreBasedLearningModel(Model):
             oracle_value_function=oracle_value_function,
             score_nn=score_nn,
             inference_module=inference_module_,
+            eval_only_module=eval_only_module_,
             regularizer=regularizer,
             initializer=initializer,
             **kwargs,
@@ -172,6 +186,10 @@ class ScoreBasedLearningModel(Model):
                 self.inference_module.train(model_state)
             else:
                 y_pred = y_hat
+
+            if not self.training and self.eval_only_module is not None:
+                self.on_epoch(x, labels, y_pred, buffer, self.num_eval_samples)
+
             # Loss needs one-hot labels of shape (batch, 1, ...)
             labels = self.unsqueeze_labels(labels)
             loss = self.loss_fn(
@@ -185,6 +203,7 @@ class ScoreBasedLearningModel(Model):
             self.calculate_metrics(
                 self.squeeze_y(labels), self.squeeze_y(y_pred), buffer
             )
+
         else:
             # labels not present. Just predict.
             model_state = self.training
@@ -195,3 +214,6 @@ class ScoreBasedLearningModel(Model):
         results["y_pred"] = y_pred
 
         return results
+
+    def on_epoch(self, x: Any, labels: torch.Tensor, y_pred: torch.Tensor, buffer: Dict, num_samples: int, kwargs: Any):
+        raise NotImplementedError
