@@ -242,7 +242,7 @@ class GradientBasedInferenceSampler(Sampler):
         self,
         gradient_descent_loop: GradientDescentLoop,
         loss_fn: Loss,  #: This loss can be different from the main loss
-        output_space: OutputSpace,
+        output_space: Optional[OutputSpace] = None,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
@@ -272,7 +272,7 @@ class GradientBasedInferenceSampler(Sampler):
         cls,
         gradient_descent_loop: GradientDescentLoop,
         loss_fn: Lazy[Loss],  #: This loss can be different from the main loss
-        output_space: OutputSpace,
+        output_space: Optional[OutputSpace] = None,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
@@ -297,6 +297,11 @@ class GradientBasedInferenceSampler(Sampler):
             random_mixing_in_init=random_mixing_in_init,
             name=name
         )
+
+    @torch.no_grad()  # type:ignore
+    def projection_function_(self, inp: torch.Tensor) -> None:
+        """Inplace projection function"""
+        inp.clamp_(0, 1)
 
     def get_loss_fn(
         self,
@@ -426,11 +431,15 @@ class GradientBasedInferenceSampler(Sampler):
             torch.Tensor
         ],  #: If given will have shape (batch, ...)
         buffer: Dict,
+        init_samples: torch.tensor = None,
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
-        init = self.get_initial_output(
-            x, labels
-        )  # E (batch*num_init_samples, ...)
+        if self.output_space is not None:
+            init = self.get_initial_output(
+                x, labels
+            )  # E (batch*num_init_samples, ...)
+        else:
+            init = init_samples
         # new: (batch, num_init_samples,...)
         # we have to reshape labels from (batch, ...) to (batch*num_init_samples, ...)
 
@@ -442,6 +451,12 @@ class GradientBasedInferenceSampler(Sampler):
 
         if labels is not None:
             labels = labels.unsqueeze(1)
+
+        if self.output_space is not None:
+            projection_func = self.output_space.projection_function_
+        else:
+            projection_func = self.projection_function_
+
         # switch of gradients on parameters using context manager
         with self.no_param_grad():
             loss_fn = self.get_loss_fn(
@@ -457,7 +472,7 @@ class GradientBasedInferenceSampler(Sampler):
                 init,
                 loss_fn,
                 self.stopping_criteria,
-                self.output_space.projection_function_,
+                projection_func,
             )
 
         # print(f"\nloss_values:\n{loss_values}")

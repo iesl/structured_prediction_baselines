@@ -16,6 +16,10 @@ class DVNLoss(Loss):
     """
     Loss function to train DVN, typically soft BCE loss.
     """
+
+    def get_metrics(self, reset: bool = False):
+        pass
+
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
 
