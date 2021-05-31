@@ -17,7 +17,7 @@ local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
 local ff_dropout_score = 0.3;                // std.parseJson(std.extVar('ff_dropout'));
 local ff_activation = 'tanh';                   // std.parseJson(std.extVar('ff_activation'));
 local ff_linear_layers_score = 3;                // std.parseJson(std.extVar('ff_linear_layers'));
-//local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
+local ff_linear_layers = 2; //std.parseJson(std.extVar('ff_linear_layers'));
 // local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));    --> not used below (also not used in InfNN)
 local global_score_hidden_dim = 200;            // local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
 // local inf_lr = std.parseJson(std.extVar('inf_lr'));                      --> used in orig DVN sampler but not used here.
