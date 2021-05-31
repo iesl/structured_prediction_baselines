@@ -73,7 +73,6 @@ class MultilabelClassification(ScoreBasedLearningModel):
         }
         metrics.update(self.sampler.get_metrics(reset))
         if reset:
-            print(self.eval_only_metrics)
             for key in self.eval_only_metrics:
                 metrics[key] = float(np.mean(self.eval_only_metrics[key]))
             self.eval_only_metrics = {}
@@ -90,8 +89,8 @@ class MultilabelClassification(ScoreBasedLearningModel):
         random_samples = torch.transpose(
             torch.randint(low=0, high=2, size=(num_samples,) + p.shape, dtype=p.dtype, device=p.device), 0, 1)
 
-        distribution_samples_score = torch.mean(self.score_nn(x, distribution_samples, buffer))
-        random_samples_score = torch.mean(self.score_nn(x, random_samples, buffer))
+        distribution_samples_score = float(torch.mean(self.score_nn(x, distribution_samples, buffer)))
+        random_samples_score = float(torch.mean(self.score_nn(x, random_samples, buffer)))
         self.eval_only_metrics['distribution_samples_score'] = self.eval_only_metrics.get(
             'distribution_samples_score', []) + [distribution_samples_score]
         self.eval_only_metrics['random_samples_score'] = self.eval_only_metrics.get(
