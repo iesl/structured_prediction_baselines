@@ -13,6 +13,7 @@ from typing import (
 
 import numpy as np
 import torch
+import itertools
 from allennlp.common.lazy import Lazy
 from allennlp.training.optimizers import Optimizer
 
@@ -32,17 +33,18 @@ from structured_prediction_baselines.modules.task_nn import (
 )
 
 
-@Sampler.register("inference-network", constructor="from_partial_objects")
-class InferenceNetSampler(Sampler):
+@Sampler.register("sg-spen", constructor="from_partial_objects")
+class SGSpenSampler(Sampler):
     def __init__(
         self,
-        optimizer: Optimizer,
         loss_fn: Loss,
         inference_nn: TaskNN,
         score_nn: ScoreNN,
+        optimizer: Optional[Optimizer] = None,
         cost_augmented_layer: Optional[CostAugmentedLayer] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
+        n_samples: int = 10,
         name: str = 'inf_net',
         **kwargs: Any,
     ):
@@ -56,6 +58,7 @@ class InferenceNetSampler(Sampler):
         self.cost_augmented_layer = cost_augmented_layer
         self.loss_fn = loss_fn
         self.optimizer = optimizer
+        self._different_training_and_eval = True
 
         if isinstance(stopping_criteria, int):
             self.stopping_criteria: StoppingCriteria = StopAfterNumberOfSteps(
@@ -63,6 +66,7 @@ class InferenceNetSampler(Sampler):
             )
         else:
             self.stopping_criteria = stopping_criteria
+        self.n_samples = n_samples
 
     @property
     def is_normalized(self) -> bool:
@@ -73,16 +77,16 @@ class InferenceNetSampler(Sampler):
     @classmethod
     def from_partial_objects(
         cls,
-        optimizer: Lazy[Optimizer],
         loss_fn: Lazy[Loss],  #: This loss can be different from the main loss
         inference_nn: TaskNN,  #: inference_nn cannot be None for this sampler
         score_nn: ScoreNN,
+        optimizer: Lazy[Optional[Optimizer]] = None,
         cost_augmented_layer: Optional[CostAugmentedLayer] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
-        eval_grad: bool = True,
-        name: str = 'inf_net',
-    ) -> "InferenceNetSampler":
+        n_samples: int = 10,
+        name: str = 'sg_spen',
+    ) -> "SGSpenSampler":
         loss_fn_ = loss_fn.construct(
             score_nn=score_nn, oracle_value_function=oracle_value_function
         )
@@ -94,20 +98,23 @@ class InferenceNetSampler(Sampler):
             trainable_parameters.update(
                 cost_augmented_layer.named_parameters()
             )
-        optimizer_ = optimizer.construct(
-            model_parameters=list(trainable_parameters.items())
-        )
+
+        optimizer_ = None
+        if optimizer is not None:
+            optimizer_ = optimizer.construct(
+                model_parameters=list(trainable_parameters.items())
+            )
 
         return cls(
-            optimizer_,
             loss_fn_,
             inference_nn=inference_nn,
             score_nn=score_nn,
+            optimizer=optimizer_,
             cost_augmented_layer=cost_augmented_layer,
             oracle_value_function=oracle_value_function,
             stopping_criteria=stopping_criteria,
-            eval_grad=eval_grad,
-            name=name
+            name=name,
+            n_samples=n_samples
         )
 
     def get_loss_fn(
@@ -159,10 +166,10 @@ class InferenceNetSampler(Sampler):
             for p in self.score_nn.parameters():
                 p.requires_grad_(False)
             # then switch on inf net params
-
-            for g in self.optimizer.param_groups:
-                for p in g["params"]:
-                    p.requires_grad_(True)
+            if self.optimizer:
+                for g in self.optimizer.param_groups:
+                    for p in g["params"]:
+                        p.requires_grad_(True)
             yield
         finally:
             # set the requires_grad back to false for inf net
@@ -170,9 +177,10 @@ class InferenceNetSampler(Sampler):
             for n, p in self.score_nn.named_parameters():  # type: ignore
                 p.requires_grad_(score_nn_requires_grad_map[n])
 
-            for g in self.optimizer.param_groups:
-                for p in g["params"]:
-                    p.requires_grad_(False)
+            if self.optimizer:
+                for g in self.optimizer.param_groups:
+                    for p in g["params"]:
+                        p.requires_grad_(False)
 
     def forward(
         self,
@@ -204,25 +212,30 @@ class InferenceNetSampler(Sampler):
                 while not self.stopping_criteria(
                     step_number, float(loss_value)
                 ):
-                    self.optimizer.zero_grad(set_to_none=True)
+                    if self.optimizer:
+                        self.optimizer.zero_grad(set_to_none=True)
+
                     y_inf, y_cost_aug = self._get_values(x, labels, buffer)
+                    samples = self._get_samples(y_inf, self.n_samples)
+                    sample_pairs = list(itertools.permutations(samples, 2))
+                    y_hat, y_hat_extra = tuple(map(torch.stack, zip(*sample_pairs)))
                     loss_value = self.update(
-                        y_inf, y_cost_aug, buffer, loss_fn
+                        y_hat, y_hat_extra, buffer, loss_fn
                     )
 
-                    loss_values.append(float(loss_value))
+                    loss_value_filtered = torch.gt(loss_value, 0)
+                    filtered_idx = torch.nonzero(loss_value_filtered, as_tuple=True)
+                    y_hat_filtered, y_hat_extra_filtered = y_hat[filtered_idx], y_hat_extra[filtered_idx]
+                    loss_values.append(float(torch.mean(loss_value)))
 
                     step_number += 1
                 self._metrics[self.name + '_loss'] = np.mean(loss_values)
                 self._total_loss += np.mean(loss_values)
                 self._num_batches += 1
 
-            # once out of Sampler, y_inf and y_cost_aug should not get gradients
             return (
-                y_inf.detach().clone(),
-                y_cost_aug.detach().clone()
-                if y_cost_aug is not None
-                else None,
+                y_hat_filtered.detach().clone(),
+                y_hat_extra_filtered.detach().clone()
             )
 
     def update(
@@ -238,10 +251,24 @@ class InferenceNetSampler(Sampler):
         """
         loss = loss_fn(y_hat, y_cost_aug, buffer)
 
-        loss.backward()  # type:ignore
-        self.optimizer.step()
+        if self.optimizer:
+            loss.backward()  # type:ignore
+            self.optimizer.step()
 
         return loss
+
+    def _get_samples(
+        self,
+        y_pred: torch.Tensor,
+        n_samples: int
+    ) -> torch.Tensor:
+        if not self.is_normalized:
+            y_pred = torch.sigmoid(y_pred)
+
+        p = y_pred.squeeze(1)  # (batch, num_labels)
+        distribution = torch.distributions.Bernoulli(probs=p)
+        samples = torch.transpose(distribution.sample([n_samples]), 0, 1)
+        return samples
 
     def _get_values(
         self,
