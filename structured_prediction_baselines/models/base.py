@@ -44,8 +44,8 @@ class ScoreBasedLearningModel(Model):
     def from_partial_objects(
         cls,
         vocab: Vocabulary,
-        loss_fn: Lazy[Loss],
         sampler: Lazy[Sampler],
+        loss_fn: Lazy[Loss],
         inference_module: Optional[Lazy[Sampler]] = None,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
@@ -53,15 +53,26 @@ class ScoreBasedLearningModel(Model):
         initializer: Optional[InitializerApplicator] = None,
         **kwargs: Any,
     ) -> "ScoreBasedLearningModel":
-        sampler_ = sampler.construct(
-            score_nn=score_nn, oracle_value_function=oracle_value_function
-        )
-        loss_fn_ = loss_fn.construct(
-            score_nn=score_nn, oracle_value_function=oracle_value_function
-        )
+        
+        if oracle_value_function is not None:
+            sampler_ = sampler.construct(
+                score_nn=score_nn, oracle_value_function=oracle_value_function
+            )
+            loss_fn_ = loss_fn.construct(
+                score_nn=score_nn, oracle_value_function=oracle_value_function
+            )
+        else:
+            sampler_ = sampler.construct(
+                score_nn=score_nn,
+            )
+            loss_fn_ = loss_fn.construct(
+                score_nn=score_nn,
+            )
+
         # if no seperate inference module is given,
         # we will be using the same sampler
-
+        
+        # test-time inference.
         if inference_module is None:
             inference_module_ = sampler_
         else:
