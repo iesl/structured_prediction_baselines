@@ -18,7 +18,7 @@ from structured_prediction_baselines.modules.multilabel_classification_task_nn i
 class MultilabelClassificationSampler(Sampler):
     def __init__(
         self,
-        task_nn: MultilabelTaskNN,
+        inference_nn: MultilabelTaskNN,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
         **kwargs: Any,
@@ -27,7 +27,7 @@ class MultilabelClassificationSampler(Sampler):
             score_nn,
             oracle_value_function,
         )
-        self.task_nn = task_nn
+        self.inference_nn = inference_nn
 
     @property
     def is_normalized(self) -> bool:
@@ -41,9 +41,12 @@ class MultilabelClassificationSampler(Sampler):
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         return (
-            self.task_nn(x, buffer=buffer).unsqueeze(1),
+            self.inference_nn(x, buffer=buffer).unsqueeze(1),
             None,
         )  # unormalized logits (batch, 1, ...)
+      
+    def get_metrics(self, reset: bool = False) -> dict:
+        pass
 
 
 @Sampler.register(
@@ -72,6 +75,9 @@ class MultiLabelNormalized(InferenceNetSampler):
     @property
     def different_training_and_eval(self) -> bool:
         return False
+    
+    def get_metrics(self, reset: bool = False) -> dict:
+        pass
 
 
 @Sampler.register(
@@ -132,3 +138,6 @@ class MultiLabelNormalizedOrSampled(InferenceNetSampler):
     @property
     def is_normalized(self) -> bool:
         return True
+      
+    def get_metrics(self, reset: bool = False) -> dict:
+        pass

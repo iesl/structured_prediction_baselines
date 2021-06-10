@@ -34,12 +34,17 @@ class Sampler(torch.nn.Module, Registrable):
         self,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
+        name: str = 'sampler',
         **kwargs: Any,
     ):
         super().__init__()  # type: ignore
         self.score_nn = score_nn
         self.oracle_value_function = oracle_value_function
         self._different_training_and_eval = False
+        self._metrics = {}
+        self._total_loss = 0.0
+        self._num_batches = 0
+        self.name = name
 
     @property
     def is_normalized(self) -> bool:
@@ -63,6 +68,9 @@ class Sampler(torch.nn.Module, Registrable):
     @property
     def different_training_and_eval(self) -> bool:
         return self._different_training_and_eval
+
+    def get_metrics(self, reset: bool = False) -> dict:
+        raise NotImplementedError
 
 
 class SamplerModifier(torch.nn.Module, Registrable):
@@ -179,6 +187,13 @@ class AppendingSamplerContainer(SamplerContainer):
 
         return all_samples, None
 
+    def get_metrics(self, reset: bool = False):
+        metrics = {}
+        for sampler in self.constituent_samplers:
+            metrics.update(sampler.get_metrics(reset))
+
+        return metrics
+
 
 @Sampler.register(
     "random-picking-container", constructor="from_partial_constituent_samplers"
@@ -248,6 +263,13 @@ class RandomPickingSamplerContainer(SamplerContainer):
         )
 
         return sampler(x, labels, buffer, **kwargs)
+      
+    def get_metrics(self, reset: bool = False):
+        metrics = {}
+        for sampler in self.constituent_samplers:
+            metrics.update(sampler.get_metrics(reset))
+
+        return metrics
 
 
 class SamplerWrapper(Sampler):

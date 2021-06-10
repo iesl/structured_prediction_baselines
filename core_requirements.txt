@@ -6,8 +6,7 @@ scikit-multilearn
 liac-arff
 wcmatch
 wandb
-tensorboard
-wandb-allennlp
+git+https://github.com/dhruvdcoder/wandb-allennlp.git@dhruvdcoder-no-tensorboard-patch
 jsonlines
 jupyter
 seaborn

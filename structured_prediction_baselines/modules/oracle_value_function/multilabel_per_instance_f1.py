@@ -23,7 +23,7 @@ class PerInstanceF1(OracleValueFunction):
     """
     Return oracle value that is based on per instance f1 score.
 
-    Sing f1 score will be in [0,1] with 1 being the best, we return f1
+    Single f1 score will be in [0,1] with 1 being the best, we return f1
     as is for the oracle value.
     """
 
