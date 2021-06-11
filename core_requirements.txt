@@ -12,3 +12,4 @@ jupyter
 seaborn
 ipywidgets
 allennlp-models==2.0.0
+gdown
