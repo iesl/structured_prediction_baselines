@@ -217,16 +217,22 @@ class SGSpenSampler(Sampler):
 
                     y_inf, y_cost_aug = self._get_values(x, labels, buffer)
                     samples = self._get_samples(y_inf, self.n_samples)
-                    sample_pairs = list(itertools.permutations(samples, 2))
+                    sample_pairs = list(itertools.permutations(samples.transpose(0, 1), 2))
                     y_hat, y_hat_extra = tuple(map(torch.stack, zip(*sample_pairs)))
+                    y_hat = torch.transpose(y_hat, 0, 1)
+                    y_hat_extra = torch.transpose(y_hat_extra, 0, 1)
                     loss_value = self.update(
                         y_hat, y_hat_extra, buffer, loss_fn
                     )
 
                     loss_value_filtered = torch.gt(loss_value, 0)
                     filtered_idx = torch.nonzero(loss_value_filtered, as_tuple=True)
-                    y_hat_filtered, y_hat_extra_filtered = y_hat[filtered_idx], y_hat_extra[filtered_idx]
-                    loss_values.append(float(torch.mean(loss_value)))
+                    samples_mask = torch.zeros_like(loss_value)
+                    samples_mask[filtered_idx] = 1
+                    buffer["samples_mask"] = samples_mask
+
+                    loss_value = torch.mean(loss_value)
+                    loss_values.append(float(loss_value))
 
                     step_number += 1
                 self._metrics[self.name + '_loss'] = np.mean(loss_values)
@@ -234,8 +240,8 @@ class SGSpenSampler(Sampler):
                 self._num_batches += 1
 
             return (
-                y_hat_filtered.detach().clone(),
-                y_hat_extra_filtered.detach().clone()
+                y_hat.detach().clone(),
+                y_hat_extra.detach().clone()
             )
 
     def update(
