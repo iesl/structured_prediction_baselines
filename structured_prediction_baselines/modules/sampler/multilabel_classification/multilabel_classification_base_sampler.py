@@ -44,9 +44,6 @@ class MultilabelClassificationSampler(Sampler):
             self.inference_nn(x, buffer=buffer).unsqueeze(1),
             None,
         )  # unormalized logits (batch, 1, ...)
-      
-    def get_metrics(self, reset: bool = False) -> dict:
-        pass
 
 
 @Sampler.register(
@@ -75,9 +72,6 @@ class MultiLabelNormalized(InferenceNetSampler):
     @property
     def different_training_and_eval(self) -> bool:
         return False
-    
-    def get_metrics(self, reset: bool = False) -> dict:
-        pass
 
 
 @Sampler.register(
@@ -138,6 +132,3 @@ class MultiLabelNormalizedOrSampled(InferenceNetSampler):
     @property
     def is_normalized(self) -> bool:
         return True
-      
-    def get_metrics(self, reset: bool = False) -> dict:
-        pass

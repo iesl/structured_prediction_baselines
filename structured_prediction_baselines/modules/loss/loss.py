@@ -93,16 +93,17 @@ class Loss(torch.nn.Module, Registrable):
         """
         raise NotImplementedError
 
-    def get_metrics(self, reset: bool = False):
-        raise NotImplementedError
-      
+    def get_metrics(self, reset: bool = False) -> Dict[str, float]:
+        return {}
+
+
 # @Loss.register("zero-loss")
 # class ZeroLoss(Loss):
 #     """
 #     Loss function to give zero signal to DVN
 #     """
 #     def __init__(self, **kwargs: Any):
-#         super().__init__(**kwargs)        
+#         super().__init__(**kwargs)
 
 #     def forward(
 #         self,
@@ -114,6 +115,7 @@ class Loss(torch.nn.Module, Registrable):
 #         **kwargs: Any,
 #     ) -> torch.Tensor:
 #         return 0
+
 
 @Loss.register("combination-loss")
 class CombinationLoss(Loss):
@@ -155,6 +157,7 @@ class CombinationLoss(Loss):
 
     def get_metrics(self, reset: bool = False):
         metrics = {}
+
         for loss in self.constituent_losses:
             metrics.update(loss.get_metrics(reset))
 
@@ -190,6 +193,7 @@ class NegativeLoss(Loss):
 
     def get_metrics(self, reset: bool = False):
         metrics = self.constituent_loss.get_metrics(reset)
+
         for key in metrics:
             metrics[key] *= -1
 
