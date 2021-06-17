@@ -12,6 +12,7 @@ from typing import (
 )
 
 import torch
+import numpy as np
 from allennlp.common.lazy import Lazy
 from allennlp.training.optimizers import Optimizer
 
@@ -279,8 +280,12 @@ class InfnetMultiSampleLearner(Sampler):
                         x, labels, samples, y_inf, y_cost_aug, buffer 
                     )
                     loss_values.append(float(loss_value))
-
                     step_number += 1
+
+                self._metrics[self.name + '_loss'] = np.mean(loss_values)
+                self._total_loss += np.mean(loss_values)
+                self._num_batches += 1
+
             # once out of Sampler, y_inf and y_cost_aug should not get gradients
             return (
                 y_inf.detach().clone(),
@@ -324,7 +329,8 @@ class InfnetMultiSampleLearner(Sampler):
             ) # (batch, num_samples, num_labels) grab gradients w.r.t.samples from score loss
             
             loss_samples = grad_samples*loss_samples
-            total_loss = total_loss + torch.sum(self.sample_loss_weight * loss_samples) # shouldn't it be mean?
+            self._metrics["sampling_loss"] = float(torch.sum(loss_samples))
+            total_loss = total_loss + torch.sum(self.sample_loss_weight * loss_samples)  # shouldn't it be mean?
         total_loss.backward()  # type:ignore
         # y_inf.expand_as(pseudo_labels)
         self.optimizer.step()
@@ -390,6 +396,7 @@ class InfnetMultiSampleStdNormScore(InfnetMultiSampleLearner):
     In InfnetMultiSampleLearner:
         We were taking "mean" reducing in the get_sample_grads(), 
         and add "sum" of sample_loss on top of "mean" of total loss.
+        
     Now:
         We are not taking any "mean" reducing before the end.
         When adding the sample_loss, we only take torch.mean() across samples,

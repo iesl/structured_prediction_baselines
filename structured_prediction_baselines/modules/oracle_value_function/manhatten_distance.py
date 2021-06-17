@@ -26,7 +26,7 @@ class ManhattanDistanceValueFunction(OracleValueFunction):
         mask: Optional[torch.Tensor] = None,
         **kwargs: Any,
     ) -> torch.Tensor:
-        distance = torch.sum(torch.abs(labels - y_hat), dim=-1)
+        distance = torch.mean(torch.abs(labels - y_hat), dim=-1)
 
         if mask is not None:
             if mask.dim() == 3:
@@ -34,6 +34,4 @@ class ManhattanDistanceValueFunction(OracleValueFunction):
                 mask = mask.squeeze(1)
             distance *= mask
 
-        return -torch.mean(
-            distance, dim=-1
-        )  # this value is higher the better so we flip the sign
+        return -distance  # this value is higher the better so we flip the sign
