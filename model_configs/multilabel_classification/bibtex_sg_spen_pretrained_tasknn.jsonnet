@@ -115,6 +115,13 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
             parameter_name_overrides: {}
           }
         ],
+        [@'.*sampler.inference_nn.feature_network.*bias',
+          {
+            type: "pretrained",
+            weights_file_path: "/mnt/nfs/scratch1/purujitgoyal/structured_prediction_baselines/wandb/run-20210426_015127-bmt5py4z/files/training_dumps/weights.th",
+            parameter_name_overrides: {}
+          }
+        ],
       ],
     },
   },
