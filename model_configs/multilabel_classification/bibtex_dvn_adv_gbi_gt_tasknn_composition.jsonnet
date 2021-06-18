@@ -19,12 +19,14 @@ local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
 //local global_score_hidden_dim = 150;
 local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
 local inf_lr = std.parseJson(std.extVar('inf_lr'));
+local tasknn_stopping_criteria = std.parseJson(std.extVar('tasknn_stopping_criteria'));
+local tasknn_lr = std.parseJson(std.extVar('tasknn_lr'));
 //local inf_optim = std.parseJson(std.extVar('inf_optim'));
 local inf_optim = 'sgd';
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 //local sample_picker = std.parseJson(std.extVar('sample_picker'));
 local sample_picker = 'best';
-local cross_entorpy_loss_weight = std.parseJson(std.extVar('cross_entorpy_loss_weight'));
+local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
 
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
@@ -95,8 +97,8 @@ local cross_entorpy_loss_weight = std.parseJson(std.extVar('cross_entorpy_loss_w
         {
           type: 'multi-label-inference-net-normalized',
           optimizer: {
-            lr: 0.001,
-            weight_decay: 0,
+            lr: tasknn_lr,
+            weight_decay: ff_weight_decay,
             type: 'adamw',
           },
           inference_nn: {
@@ -104,7 +106,7 @@ local cross_entorpy_loss_weight = std.parseJson(std.extVar('cross_entorpy_loss_w
             feature_network: {
               input_dim: num_input_features,
               num_layers: ff_linear_layers,
-              activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + [ff_activation]),
+              activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + ['linear']),
               hidden_dims: ff_hidden,
               dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
             },
@@ -126,10 +128,10 @@ local cross_entorpy_loss_weight = std.parseJson(std.extVar('cross_entorpy_loss_w
                 reduction: 'none',
               },
             ],
-            loss_weights: [1.0, cross_entorpy_loss_weight],
+            loss_weights: [1.0, cross_entropy_loss_weight],
             reduction: 'sum',
           },
-          stopping_criteria: 5,
+          stopping_criteria: tasknn_stopping_criteria,
         },
       ],
     },
@@ -179,7 +181,7 @@ local cross_entorpy_loss_weight = std.parseJson(std.extVar('cross_entorpy_loss_w
   },
   trainer: {
     num_epochs: if test == '1' then 10 else 300,
-    //grad_norm: 10.0,
+    grad_norm: 10.0,
     patience: 20,
     validation_metric: '+fixed_f1',
     cuda_device: std.parseInt(cuda_device),
@@ -192,7 +194,7 @@ local cross_entorpy_loss_weight = std.parseJson(std.extVar('cross_entorpy_loss_w
     },
     optimizer: {
       lr: 0.001,
-      weight_decay: 1e-4,
+      weight_decay: ff_weight_decay,
       type: 'adamw',
     },
     checkpointer: {
