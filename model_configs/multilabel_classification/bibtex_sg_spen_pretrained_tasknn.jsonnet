@@ -68,25 +68,14 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
         },
       },
       loss_fn: {
-        type: 'combination-loss',
-        constituent_losses: [
-          {
-            type: 'multi-label-sg-spen',
-            oracle_cost_weight: oracle_cost_weight,
-            reduction: 'none',
-            normalize_y: true,
-          },
-          {
-            type: 'multi-label-bce',
-            reduction: 'none',
-          },
-        ],
-        loss_weights: [1.0, cross_entorpy_loss_weight],
-        reduction: 'mean'
+        type: 'multi-label-sg-spen',
+        oracle_cost_weight: oracle_cost_weight,
+        reduction: 'mean',
+        normalize_y: true,
       },
       stopping_criteria: 1,
     },
-    oracle_value_function: { type: 'per-instance-f1', differentiable: true },
+    oracle_value_function: { type: 'per-instance-f1', differentiable: false },
     score_nn: {
       type: 'multi-label-classification',
       task_nn: {
