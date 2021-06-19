@@ -55,6 +55,11 @@ class SGSpenLoss(Loss):
             self.oracle_cost_weight * (y_hat_oracle_cost - y_hat_extra_oracle_cost)
             + y_hat_score - y_hat_extra_score
         )
+        loss_value_filtered = torch.gt(loss_unreduced, 0)
+        filtered_idx = torch.nonzero(loss_value_filtered, as_tuple=True)
+        samples_mask = torch.zeros_like(loss_unreduced)
+        samples_mask[filtered_idx] = 1
+        loss_unreduced *= samples_mask
         return loss_unreduced
 
     def _get_values(
@@ -97,11 +102,7 @@ class SGSpenLoss(Loss):
         y_hat_extra_oracle_cost: torch.Tensor = self.oracle_value_function.compute_as_cost(
             labels, y_hat_extra, mask=buffer.get("mask")
         )  # (batch, num_samples)
-        samples_mask = buffer.get("samples_mask", torch.ones_like(y_hat_score))
-        y_hat_oracle_cost *= samples_mask
-        y_hat_score *= samples_mask
-        y_hat_extra_oracle_cost *= samples_mask
-        y_hat_extra_score *= samples_mask
+
         # self._oracle_cost_values.append(float(torch.mean(oracle_cost)))
         # self._y_hat_extra_score_values.append(float(torch.mean(y_hat_extra_score)))
         # self._inference_score_values.append(float(torch.mean(inference_score)))

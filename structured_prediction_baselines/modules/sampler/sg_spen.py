@@ -221,16 +221,9 @@ class SGSpenSampler(Sampler):
                     y_hat, y_hat_extra = tuple(map(torch.stack, zip(*sample_pairs)))
                     y_hat = torch.transpose(y_hat, 0, 1)
                     y_hat_extra = torch.transpose(y_hat_extra, 0, 1)
-                    buffer.pop('samples_mask', None)
                     loss_value = self.update(
                         y_hat, y_hat_extra, buffer, loss_fn
                     )
-
-                    loss_value_filtered = torch.gt(loss_value, 0)
-                    filtered_idx = torch.nonzero(loss_value_filtered, as_tuple=True)
-                    samples_mask = torch.zeros_like(loss_value)
-                    samples_mask[filtered_idx] = 1
-                    buffer["samples_mask"] = samples_mask
 
                     loss_value = torch.mean(loss_value)
                     loss_values.append(float(loss_value))

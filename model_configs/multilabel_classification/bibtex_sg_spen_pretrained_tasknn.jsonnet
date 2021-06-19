@@ -48,6 +48,11 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
     type: 'multi-label-classification',
     sampler: {
       type: 'sg-spen',
+      optimizer: {
+        lr: 0.001,
+        weight_decay: 1e-4,
+        type: 'adam',
+      },
       inference_nn: {
         type: 'multi-label-classification',
         feature_network: {
@@ -63,10 +68,20 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
         },
       },
       loss_fn: {
-        type: 'multi-label-sg-spen',
-        oracle_cost_weight: oracle_cost_weight,
-        reduction: 'none',
-        normalize_y: true,
+        type: 'combination-loss',
+        constituent_losses: [
+          {
+            type: 'multi-label-sg-spen',
+            oracle_cost_weight: oracle_cost_weight,
+            reduction: 'none',
+            normalize_y: true,
+          },
+          {
+            type: 'multi-label-bce',
+            reduction: 'none',
+          },
+        loss_weights: [1.0, cross_entorpy_loss_weight],
+        reduction: 'mean'
       },
       stopping_criteria: 1,
     },
@@ -109,13 +124,6 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
         [@'.*feedforward._linear_layers.*weight', (if std.member(['tanh', 'sigmoid'], ff_activation) then { type: 'xavier_uniform', gain: gain } else { type: 'kaiming_uniform', nonlinearity: 'relu' })],
         [@'.*linear_layers.*bias', { type: 'zero' }],
         [@'.*sampler.inference_nn.feature_network.*weight',
-          {
-            type: "pretrained",
-            weights_file_path: "/mnt/nfs/scratch1/purujitgoyal/structured_prediction_baselines/wandb/run-20210426_015127-bmt5py4z/files/training_dumps/weights.th",
-            parameter_name_overrides: {}
-          }
-        ],
-        [@'.*sampler.inference_nn.feature_network.*bias',
           {
             type: "pretrained",
             weights_file_path: "/mnt/nfs/scratch1/purujitgoyal/structured_prediction_baselines/wandb/run-20210426_015127-bmt5py4z/files/training_dumps/weights.th",
