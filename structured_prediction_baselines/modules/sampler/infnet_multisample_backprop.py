@@ -384,23 +384,11 @@ class InfnetMultiSampleLearner(Sampler):
         return metrics
 
 
-@Sampler.register("infnet-multi-sample-std-norm", constructor="from_partial_objects")
+@Sampler.register("infnet-sample-label-stdnorm", constructor="from_partial_objects")
 class InfnetMultiSampleStdNormScore(InfnetMultiSampleLearner):
     """
-    Makes the InfnetMultiSampleLearner to work probability loss rather than logP. 
-    i.e. loss_function: g * binary_cross_entropy(labels=s_i,y_hat) 
-                    --> g * torch.exp(binary_cross_entropy(labels=s_i,y_hat))
-    
-    Also made reducing sequence change. 
-
-    In InfnetMultiSampleLearner:
-        We were taking "mean" reducing in the get_sample_grads(), 
-        and add "sum" of sample_loss on top of "mean" of total loss.
-        
-    Now:
-        We are not taking any "mean" reducing before the end.
-        When adding the sample_loss, we only take torch.mean() across samples,
-        but the rest of reduce happens after all the addition of the losses.
+    Take  (score_i - mean) / std as the new score_i.
+    Here mean & std are computed across labels. 
     """
     def __init__(
         self,
@@ -463,23 +451,13 @@ class InfnetMultiSampleStdNormScore(InfnetMultiSampleLearner):
 # print(grad_samples[0].size())
 # print("===========len(grad_samples): {}===========".format(len(grad_samples)))
 
-@Sampler.register("infnet-multi-sample-mean-norm", constructor="from_partial_objects")
-class InfnetMultiSampleMeanNormScore(InfnetMultiSampleLearner):
+@Sampler.register("infnet-sample-label-meannorm", constructor="from_partial_objects")
+class InfnetMultiSampleMeanNorm(InfnetMultiSampleLearner):
     """
-    Makes the InfnetMultiSampleLearner to work probability loss rather than logP. 
-    i.e. loss_function: g * binary_cross_entropy(labels=s_i,y_hat) 
-                    --> g * torch.exp(binary_cross_entropy(labels=s_i,y_hat))
-    
-    Also made reducing sequence change. 
+    Take  (score_i - mean) / mean as the new score_i.
+    Here mean is computed across labels. 
+    """
 
-    In InfnetMultiSampleLearner:
-        We were taking "mean" reducing in the get_sample_grads(), 
-        and add "sum" of sample_loss on top of "mean" of total loss.
-    Now:
-        We are not taking any "mean" reducing before the end.
-        When adding the sample_loss, we only take torch.mean() across samples,
-        but the rest of reduce happens after all the addition of the losses.
-    """
     def __init__(
         self,
         optimizer: Optimizer, #loss_fn: Loss,  
@@ -540,3 +518,218 @@ class InfnetMultiSampleMeanNormScore(InfnetMultiSampleLearner):
 # print(len(grad_samples))
 # print(grad_samples[0].size())
 # print("===========len(grad_samples): {}===========".format(len(grad_samples)))
+
+
+@Sampler.register("infnet-sample-sbase", constructor="from_partial_objects")
+class InfnetMultiSampleSBase(InfnetMultiSampleLearner):
+    """
+    Take  (score_i - mean) as the new score_i.
+    Here, the mean is computed across samples. (thus sample-'s'base)
+    """
+    def __init__(
+        self,
+        optimizer: Optimizer, #loss_fn: Loss,  
+        inference_nn: TaskNN,
+        score_nn: ScoreNN,
+        loss_fn: Loss,
+        loss_fn_sample: Optional[Loss] = None, 
+        loss_fn_for_grad: Optional[Loss] = None,
+        sample_loss_weight: Optional[float] = 1.0,
+        num_samples: int = 1,
+        keep_probs: bool = False, # newly added
+        cost_augmented_layer: Optional[CostAugmentedLayer] = None,
+        oracle_value_function: Optional[OracleValueFunction] = None,
+        stopping_criteria: Union[int, StoppingCriteria] = 1,
+        **kwargs: Any,
+    ):
+        assert ScoreNN is not None
+        super().__init__(
+            optimizer,
+            inference_nn,
+            score_nn,
+            loss_fn,
+            loss_fn_sample,
+            loss_fn_for_grad,
+            sample_loss_weight,
+            num_samples,
+            keep_probs,
+            cost_augmented_layer,
+            oracle_value_function,
+            stopping_criteria
+        )
+
+    def get_sample_grads(
+        self, 
+        x: Any, 
+        samples: torch.Tensor,
+        buffer: Dict,
+    ) -> torch.Tensor:
+        """
+        Returns:
+            loss: loss value at the previous point (unreduced)
+        """
+
+        grad_samples = super().get_sample_grads(x, samples, buffer)
+        grad_mean_samples = torch.mean(grad_samples, dim=1, keepdim=True)
+        grad_samples = grad_samples-grad_mean_samples.expand_as(samples) 
+        
+        return grad_samples.clone().detach()
+
+@Sampler.register("infnet-sample-sbase-sstdnorm", constructor="from_partial_objects")
+class InfnetMultiSampleSbaseSstdnorm(InfnetMultiSampleLearner):
+    """
+    Take  (score_i - mean) as the new score_i.
+    Here, the mean is computed across samples, 
+    thus  's'base & 'sstdnorm
+    """
+    def __init__(
+        self,
+        optimizer: Optimizer, #loss_fn: Loss,  
+        inference_nn: TaskNN,
+        score_nn: ScoreNN,
+        loss_fn: Loss,
+        loss_fn_sample: Optional[Loss] = None, 
+        loss_fn_for_grad: Optional[Loss] = None,
+        sample_loss_weight: Optional[float] = 1.0,
+        num_samples: int = 1,
+        keep_probs: bool = False, # newly added
+        cost_augmented_layer: Optional[CostAugmentedLayer] = None,
+        oracle_value_function: Optional[OracleValueFunction] = None,
+        stopping_criteria: Union[int, StoppingCriteria] = 1,
+        **kwargs: Any,
+    ):
+        assert ScoreNN is not None
+        super().__init__(
+            optimizer,
+            inference_nn,
+            score_nn,
+            loss_fn,
+            loss_fn_sample,
+            loss_fn_for_grad,
+            sample_loss_weight,
+            num_samples,
+            keep_probs,
+            cost_augmented_layer,
+            oracle_value_function,
+            stopping_criteria
+        )
+
+    def get_sample_grads(
+        self, 
+        x: Any, 
+        samples: torch.Tensor,
+        buffer: Dict,
+    ) -> torch.Tensor:
+        """
+        Returns:
+            loss: loss value at the previous point (unreduced)
+        """
+        grad_samples = super().get_sample_grads(x, samples, buffer)
+        eps=1e-8
+        grad_mean_samples = torch.mean(grad_samples, dim=1, keepdim=True)
+        grad_var_samples = torch.var(grad_samples, dim=1, keepdim=True)        
+        grad_samples = torch.div( 
+                            (grad_samples-grad_mean_samples.expand_as(samples) ),
+                            grad_var_samples.expand_as(samples)+eps
+        )
+
+        return grad_samples.clone().detach()
+
+
+@Sampler.register("infnet-sample-acritic", constructor="from_partial_objects")
+class InfnetMultiSampleActorCritic(InfnetMultiSampleLearner):
+    """
+    Take  (score_i - mean) as the new score_i.
+    Here, the mean is computed across samples, 
+    thus  's'base & 'sstdnorm
+    """
+    def __init__(
+        self,
+        optimizer: Optimizer, #loss_fn: Loss,  
+        inference_nn: TaskNN,
+        score_nn: ScoreNN,
+        loss_fn: Loss,
+        loss_fn_sample: Optional[Loss] = None, 
+        loss_fn_for_grad: Optional[Loss] = None,
+        sample_loss_weight: Optional[float] = 1.0,
+        num_samples: int = 1,
+        keep_probs: bool = False, # newly added
+        cost_augmented_layer: Optional[CostAugmentedLayer] = None,
+        oracle_value_function: Optional[OracleValueFunction] = None,
+        stopping_criteria: Union[int, StoppingCriteria] = 1,
+        **kwargs: Any,
+    ):
+        assert ScoreNN is not None
+        super().__init__(
+            optimizer,
+            inference_nn,
+            score_nn,
+            loss_fn,
+            loss_fn_sample,
+            loss_fn_for_grad,
+            sample_loss_weight,
+            num_samples,
+            keep_probs,
+            cost_augmented_layer,
+            oracle_value_function,
+            stopping_criteria
+        )
+    
+    def update(
+        self, 
+        x: Any, 
+        labels: torch.Tensor, 
+        samples: torch.Tensor,
+        y_hat: torch.Tensor, 
+        y_cost_aug: torch.Tensor, 
+        buffer: Dict,
+    ) -> torch.Tensor:
+        """
+        Returns:
+            loss: loss value at the previous point (unreduced)
+        """
+        total_loss = self.loss_fn(
+                x,
+                labels,
+                y_hat,
+                y_cost_aug,
+                buffer,
+            ) # (batch, 1, num_labels)
+        if self.num_samples>0:
+            loss_samples = self.loss_fn_sample(
+                    x,
+                    samples,
+                    y_hat.expand_as(samples),
+                    None, # y_cost_aug shouldn't be calculated.
+                    buffer,
+                ) # (batch, num_samples, num_labels)
+            grad_samples = self.get_sample_grads(
+                    x,
+                    samples,
+                    y_hat,
+                    buffer,
+            ) # (batch, num_samples, num_labels) grab gradients w.r.t.samples from score loss
+            
+            loss_samples = grad_samples*loss_samples
+            total_loss = total_loss + torch.sum(self.sample_loss_weight * loss_samples) # shouldn't it be mean?
+        total_loss.backward()  # type:ignore
+        self.optimizer.step()
+
+        return total_loss
+
+    def get_sample_grads(
+        self, 
+        x: Any, 
+        samples: torch.Tensor,
+        y_hat: torch.Tensor,  
+        buffer: Dict,
+    ) -> torch.Tensor:
+        """
+        Returns:
+            loss: loss value at the previous point (unreduced)
+        """
+        grad_samples = super().get_sample_grads(x, samples, buffer)
+        grad_yhat = super().get_sample_grads(x, y_hat.clone().detach(), buffer)
+        grad_samples =  grad_samples- grad_yhat
+
+        return grad_samples.clone().detach()
