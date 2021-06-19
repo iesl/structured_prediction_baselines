@@ -32,7 +32,7 @@ from structured_prediction_baselines.modules.task_nn import (
 )
 
 
-# keep prob = True, and num_samples=0 should return the same model with infnet + DVN.
+# num_samples=0 should return the same model with infnet + DVN.
 @Sampler.register("infnet-multi-sample-learner", constructor="from_partial_objects")
 # --> change it to "multi-sample-logprob"
 class InfnetMultiSampleLearner(Sampler):
