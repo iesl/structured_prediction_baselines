@@ -40,7 +40,7 @@ class SGSpenSampler(Sampler):
         loss_fn: Loss,
         inference_nn: TaskNN,
         score_nn: ScoreNN,
-        optimizer: Optional[Optimizer] = None,
+        optimizer: Optimizer = None,
         cost_augmented_layer: Optional[CostAugmentedLayer] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
@@ -80,7 +80,7 @@ class SGSpenSampler(Sampler):
         loss_fn: Lazy[Loss],  #: This loss can be different from the main loss
         inference_nn: TaskNN,  #: inference_nn cannot be None for this sampler
         score_nn: ScoreNN,
-        optimizer: Lazy[Optional[Optimizer]] = None,
+        optimizer: Lazy[Optimizer] = None,
         cost_augmented_layer: Optional[CostAugmentedLayer] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
