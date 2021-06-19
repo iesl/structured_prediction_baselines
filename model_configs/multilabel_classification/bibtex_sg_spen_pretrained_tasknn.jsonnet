@@ -80,6 +80,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
             type: 'multi-label-bce',
             reduction: 'none',
           },
+        ],
         loss_weights: [1.0, cross_entorpy_loss_weight],
         reduction: 'mean'
       },
