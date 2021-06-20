@@ -9,19 +9,20 @@ local num_labels = dataset_metadata.num_labels;
 local num_input_features = dataset_metadata.input_features;
 
 // model variables
-local ff_hidden = 400; //std.parseJson(std.extVar('ff_hidden'));
+local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
 local label_space_dim = ff_hidden;
-local ff_dropout = 0.4; //std.parseJson(std.extVar('ff_dropout'));
+local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
 //local ff_activation = std.parseJson(std.extVar('ff_activation'));
 local ff_activation = 'softplus';
 //local ff_activation = 'softplus';
-local ff_linear_layers = 2; //std.parseJson(std.extVar('ff_linear_layers'));
+local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
 //local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
 //local global_score_hidden_dim = 150;
-local global_score_hidden_dim = 200; //std.parseJson(std.extVar('global_score_hidden_dim'));
+local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
 //local cross_entorpy_loss_weight = std.parseJson(std.extVar('cross_entorpy_loss_weight'));
-local inference_score_weight = 1.0; //std.parseJson(std.extVar('inference_score_weight'));
-local oracle_cost_weight = 1.0; //std.parseJson(std.extVar('oracle_cost_weight'));
+local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
+local oracle_cost_weight = std.parseJson(std.extVar('oracle_cost_weight'));
+local sg_spen_samples = std.parseJson(std.extVar('sg_spen_samples'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 
 {
@@ -105,6 +106,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       type: 'multi-label-sg-spen',
       reduction: 'mean',
       oracle_cost_weight: oracle_cost_weight,
+      n_samples: sg_spen_samples,
       normalize_y: true
     },
     initializer: {
