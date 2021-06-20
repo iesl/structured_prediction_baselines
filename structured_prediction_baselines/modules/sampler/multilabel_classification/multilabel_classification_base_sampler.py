@@ -42,4 +42,4 @@ class MultilabelClassificationSampler(Sampler):
         )  # unormalized logits (batch, 1, ...)
 
     def get_metrics(self, reset: bool = False) -> dict:
-        pass
+        return {}
