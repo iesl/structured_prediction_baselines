@@ -8,9 +8,7 @@ from structured_prediction_baselines.modules.oracle_value_function import (
 )
 import torch
 
-# DVNLoss* are loss functions to train DVN,
-# DVNScoreLoss* are loss functions to train infrence network with DVN.
-
+# Losses to train score-NN with noise contrastive estimation (NCE) techniques
 
 class NCERankingLoss(Loss):
     """
@@ -18,7 +16,8 @@ class NCERankingLoss(Loss):
     """
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
-
+        self.bce_loss = torch.nn.BCEWithLogitsLoss(reduction="none")
+        self.ce_loss = torch.nn.CrossEntropyLoss(reduction="none")
         if self.score_nn is None:
             raise ConfigurationError("score_nn cannot be None for NCERankingLoss")
 
@@ -39,11 +38,11 @@ class NCERankingLoss(Loss):
         **kwargs: Any,
     ) -> torch.Tensor:
         # I want to get individual Energy scores & probability scores.
-        predicted_score, oracle_value = self._get_values(
+        ranking_loss = self._get_values(
             x, labels, y_hat, y_hat_extra, buffer, **kwargs
         )
 
-        return self.compute_loss(predicted_score, oracle_value)
+        return self.compute_loss(ranking_loss)
 
     def _get_values(
         self,
@@ -57,7 +56,14 @@ class NCERankingLoss(Loss):
         # labels shape (batch, 1, ...)
         # y_hat shape (batch, 1, ...)
         # samples shape (batch, num_samples, num_labels)
-        samples = buffer['samples']
+        if 'samples' in buffer.keys():
+            samples = buffer['samples']    
+        else:
+            samples = y_hat_extra
+        if labels is not None:
+            samples = torch.cat(
+                        (labels, samples), dim=1
+                    ) # concatenate true label on the front (0 index).
         num_samples = samples.shape[1] 
 
         self.score_nn = cast(
@@ -65,21 +71,27 @@ class NCERankingLoss(Loss):
         )  # purely for typing, no runtime effect
         # score_nn always expects y to be normalized
         # do the normalization based on the task
+        
+        # self.normalize_y = False --> as it's already normalzied.
+        if self.normalize_y: 
+            samples = self.normalize(samples)
 
-        if self.normalize_y:
-            y_hat = self.normalize(y_hat)
-        predicted_score_yhat = self.score_nn(
-            x, y_hat, buffer, **kwargs
-        )  # (batch, 1)
+        predicted_score = self.score_nn(
+            x, samples, buffer, **kwargs
+        )  # (batch, num_samples)
+        p_n = self.bce_loss(
+                y_hat.expand_as(samples), samples.to(dtype=y_hat.dtype)
+        )
+        p_n = torch.sum(p_n, dim=2)
+        # (batch, num_samples)
+        # y_hat.expand_as(samples): (batch, 1, labels) --> (batch, num_samples, labels)
+        # print("==============================================predicted_score.shape:{}".format(predicted_score.shape))
+        # print("==============================================p_n.shape:{}".format(p_n.shape))
+        new_score = predicted_score - p_n
+        ranking_loss = self.ce_loss(new_score, torch.zeros(new_score.shape[0],dtype=torch.long).cuda())
+        
+        return ranking_loss
 
-        if labels is not None:
-            # For dvn we do not take gradient of oracle_score, so we detach y_hat
-            noise_prob: Optional[torch.Tensor] = self.oracle_value_function(
-                labels, y_hat.detach().clone(), **kwargs
-            )  # (batch, num_samples)
-
-        return predicted_score, noise_prob
-    
     def get_metrics(self, reset: bool = False):
         metrics = {}
         return metrics

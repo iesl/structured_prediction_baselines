@@ -12,6 +12,7 @@ from typing import (
 )
 
 import torch
+import numpy as np
 from allennlp.common.lazy import Lazy
 from allennlp.training.optimizers import Optimizer
 
@@ -31,8 +32,8 @@ from structured_prediction_baselines.modules.task_nn import (
 )
 
 
-# keep prob = True, and num_samples=0 should return the same model with infnet + DVN.
-# @Sampler.register("infnet-multi-sample-learner", constructor="from_partial_objects")
+
+@Sampler.register("infnet-nce", constructor="from_partial_objects")
 # --> change it to "multi-sample-logprob"
 class InfnetRankingNCE(Sampler):
     """
@@ -48,10 +49,8 @@ class InfnetRankingNCE(Sampler):
         inference_nn: TaskNN,
         score_nn: ScoreNN,
         loss_fn: Loss,
-        loss_fn_sample: Optional[Loss] = None, 
-        sample_loss_weight: Optional[float] = 1.0,
         num_samples: int = 1,
-        keep_probs: bool = False, # newly added
+        keep_labels: bool = True, # newly added
         cost_augmented_layer: Optional[CostAugmentedLayer] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
@@ -76,10 +75,8 @@ class InfnetRankingNCE(Sampler):
 
         # Till here: the same as inference_net.py  
         # After this point: new variables for InfnetMultiSampleLearner
-        self.loss_fn_sample = loss_fn_sample
-        self.sample_loss_weight = sample_loss_weight
+        self.keep_labels = keep_labels
         self.num_samples = num_samples
-        self.keep_probs = keep_probs
 
     ## copied from "InferenceNetSampler"
     @property
@@ -95,10 +92,8 @@ class InfnetRankingNCE(Sampler):
         inference_nn: TaskNN,
         score_nn: ScoreNN,
         loss_fn: Lazy[Loss], # first loss is always multi-sample loss.
-        loss_fn_sample: Lazy[Loss], 
-        sample_loss_weight: Optional[float] = 1.0,
         num_samples: int = 1,
-        keep_probs: bool = False, # newly added
+        keep_labels: bool = True, # newly added
         cost_augmented_layer: Optional[CostAugmentedLayer] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
@@ -106,11 +101,7 @@ class InfnetRankingNCE(Sampler):
     ) -> "InfnetMultiSampleLearner":
         loss_fn_ = loss_fn.construct(
             score_nn=score_nn, oracle_value_function=oracle_value_function
-        )
-        loss_fn_sample_ = loss_fn_sample.construct(
-            score_nn=score_nn, oracle_value_function=oracle_value_function
-        )
-        
+        )        
         trainable_parameters: Dict[str, torch.Tensor] = {}
 
         trainable_parameters.update(inference_nn.named_parameters())
@@ -128,10 +119,8 @@ class InfnetRankingNCE(Sampler):
             inference_nn=inference_nn,
             score_nn=score_nn,
             loss_fn=loss_fn_,
-            loss_fn_sample=loss_fn_sample_,
-            sample_loss_weight=sample_loss_weight,
             num_samples=num_samples,
-            keep_probs=keep_probs,
+            keep_labels=keep_labels,
             cost_augmented_layer=cost_augmented_layer,
             oracle_value_function=oracle_value_function,
             stopping_criteria=stopping_criteria,
@@ -189,11 +178,8 @@ class InfnetRankingNCE(Sampler):
         assert y_inf.dim() == 3
         assert y_inf.shape[1] == 1
         y_hat_n = torch.sigmoid(y_inf)
-        ## commented out as we won't really sample from cost_aug layer.
-        # y_hat_extra_n = ( 
-        #     torch.sigmoid(y_cost_aug) if y_cost_aug is not None else None
-        # )                    
-        if self.training and self.num_samples>0:  # sample during training --> already above so delete (later). 
+
+        if self.num_samples>0:
             p = y_hat_n.squeeze(1)  # (batch, num_labels)
 
             discrete_samples = torch.transpose(
@@ -203,16 +189,10 @@ class InfnetRankingNCE(Sampler):
                 0,
                 1,
             )  # (batch, num_samples, num_labels)
-            if self.keep_probs:
-                samples = torch.cat(
-                    (discrete_samples, y_hat_n), dim=1
-                )  # (batch, num_samples+1, num_labels)
-            else:
-                samples = discrete_samples
         else: # if self.num_sample <= 0 then return None.
-            samples = None 
-        
-        return samples
+            discrete_samples = None 
+
+        return discrete_samples
         
     def _get_values(
         self,
@@ -261,15 +241,16 @@ class InfnetRankingNCE(Sampler):
             y_inf: torch.Tensor = self.inference_nn(x, buffer).unsqueeze(
                 1
             )  # (batch_size, 1, ...)
-
-            return y_inf, None
+            samples = self.draw_samples(y_inf)
+            
+            return y_inf, samples
         else:
             # switch on gradients on the parameters of inference network using context manager
             with self.only_inference_nn_grad_on():
                 labels = labels.unsqueeze(1)
                 # loss_fn = self.get_loss_fn(
                 #     x, labels
-                # )  #: Loss function will expect labels in form (batch, num_samples or 1, ...)
+                # )  #: Loss function will expect labels in form (batch, num_samples or 1, labels)
                 ## This part is removed. 
                 loss_values: List[float] = []
                 step_number = 0
@@ -279,14 +260,18 @@ class InfnetRankingNCE(Sampler):
                     step_number, float(loss_value)
                 ):
                     self.optimizer.zero_grad(set_to_none=True)
-                    y_inf, y_cost_aug = self._get_values(x, labels, buffer)
+                    y_inf, y_cost_aug = self._get_values(x, labels, buffer) # 
                     samples = self.draw_samples(y_inf)
                     loss_value = self.update( # made self.update to be the same as Loss class forward()
                         x, labels, samples, y_inf, y_cost_aug, buffer 
                     )
                     loss_values.append(float(loss_value))
-
                     step_number += 1
+                
+                self._metrics[self.name + '_loss'] = np.mean(loss_values)
+                self._total_loss += np.mean(loss_values)
+                self._num_batches += 1
+
             # once out of Sampler, y_inf and y_cost_aug should not get gradients
             return (
                 y_inf.detach().clone(),
@@ -317,26 +302,60 @@ class InfnetRankingNCE(Sampler):
                 y_cost_aug,
                 buffer,
             ) # (batch, 1, num_labels)
-        # if self.num_samples>0:
-        #     loss_samples = self.loss_fn_sample(
-        #             x,
-        #             samples,
-        #             y_hat.expand_as(samples),
-        #             None, # y_cost_aug shouldn't be calculated.
-        #             buffer,
-        #         ) # (batch, num_samples, num_labels)
-        #     # grad_samples = self.get_sample_grads(
-        #     #         x,
-        #     #         samples,
-        #     #         buffer,
-        #     # ) # (batch, num_samples, num_labels) grab gradients w.r.t.samples from score loss
-            
-        #     # loss_samples = grad_samples*loss_samples
-        #     # total_loss = total_loss + torch.sum(self.sample_loss_weight * loss_samples) # shouldn't it be mean?
         total_loss.backward()  # type:ignore
         self.optimizer.step()
 
         return total_loss
+
+    def get_metrics(self, reset: bool = False):
+        metrics = {}
+        return metrics
+
+    # def get_metrics(self, reset: bool = False):
+    #     metrics = self._metrics
+    #     metrics['total_' + self.name + '_loss'] = float(
+    #         self._total_loss / self._num_batches) if self._num_batches > 0 else 0.0
+    #     if reset:
+    #         self._metrics = {}
+    #         self._total_loss = 0.0
+    #         self._num_batches = 0
+    #         metrics.pop(self.name + '_loss', None)
+    #     else:
+    #         loss_metrics = self.loss_fn.get_metrics(reset=True)
+    #         metrics.update(loss_metrics)
+
+    #     return metrics
+
+
+# @Sampler.register("infnet-sample-label-stdnorm", constructor="from_partial_objects")
+class InfnetBinaryNCE(InfnetRankingNCE):
+    """
+    Take  (score_i - mean) / std as the new score_i.
+    Here mean & std are computed across labels. 
+    """
+    def __init__(
+        self,
+        optimizer: Optimizer, #loss_fn: Loss,  
+        inference_nn: TaskNN,
+        score_nn: ScoreNN,
+        loss_fn: Loss,
+        keep_probs: bool = False, # newly added
+        cost_augmented_layer: Optional[CostAugmentedLayer] = None,
+        oracle_value_function: Optional[OracleValueFunction] = None,
+        stopping_criteria: Union[int, StoppingCriteria] = 1,
+        **kwargs: Any,
+    ):
+        assert ScoreNN is not None
+        super().__init__(
+            optimizer,
+            inference_nn,
+            score_nn,
+            loss_fn,
+            keep_probs,
+            cost_augmented_layer,
+            oracle_value_function,
+            stopping_criteria
+        )
 
     def get_metrics(self, reset: bool = False):
         metrics = self._metrics
@@ -352,61 +371,3 @@ class InfnetRankingNCE(Sampler):
             metrics.update(loss_metrics)
 
         return metrics
-
-
-# @Sampler.register("infnet-sample-label-stdnorm", constructor="from_partial_objects")
-class InfnetRankingNCE(InfnetBinaryNCE):
-    """
-    Take  (score_i - mean) / std as the new score_i.
-    Here mean & std are computed across labels. 
-    """
-    def __init__(
-        self,
-        optimizer: Optimizer, #loss_fn: Loss,  
-        inference_nn: TaskNN,
-        score_nn: ScoreNN,
-        loss_fn: Loss,
-        loss_fn_sample: Optional[Loss] = None, 
-        sample_loss_weight: Optional[float] = 1.0,
-        num_samples: int = 1,
-        keep_probs: bool = False, # newly added
-        cost_augmented_layer: Optional[CostAugmentedLayer] = None,
-        oracle_value_function: Optional[OracleValueFunction] = None,
-        stopping_criteria: Union[int, StoppingCriteria] = 1,
-        **kwargs: Any,
-    ):
-        assert ScoreNN is not None
-        super().__init__(
-            optimizer,
-            inference_nn,
-            score_nn,
-            loss_fn,
-            loss_fn_sample,
-            sample_loss_weight,
-            num_samples,
-            keep_probs,
-            cost_augmented_layer,
-            oracle_value_function,
-            stopping_criteria
-        )
-
-    def get_sample_grads(
-        self, 
-        x: Any, 
-        samples: torch.Tensor,
-        buffer: Dict,
-    ) -> torch.Tensor:
-        """
-        Returns:
-            loss: loss value at the previous point (unreduced)
-        """
-        grad_samples = super().get_sample_grads(x, samples, buffer)
-        eps=1e-8
-        grad_mean_labels = torch.mean(grad_samples, dim=1, keepdim=True)
-        grad_var_labels = torch.var(grad_samples, dim=1, keepdim=True)        
-        grad_samples = torch.div( 
-                            (grad_samples-grad_mean_labels.expand_as(samples) ),
-                            grad_var_labels.expand_as(samples)+eps
-        )
-        return grad_samples.clone().detach()
-
