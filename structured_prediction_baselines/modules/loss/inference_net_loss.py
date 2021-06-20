@@ -153,9 +153,8 @@ class MarginBasedLoss(Loss):
         )  # if you call this loss, labels cannot be None
 
         if y_cost_aug is None:
-            y_cost_aug = (
-                y_hat if not self.normalize_y else self.normalize(y_hat)
-            )
+            raise ValueError("y_cost_aug cannot be none, "
+                             "if you want to use only inference score, use InferenceScoreLoss")
         elif self.normalize_y:  # y_cost_aug is not None
             y_cost_aug = self.normalize(y_cost_aug)
 
@@ -247,7 +246,7 @@ class InferenceLoss(MarginBasedLoss):
 
 class InferenceScoreLoss(MarginBasedLoss):
     """
-    The class exclusively outputs score value (loss) for the given "y_hat" to train the paramters of the
+    The class exclusively outputs score value (loss) for the given "y_hat" to train the parameters of the
     task-nn in the inference net.
     """
 
@@ -269,7 +268,24 @@ class InferenceScoreLoss(MarginBasedLoss):
         assert buffer is not None
         if self.normalize_y:
             y_hat = self.normalize(y_hat)
-        loss_unreduced = -self.inference_score_weight * self.score_nn(x, y_hat, buffer)
+
+        inference_score = self.score_nn(x, y_hat, buffer)
+        self._inference_score_values.append(float(torch.mean(inference_score)))
+
+        loss_unreduced = -self.inference_score_weight * inference_score
         # the minus sign turns this into argmin objective
+
         return loss_unreduced
+
+    def get_metrics(self, reset: bool = False):
+        metrics = {}
+
+        if self._inference_score_values:
+            metrics = {
+                'inference_score': np.mean(self._inference_score_values),
+            }
+
+        if reset:
+            self._inference_score_values = []
+        return metrics
 
