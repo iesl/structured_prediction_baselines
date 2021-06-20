@@ -103,12 +103,31 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       },
     },
     loss_fn: {
-      type: 'multi-label-sg-spen',
-      reduction: 'mean',
-      oracle_cost_weight: oracle_cost_weight,
-      n_samples: sg_spen_samples,
-      normalize_y: true
+        type: 'combination-loss',
+        constituent_losses: [
+          {
+            type: 'multi-label-sg-spen',
+            reduction: 'none',
+            oracle_cost_weight: oracle_cost_weight,
+            n_samples: sg_spen_samples,
+            normalize_y: true
+          },  //This loss can be different from the main loss // change this
+          {
+            type: 'multi-label-inference-score',
+            inference_score_weight: inference_score_weight,
+            reduction: 'none'
+          },
+        ],
+        loss_weights: [1.0, 1.0],
+        reduction: 'mean',
     },
+//    loss_fn: {
+//      type: 'multi-label-sg-spen',
+//      reduction: 'mean',
+//      oracle_cost_weight: oracle_cost_weight,
+//      n_samples: sg_spen_samples,
+//      normalize_y: true
+//    },
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
