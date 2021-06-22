@@ -59,6 +59,12 @@ class MultiLabelNormalized(InferenceNetSampler):
         buffer: Dict,
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+        """
+        Note:
+            This will only normalize the final output that goes out of the sampler.
+            The internal learning loop of the tasknn will use unnormalized outputs only.
+            Hence, the losses that train the tasknn should expect unnormalized outputs.
+        """
         y_hat, y_hat_extra = super().forward(x, labels, buffer, **kwargs)
 
         return torch.sigmoid(y_hat), (

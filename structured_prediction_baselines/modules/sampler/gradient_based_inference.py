@@ -486,3 +486,28 @@ class GradientBasedInferenceSampler(Sampler):
             metrics.pop(self.name + "_loss", None)
 
         return metrics
+
+
+@Sampler.register(
+    "gradient-based-inference-dynamic-init", constructor="from_partial_objects"
+)
+class GradientBasedInferenceSamplerWithDynamicInit(
+    GradientBasedInferenceSampler
+):
+    def forward(
+        self,
+        x: Any,
+        labels: Optional[
+            torch.Tensor
+        ],  #: If given will have shape (batch, ...)
+        buffer: Dict,
+        **kwargs: Any,
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+        if "init" not in kwargs:
+            raise ValueError(
+                "Expect 'init: torch.Tensor' to be passed for this sampler."
+            )
+        init_ = kwargs.pop("init")
+        init = self.get_initial_output(x, labels)
+
+    pass
