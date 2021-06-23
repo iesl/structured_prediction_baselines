@@ -510,4 +510,4 @@ class GradientBasedInferenceSamplerWithDynamicInit(
         init_ = kwargs.pop("init")
         init = self.get_initial_output(x, labels)
 
-    pass
+        pass
