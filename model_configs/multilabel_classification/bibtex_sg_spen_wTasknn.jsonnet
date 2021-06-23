@@ -19,7 +19,7 @@ local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
 //local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
 //local global_score_hidden_dim = 150;
 local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
-//local cross_entorpy_loss_weight = std.parseJson(std.extVar('cross_entorpy_loss_weight'));
+local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entorpy_loss_weight'));
 local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
 local oracle_cost_weight = std.parseJson(std.extVar('oracle_cost_weight'));
 local sg_spen_samples = std.parseJson(std.extVar('sg_spen_samples'));
@@ -69,10 +69,27 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
         },
       },
       loss_fn: {
-        type: 'multi-label-inference-score',
-        inference_score_weight: inference_score_weight,
-        reduction: 'mean'
+        type: 'combination-loss',
+        constituent_losses: [
+          {
+            type: 'multi-label-inference-score',
+            inference_score_weight: inference_score_weight,
+            reduction: 'none'
+            normalize_y: true,
+          },  //This loss can be different from the main loss // change this
+          {
+            type: 'multi-label-bce',
+            reduction: 'none',
+          },
+        ],
+        loss_weights: [1.0, cross_entropy_loss_weight],
+        reduction: 'mean',
       },
+//      loss_fn: {
+//        type: 'multi-label-inference-score',
+//        inference_score_weight: inference_score_weight,
+//        reduction: 'mean'
+//      },
       stopping_criteria: 10,
     },
     oracle_value_function: { type: 'per-instance-f1', differentiable: false },
