@@ -43,15 +43,11 @@ class InferenceNetSampler(Sampler):
         cost_augmented_layer: Optional[CostAugmentedLayer] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
-        name: str = 'inf_net',
+        name: str = "inf_net",
         **kwargs: Any,
     ):
         assert ScoreNN is not None
-        super().__init__(
-            score_nn,
-            oracle_value_function,
-            name
-        )
+        super().__init__(score_nn, oracle_value_function, name)
         self.inference_nn = inference_nn
         self.cost_augmented_layer = cost_augmented_layer
         self.loss_fn = loss_fn
@@ -81,7 +77,8 @@ class InferenceNetSampler(Sampler):
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
         eval_grad: bool = True,
-        name: str = 'inf_net',
+        name: str = "inf_net",
+        **kwargs: Any,
     ) -> "InferenceNetSampler":
         loss_fn_ = loss_fn.construct(
             score_nn=score_nn, oracle_value_function=oracle_value_function
@@ -99,15 +96,16 @@ class InferenceNetSampler(Sampler):
         )
 
         return cls(
-            optimizer_,
-            loss_fn_,
+            optimizer=optimizer_,
+            loss_fn=loss_fn_,
             inference_nn=inference_nn,
             score_nn=score_nn,
             cost_augmented_layer=cost_augmented_layer,
             oracle_value_function=oracle_value_function,
             stopping_criteria=stopping_criteria,
             eval_grad=eval_grad,
-            name=name
+            name=name,
+            **kwargs,
         )
 
     def get_loss_fn(
@@ -187,6 +185,7 @@ class InferenceNetSampler(Sampler):
         buffer: Dict,
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+
         if labels is None or (not self.training):
             y_inf: torch.Tensor = self.inference_nn(x, buffer).unsqueeze(
                 1
@@ -217,11 +216,12 @@ class InferenceNetSampler(Sampler):
                     loss_values.append(float(loss_value))
 
                     step_number += 1
-                self._metrics[self.name + '_loss'] = np.mean(loss_values)
+                self._metrics[self.name + "_loss"] = np.mean(loss_values)
                 self._total_loss += np.mean(loss_values)
                 self._num_batches += 1
 
             # once out of Sampler, y_inf and y_cost_aug should not get gradients
+
             return (
                 y_inf.detach().clone(),
                 y_cost_aug.detach().clone()
@@ -248,16 +248,10 @@ class InferenceNetSampler(Sampler):
         return loss
 
     def _get_values(
-        self,
-        x: Any,
-        labels: torch.Tensor,
-        buffer: Dict,
-        **kwargs: Any
+        self, x: Any, labels: torch.Tensor, buffer: Dict, **kwargs: Any
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
 
-        y_inf: torch.Tensor = self.inference_nn(
-            x, buffer
-        ).unsqueeze(
+        y_inf: torch.Tensor = self.inference_nn(x, buffer).unsqueeze(
             1
         )  # (batch_size, 1, ...) unormalized
         # inference_nn is TaskNN so it will output tensor of shape (batch, ...)
@@ -281,15 +275,19 @@ class InferenceNetSampler(Sampler):
 
         return y_inf, y_cost_aug
 
-    def get_metrics(self, reset: bool = False):
+    def get_metrics(self, reset: bool = False) -> Dict[str, float]:
         metrics = self._metrics
-        metrics['total_' + self.name + '_loss'] = float(
-            self._total_loss / self._num_batches) if self._num_batches > 0 else 0.0
+        metrics["total_" + self.name + "_loss"] = (
+            float(self._total_loss / self._num_batches)
+            if self._num_batches > 0
+            else 0.0
+        )
+
         if reset:
             self._metrics = {}
             self._total_loss = 0.0
             self._num_batches = 0
-            metrics.pop(self.name + '_loss', None)
+            metrics.pop(self.name + "_loss", None)
         else:
             loss_metrics = self.loss_fn.get_metrics(reset=True)
             metrics.update(loss_metrics)
