@@ -46,7 +46,11 @@ class InferenceNetSampler(Sampler):
         **kwargs: Any,
     ):
         assert ScoreNN is not None
-        super().__init__(score_nn, oracle_value_function, **kwargs)
+        super().__init__(
+            score_nn=score_nn,
+            oracle_value_function=oracle_value_function,
+            **kwargs,
+        )
         self.inference_nn = inference_nn
         self.cost_augmented_layer = cost_augmented_layer
         self.loss_fn = loss_fn
@@ -79,7 +83,9 @@ class InferenceNetSampler(Sampler):
         **kwargs: Any,
     ) -> "InferenceNetSampler":
         loss_fn_ = loss_fn.construct(
-            score_nn=score_nn, oracle_value_function=oracle_value_function
+            score_nn=score_nn,
+            oracle_value_function=oracle_value_function,
+            **kwargs,
         )
         trainable_parameters: Dict[str, torch.Tensor] = {}
 
@@ -94,8 +100,8 @@ class InferenceNetSampler(Sampler):
         )
 
         return cls(
-            optimizer_,
-            loss_fn_,
+            optimizer=optimizer_,
+            loss_fn=loss_fn_,
             inference_nn=inference_nn,
             score_nn=score_nn,
             cost_augmented_layer=cost_augmented_layer,
@@ -182,6 +188,7 @@ class InferenceNetSampler(Sampler):
         buffer: Dict,
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+
         if labels is None or (not self.training):
             y_inf: torch.Tensor = self.inference_nn(x, buffer).unsqueeze(
                 1
@@ -212,7 +219,6 @@ class InferenceNetSampler(Sampler):
                     loss_values.append(float(loss_value))
 
                     step_number += 1
-
             # once out of Sampler, y_inf and y_cost_aug should not get gradients
 
             return (

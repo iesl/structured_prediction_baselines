@@ -90,7 +90,9 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
             inference_module_ = sampler_
         else:
             inference_module_ = inference_module.construct(
-                score_nn=score_nn, oracle_value_function=oracle_value_function
+                score_nn=score_nn,
+                oracle_value_function=oracle_value_function,
+                main_sampler=sampler_,
             )
 
         return cls(

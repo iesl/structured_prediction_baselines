@@ -251,7 +251,11 @@ class GradientBasedInferenceSampler(Sampler):
         random_mixing_in_init: float = 0.5,
         **kwargs: Any,
     ):
-        super().__init__(score_nn, oracle_value_function, **kwargs)
+        super().__init__(
+            score_nn=score_nn,
+            oracle_value_function=oracle_value_function,
+            **kwargs,
+        )
         self.loss_fn = loss_fn
         assert self.loss_fn.reduction == "none", "We do reduction or our own"
         self.gradient_descent_loop = gradient_descent_loop
@@ -347,6 +351,7 @@ class GradientBasedInferenceSampler(Sampler):
         else:
             samples = self.output_space.get_mixed_samples(
                 self.number_init_samples,
+                proportion_of_random_entries=self.random_mixing_in_init,
                 dtype=dtype,
                 reference=labels,
                 device=device,
@@ -462,3 +467,28 @@ class GradientBasedInferenceSampler(Sampler):
             ),  # (batch, num_samples, ...)
             torch.tensor(loss_values),
         )
+
+
+@Sampler.register(
+    "gradient-based-inference-dynamic-init", constructor="from_partial_objects"
+)
+class GradientBasedInferenceSamplerWithDynamicInit(
+    GradientBasedInferenceSampler
+):
+    def forward(
+        self,
+        x: Any,
+        labels: Optional[
+            torch.Tensor
+        ],  #: If given will have shape (batch, ...)
+        buffer: Dict,
+        **kwargs: Any,
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+        if "init" not in kwargs:
+            raise ValueError(
+                "Expect 'init: torch.Tensor' to be passed for this sampler."
+            )
+        init_ = kwargs.pop("init")
+        init = self.get_initial_output(x, labels)
+
+        pass

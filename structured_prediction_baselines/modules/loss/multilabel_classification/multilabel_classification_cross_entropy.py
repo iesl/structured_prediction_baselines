@@ -25,14 +25,18 @@ class MultiLabelBCELoss(Loss):
             dim=-1
         )  # (batch, 1,)
         self._loss_values.append(float(torch.mean(loss)))
+
         return loss
 
     def get_metrics(self, reset: bool = False):
         metrics = {}
+
         if self._loss_values:
-            metrics = {'cross_entropy_loss': np.mean(self._loss_values)}
+            metrics = {"cross_entropy_loss": np.mean(self._loss_values)}
+
         if reset:
             self._loss_values = []
+
         return metrics
 
 
@@ -53,4 +57,6 @@ class MultiLabelBCELoss(Loss):
     ) -> torch.Tensor:
         assert labels is not None
 
-        return self.loss_fn(y_hat, labels.to(dtype=y_hat.dtype)) # (batch, label_size,)
+        return self.loss_fn(
+            y_hat, labels.to(dtype=y_hat.dtype)
+        )  # (batch, label_size,)
