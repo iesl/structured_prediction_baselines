@@ -10,10 +10,17 @@ from structured_prediction_baselines.modules.loss import Loss
 from allennlp.data.vocabulary import Vocabulary
 from allennlp.common.lazy import Lazy
 from allennlp.nn import InitializerApplicator, RegularizerApplicator, util
+from structured_prediction_baselines.modules.logging import (
+    LoggingMixin,
+    LoggedValue,
+    LoggedScalarScalar,
+    LoggedScalarScalarSample,
+    LoggedNPArrayNPArraySample,
+)
 
 
 @Model.register("score-based-learning", constructor="from_partial_objects")
-class ScoreBasedLearningModel(Model):
+class ScoreBasedLearningModel(LoggingMixin, Model):
     def __init__(
         self,
         vocab: Vocabulary,
@@ -26,7 +33,9 @@ class ScoreBasedLearningModel(Model):
         initializer: Optional[InitializerApplicator] = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(vocab, regularizer=regularizer)  # type:ignore
+        super().__init__(
+            vocab=vocab, regularizer=regularizer, **kwargs
+        )  # type:ignore
         self.sampler = sampler
         self.loss_fn = loss_fn
         self.oracle_value_function = oracle_value_function
@@ -39,6 +48,9 @@ class ScoreBasedLearningModel(Model):
 
         if initializer is not None:
             initializer(self)
+        self.logging_children.append(self.loss_fn)
+        self.logging_children.append(self.sampler)
+        self.logging_children.append(self.inference_module)
 
     @classmethod
     def from_partial_objects(
@@ -53,7 +65,7 @@ class ScoreBasedLearningModel(Model):
         initializer: Optional[InitializerApplicator] = None,
         **kwargs: Any,
     ) -> "ScoreBasedLearningModel":
-        
+
         if oracle_value_function is not None:
             sampler_ = sampler.construct(
                 score_nn=score_nn, oracle_value_function=oracle_value_function
@@ -71,8 +83,9 @@ class ScoreBasedLearningModel(Model):
 
         # if no seperate inference module is given,
         # we will be using the same sampler
-        
+
         # test-time inference.
+
         if inference_module is None:
             inference_module_ = sampler_
         else:
@@ -127,6 +140,17 @@ class ScoreBasedLearningModel(Model):
 
     def forward(self, **kwargs: Any) -> Dict:
         return self._forward(**self.construct_args_for_forward(**kwargs))
+
+    def get_true_metrics(self, reset: bool = False) -> Dict[str, float]:
+        return {}
+
+    def get_metrics(self, reset: bool = False) -> Dict[str, float]:
+        non_metrics: Dict[str, Union[float, int]] = self.get_all(
+            reset=reset, type_=(LoggedScalarScalar,)
+        )
+        metrics = self.get_true_metrics(reset=reset)
+
+        return {**metrics, **non_metrics}
 
     def _forward(  # type: ignore
         self,

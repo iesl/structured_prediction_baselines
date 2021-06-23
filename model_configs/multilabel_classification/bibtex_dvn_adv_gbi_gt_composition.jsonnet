@@ -12,16 +12,18 @@ local num_input_features = dataset_metadata.input_features;
 local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
 local label_space_dim = ff_hidden;
 local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
-local ff_activation = std.parseJson(std.extVar('ff_activation'));
+//local ff_activation = std.parseJson(std.extVar('ff_activation'));
+local ff_activation = 'softplus';
 local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
 local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
 //local global_score_hidden_dim = 150;
 local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
 local inf_lr = std.parseJson(std.extVar('inf_lr'));
-local inf_optim = std.parseJson(std.extVar('inf_optim'));
-//local inf_optim = 'sgd';
+//local inf_optim = std.parseJson(std.extVar('inf_optim'));
+local inf_optim = 'sgd';
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
-local sample_picker = std.parseJson(std.extVar('sample_picker'));
+//local sample_picker = std.parseJson(std.extVar('sample_picker'));
+local sample_picker = 'best';
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
   evaluate_on_test: true,
@@ -46,10 +48,12 @@ local sample_picker = std.parseJson(std.extVar('sample_picker'));
     type: 'multi-label-classification',
     sampler: {
       type: 'appending-container',
+      log_key: 'sampler',
       constituent_samplers: [
         //GBI
         {
           type: 'gradient-based-inference',
+          log_key: 'gbi',
           gradient_descent_loop: {
             optimizer: {
               lr: inf_lr,  //0.1
@@ -57,7 +61,7 @@ local sample_picker = std.parseJson(std.extVar('sample_picker'));
               type: inf_optim,
             },
           },
-          loss_fn: { type: 'multi-label-dvn-score', reduction: 'none' },  //This loss can be different from the main loss // change this
+          loss_fn: { type: 'multi-label-dvn-score', reduction: 'none', log_key: 'neg_dvn_score' },  //This loss can be different from the main loss // change this
           output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
           stopping_criteria: 20,
           sample_picker: { type: sample_picker },
@@ -67,6 +71,7 @@ local sample_picker = std.parseJson(std.extVar('sample_picker'));
         // Adversarial
         {
           type: 'gradient-based-inference',
+          log_key: 'adv',
           gradient_descent_loop: {
             optimizer: {
               lr: inf_lr,  //0.1
@@ -76,7 +81,8 @@ local sample_picker = std.parseJson(std.extVar('sample_picker'));
           },
           loss_fn: {
             type: 'negative',
-            constituent_loss: { type: 'multi-label-dvn-bce', reduction: 'none' },
+            log_key: 'neg',
+            constituent_loss: { type: 'multi-label-dvn-bce', reduction: 'none', log_key: 'dvn_bce' },
             reduction: 'none',
           },
           output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
@@ -91,6 +97,7 @@ local sample_picker = std.parseJson(std.extVar('sample_picker'));
     },
     inference_module: {
       type: 'gradient-based-inference',
+      log_key: 'inference',
       gradient_descent_loop: {
         optimizer: {
           lr: inf_lr,  //0.1
@@ -98,7 +105,7 @@ local sample_picker = std.parseJson(std.extVar('sample_picker'));
           type: inf_optim,
         },
       },
-      loss_fn: { type: 'multi-label-dvn-score', reduction: 'none' },  //This loss can be different from the main loss
+      loss_fn: { type: 'multi-label-dvn-score', reduction: 'none', log_key: 'neg_dvn_score' },  //This loss can be different from the main loss
       output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
       stopping_criteria: 30,
       sample_picker: { type: 'best' },
@@ -132,7 +139,7 @@ local sample_picker = std.parseJson(std.extVar('sample_picker'));
         },
       },
     },
-    loss_fn: { type: 'multi-label-dvn-bce' },
+    loss_fn: { type: 'multi-label-dvn-bce', log_key: 'dvn_bce' },
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],

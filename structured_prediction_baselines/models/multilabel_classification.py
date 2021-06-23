@@ -63,12 +63,12 @@ class MultilabelClassification(ScoreBasedLearningModel):
         self.relaxed_f1(y_hat_n, labels)
         self.f1(y_hat_n, labels)
 
-    def get_metrics(self, reset: bool = False) -> Dict[str, float]:
+    def get_true_metrics(self, reset: bool = False) -> Dict[str, float]:
         metrics = {
             "MAP": self.map.get_metric(reset),
             "fixed_f1": self.f1.get_metric(reset),
             "micro_map": self.micro_map.get_metric(reset),
             "relaxed_f1": self.relaxed_f1.get_metric(reset),
         }
-        metrics.update(self.sampler.get_metrics(reset))
+
         return metrics

@@ -30,13 +30,14 @@ class MarginBasedLoss(Loss):
     ] = {
         "margin-rescaled-zero-truncation": (
             lambda oracle_cost, oracle_cost_weight, cost_augmented_inference_score, ground_truth_score: torch.relu(
-                oracle_cost * (1/oracle_cost_weight)
+                oracle_cost * (1 / oracle_cost_weight)
                 - (ground_truth_score - cost_augmented_inference_score)
             )
         ),
         "slack-rescaled-zero-truncation": (
             lambda oracle_cost, oracle_cost_weight, cost_augmented_inference_score, ground_truth_score: (
-                oracle_cost * (1/oracle_cost_weight)
+                oracle_cost
+                * (1 / oracle_cost_weight)
                 * torch.relu(
                     1.0 - (ground_truth_score - cost_augmented_inference_score)
                 )
@@ -121,7 +122,10 @@ class MarginBasedLoss(Loss):
             ground_truth_score,
         ) = self._get_values(x, labels, y_inf, y_cost_aug, buffer)
         loss_unreduced = self.margin_types[self.margin_type](
-            oracle_cost, self.oracle_cost_weight, cost_aug_score, ground_truth_score
+            oracle_cost,
+            self.oracle_cost_weight,
+            cost_aug_score,
+            ground_truth_score,
         )
 
         if self.perceptron_loss_weight:
@@ -172,9 +176,13 @@ class MarginBasedLoss(Loss):
         )  # (batch, num_samples)
 
         self._oracle_cost_values.append(float(torch.mean(oracle_cost)))
-        self._cost_augmented_score_values.append(float(torch.mean(cost_aug_score)))
+        self._cost_augmented_score_values.append(
+            float(torch.mean(cost_aug_score))
+        )
         self._inference_score_values.append(float(torch.mean(inference_score)))
-        self._ground_truth_score_values.append(float(torch.mean(ground_truth_score)))
+        self._ground_truth_score_values.append(
+            float(torch.mean(ground_truth_score))
+        )
 
         return (
             oracle_cost,
@@ -188,10 +196,12 @@ class MarginBasedLoss(Loss):
 
         if self._oracle_cost_values:
             metrics = {
-                'oracle_cost': np.mean(self._oracle_cost_values),
-                'cost_augmented_score': np.mean(self._cost_augmented_score_values),
-                'inference_score': np.mean(self._inference_score_values),
-                'ground_truth_score': np.mean(self._ground_truth_score_values)
+                "oracle_cost": np.mean(self._oracle_cost_values),
+                "cost_augmented_score": np.mean(
+                    self._cost_augmented_score_values
+                ),
+                "inference_score": np.mean(self._inference_score_values),
+                "ground_truth_score": np.mean(self._ground_truth_score_values),
             }
 
         if reset:
@@ -237,7 +247,7 @@ class InferenceLoss(MarginBasedLoss):
             ground_truth_score,
         ) = self._get_values(x, labels, y_inf, y_cost_aug, buffer)
         loss_unreduced = -(
-            oracle_cost * (1/self.oracle_cost_weight)
+            oracle_cost * (1 / self.oracle_cost_weight)
             + cost_augmented_inference_score
             + self.inference_score_weight * inference_score
         )  # the minus sign turns this into argmin objective
@@ -267,9 +277,12 @@ class InferenceScoreLoss(MarginBasedLoss):
         **kwargs: Any,
     ) -> torch.Tensor:
         assert buffer is not None
+
         if self.normalize_y:
             y_hat = self.normalize(y_hat)
-        loss_unreduced = -self.inference_score_weight * self.score_nn(x, y_hat, buffer)
+        loss_unreduced = -self.inference_score_weight * self.score_nn(
+            x, y_hat, buffer
+        )
         # the minus sign turns this into argmin objective
-        return loss_unreduced
 
+        return loss_unreduced
