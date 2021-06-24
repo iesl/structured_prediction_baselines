@@ -140,7 +140,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       type: 'adam',
     },
     checkpointer: {
-      num_serialized_models_to_keep: 1,
+      keep_most_recent_by_count: 1,
     },
     callbacks: [
       'track_epoch_callback',

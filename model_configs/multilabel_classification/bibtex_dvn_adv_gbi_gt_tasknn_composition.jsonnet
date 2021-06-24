@@ -49,13 +49,15 @@ local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_w
 
   // Model
   model: {
-    type: 'multi-label-classification',
+    type: 'multi-label-classification-with-infnet',
     sampler: {
       type: 'appending-container',
+      log_key: 'sampler',
       constituent_samplers: [
         //GBI
         {
           type: 'gradient-based-inference',
+          log_key: 'gbi',
           gradient_descent_loop: {
             optimizer: {
               lr: inf_lr,  //0.1
@@ -63,7 +65,7 @@ local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_w
               type: inf_optim,
             },
           },
-          loss_fn: { type: 'multi-label-dvn-score', reduction: 'none' },  //This loss can be different from the main loss // change this
+          loss_fn: { type: 'multi-label-dvn-score', reduction: 'none', log_key: 'neg.dvn_score' },  //This loss can be different from the main loss // change this
           output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
           stopping_criteria: 20,
           sample_picker: { type: sample_picker },
@@ -73,6 +75,7 @@ local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_w
         // Adversarial
         {
           type: 'gradient-based-inference',
+          log_key: 'adv',
           gradient_descent_loop: {
             optimizer: {
               lr: inf_lr,  //0.1
@@ -82,7 +85,8 @@ local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_w
           },
           loss_fn: {
             type: 'negative',
-            constituent_loss: { type: 'multi-label-dvn-bce', reduction: 'none' },
+            log_key: 'neg',
+            constituent_loss: { type: 'multi-label-dvn-bce', reduction: 'none', log_key: 'dvn_bce' },
             reduction: 'none',
           },
           output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
@@ -93,51 +97,52 @@ local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_w
         },
         // Ground Truth
         { type: 'ground-truth' },
-        // Inference Net/ TaskNN
-        {
-          type: 'multi-label-inference-net-normalized',
-          optimizer: {
-            lr: tasknn_lr,
-            weight_decay: ff_weight_decay,
-            type: 'adamw',
-          },
-          inference_nn: {
-            type: 'multi-label-classification',
-            feature_network: {
-              input_dim: num_input_features,
-              num_layers: ff_linear_layers,
-              activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + ['linear']),
-              hidden_dims: ff_hidden,
-              dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
-            },
-            label_embeddings: {
-              embedding_dim: ff_hidden,
-              vocab_namespace: 'labels',
-            },
-          },
-          loss_fn: {
-            type: 'combination-loss',
-            constituent_losses: [
-              {
-                type: 'multi-label-dvn-score',
-                normalize_y: true,
-                reduction: 'none',
-              },  //This loss can be different from the main loss // change this
-              {
-                type: 'multi-label-bce',
-                reduction: 'none',
-              },
-            ],
-            loss_weights: [1.0, cross_entropy_loss_weight],
-            reduction: 'sum',
-          },
-          stopping_criteria: tasknn_stopping_criteria,
-        },
+        // Inference Net/ TaskNN is taken from the inference_module
+
       ],
     },
+    task_nn: {
+      type: 'multi-label-classification',
+      feature_network: {
+        input_dim: num_input_features,
+        num_layers: ff_linear_layers,
+        activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + ['linear']),
+        hidden_dims: ff_hidden,
+        dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
+      },
+      label_embeddings: {
+        embedding_dim: ff_hidden,
+        vocab_namespace: 'labels',
+      },
+    },
     inference_module: {
-      type: 'from-container',
-      index: -1,
+      type: 'multi-label-inference-net-normalized',
+      log_key: 'tasknn',
+      optimizer: {
+        lr: tasknn_lr,
+        weight_decay: ff_weight_decay,
+        type: 'adamw',
+      },
+      loss_fn: {
+        type: 'combination-loss',
+        log_key: 'loss',
+        constituent_losses: [
+          {
+            type: 'multi-label-dvn-score',
+            log_key: 'neg.dvn_score',
+            normalize_y: true,
+            reduction: 'none',
+          },  //This loss can be different from the main loss // change this
+          {
+            type: 'multi-label-bce',
+            reduction: 'none',
+            log_key: 'bce',
+          },
+        ],
+        loss_weights: [1.0, cross_entropy_loss_weight],
+        reduction: 'mean',
+      },
+      stopping_criteria: tasknn_stopping_criteria,
     },
     oracle_value_function: { type: 'per-instance-f1', differentiable: false },
     score_nn: {
@@ -166,7 +171,7 @@ local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_w
         },
       },
     },
-    loss_fn: { type: 'multi-label-dvn-bce' },
+    loss_fn: { type: 'multi-label-dvn-bce', log_key: 'dvn_bce' },
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
@@ -198,17 +203,10 @@ local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_w
       type: 'adamw',
     },
     checkpointer: {
-      num_serialized_models_to_keep: 1,
+      keep_most_recent_by_count: 1,
     },
     callbacks: [
       'track_epoch_callback',
-      {
-        type: 'tensorboard-custom',
-        tensorboard_writer: {
-          should_log_learning_rate: true,
-        },
-        model_outputs_to_log: ['sample_probabilities'],
-      },
     ] + (if use_wandb then ['log_metrics_to_wandb'] else []),
   },
 }

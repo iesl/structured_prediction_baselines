@@ -198,7 +198,7 @@ local cross_entorpy_loss_weight = std.parseJson(std.extVar('cross_entorpy_loss_w
       type: 'adamw',
     },
     checkpointer: {
-      num_serialized_models_to_keep: 1,
+      keep_most_recent_by_count: 1,
     },
     callbacks: [
       'track_epoch_callback',
