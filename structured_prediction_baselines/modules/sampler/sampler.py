@@ -112,7 +112,11 @@ class SamplerContainer(Sampler):
             **kwargs,
         )
         self.constituent_samplers = torch.nn.ModuleList(constituent_samplers)
-        is_normalized = self.constituent_samplers[0].is_normalized
+
+        if len(self.constituent_samplers) > 0:
+            is_normalized = self.constituent_samplers[0].is_normalized
+        else:
+            is_normalized = None
 
         for s in self.constituent_samplers:
             self.logging_children.append(s)
@@ -121,17 +125,25 @@ class SamplerContainer(Sampler):
             assert (
                 s.is_normalized == is_normalized
             ), f"is_normalized for {s} does not match {self.constituent_samplers[0]}"
+        self._is_normalized = is_normalized
 
     def append_sampler(self, sampler: Sampler) -> None:
         self.constituent_samplers.append(sampler)
         self.logging_children.append(sampler)
-        assert (
-            self.is_normalized == sampler.is_normalized
-        ), f"is_normalized for the sampler being appended ({sampler}) is not same as that of other constituent samplers"
+
+        if self._is_normalized is not None:
+            assert (
+                self._is_normalized == sampler.is_normalized
+            ), f"is_normalized for the sampler being appended ({sampler}) is not same as that of other constituent samplers"
+        else:
+            self._is_normalized = sampler.is_normalized
 
     @property
     def is_normalized(self) -> bool:
-        return self.constituent_samplers[0].is_normalized
+        if self._is_normalized is not None:
+            return self._is_normalized
+        else:
+            raise RuntimeError("Cannot determine the value.")
 
 
 @SamplerContainer.register(
