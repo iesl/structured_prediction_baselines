@@ -69,6 +69,8 @@ class LoggedScalarScalar(LoggedValue[float, float]):
         self.steps = 0
 
     def reduce(self) -> float:
+        if self.steps <= 0:
+            breakpoint()
         assert self.steps > 0
 
         return self.value / self.steps
@@ -148,6 +150,15 @@ class LoggingMixin(object):
         self.logging_children: List[LoggingMixin] = []
         self.log_key = log_key
 
+    def remove_key_from_logging_buffer(self, key: str) -> None:
+        self.logging_buffer.pop(key)
+
+    def clear_logging_buffer(self) -> None:
+        self.logging_buffer = {}
+
+    def clear_logging_children(self) -> None:
+        self.logging_children = []
+
     def log(self, key: str, value: valueT) -> None:
         self.logging_buffer[key].log(value)
 
@@ -162,11 +173,14 @@ class LoggingMixin(object):
         def take(v: LoggedValue) -> bool:
             return isinstance(v, type_) if type_ is not None else True
 
-        self_values = {
-            _combine_keys(self.log_key, k): v.get(reset=reset)
-            for k, v in self.logging_buffer.items()
-            if take(v)
-        }
+        try:
+            self_values = {
+                _combine_keys(self.log_key, k): v.get(reset=reset)
+                for k, v in self.logging_buffer.items()
+                if take(v)
+            }
+        except Exception as e:
+            breakpoint()
         children_values = {  # type: ignore[var-annotated]
             _combine_keys(self.log_key, k): v
             for child in self.logging_children

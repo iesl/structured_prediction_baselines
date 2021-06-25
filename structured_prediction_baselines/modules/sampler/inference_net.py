@@ -63,6 +63,8 @@ class InferenceNetSampler(Sampler):
         else:
             self.stopping_criteria = stopping_criteria
 
+        self.logging_children.append(self.loss_fn)
+
     @property
     def is_normalized(self) -> bool:
         """Whether the sampler produces normalized or unnormalized samples"""
@@ -79,7 +81,6 @@ class InferenceNetSampler(Sampler):
         cost_augmented_layer: Optional[CostAugmentedLayer] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
-        eval_grad: bool = True,
         **kwargs: Any,
     ) -> "InferenceNetSampler":
         loss_fn_ = loss_fn.construct(
@@ -107,7 +108,6 @@ class InferenceNetSampler(Sampler):
             cost_augmented_layer=cost_augmented_layer,
             oracle_value_function=oracle_value_function,
             stopping_criteria=stopping_criteria,
-            eval_grad=eval_grad,
             **kwargs,
         )
 
@@ -189,12 +189,22 @@ class InferenceNetSampler(Sampler):
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
 
-        if labels is None or (not self.training):
-            y_inf: torch.Tensor = self.inference_nn(x, buffer).unsqueeze(
-                1
+        if not self.training or labels is None:
+            y_hat, y_cost_aug = self._get_values(
+                x, labels, buffer
             )  # (batch_size, 1, ...)
 
-            return y_inf, None
+            if labels is not None:
+                # compute loss for logging.
+                self.loss_fn(
+                    x,
+                    labels.unsqueeze(1),
+                    y_hat,
+                    y_cost_aug,
+                    buffer,
+                )
+
+            return y_hat, y_cost_aug
         else:
             # switch on gradients on the parameters of inference network using context manager
             with self.only_inference_nn_grad_on():
@@ -247,7 +257,11 @@ class InferenceNetSampler(Sampler):
         return loss
 
     def _get_values(
-        self, x: Any, labels: torch.Tensor, buffer: Dict, **kwargs: Any
+        self,
+        x: Any,
+        labels: Optional[torch.Tensor],
+        buffer: Dict,
+        **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
 
         y_inf: torch.Tensor = self.inference_nn(x, buffer).unsqueeze(
@@ -256,7 +270,7 @@ class InferenceNetSampler(Sampler):
         # inference_nn is TaskNN so it will output tensor of shape (batch, ...)
         # hence the unsqueeze
 
-        if self.cost_augmented_layer is not None:
+        if self.cost_augmented_layer is not None and labels is not None:
             y_cost_aug = self.cost_augmented_layer(
                 torch.cat(
                     (

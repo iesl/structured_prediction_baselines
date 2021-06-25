@@ -138,3 +138,8 @@ class MultiLabelNormalizedOrSampled(InferenceNetSampler):
     @property
     def is_normalized(self) -> bool:
         return True
+
+
+InferenceNetSampler.register(
+    "multi-label-inference-net-normalized", constructor="from_partial_objects"
+)(MultiLabelNormalized)

@@ -122,11 +122,21 @@ class SamplerContainer(Sampler):
                 s.is_normalized == is_normalized
             ), f"is_normalized for {s} does not match {self.constituent_samplers[0]}"
 
+    def append_sampler(self, sampler: Sampler) -> None:
+        self.constituent_samplers.append(sampler)
+        self.logging_children.append(sampler)
+        assert (
+            self.is_normalized == sampler.is_normalized
+        ), f"is_normalized for the sampler being appended ({sampler}) is not same as that of other constituent samplers"
+
     @property
     def is_normalized(self) -> bool:
         return self.constituent_samplers[0].is_normalized
 
 
+@SamplerContainer.register(
+    "appending-container", constructor="from_partial_constituent_samplers"
+)
 @Sampler.register(
     "appending-container", constructor="from_partial_constituent_samplers"
 )
