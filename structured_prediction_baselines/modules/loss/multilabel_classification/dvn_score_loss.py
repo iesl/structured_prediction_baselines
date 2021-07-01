@@ -16,7 +16,7 @@ class MultiLabelDVNScoreLoss(DVNScoreLoss):
         predicted_score: torch.Tensor,  # logits of shape (batch, num_samples)
     ) -> torch.Tensor:
         return -torch.sigmoid(predicted_score)
-
+      
 
 @Loss.register("multi-label-dvn-ca-score")
 class MultiLabelDVNScoreCA(DVNScoreCostAugNet):

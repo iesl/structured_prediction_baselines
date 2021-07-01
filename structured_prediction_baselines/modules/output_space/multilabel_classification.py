@@ -20,8 +20,13 @@ class MultilabelDiscreteOutputSpace(OutputSpace):
         num_samples: Union[Tuple[int, ...], int],
         dtype: Optional[torch.dtype] = None,
         device: Optional[torch.device] = None,
+        probabilities: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
+        Args:
+            probabilities: Tensor of shape ()
+        Note:
+            If `probabilities` is given, we use that instead of the `default_value`.
         Returns:
             samples of shape (*num_samples, num_labels)
         """
@@ -50,6 +55,7 @@ class MultilabelDiscreteOutputSpace(OutputSpace):
         reference: torch.Tensor,
         proportion_of_random_entries: float = 0.5,
         device: Optional[torch.device] = None,
+        probabilities: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         assert reference.dim() == 2
 
@@ -93,6 +99,7 @@ class MultilabelRelaxedOutputSpace(MultilabelDiscreteOutputSpace):
         num_samples: Union[Tuple[int, ...], int],
         dtype: Optional[torch.dtype] = None,
         device: Optional[torch.device] = None,
+        probabilities: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         if isinstance(num_samples, int):
             num_samples = (num_samples,) + (self.num_labels,)
