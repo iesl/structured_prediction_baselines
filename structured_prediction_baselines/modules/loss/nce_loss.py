@@ -16,7 +16,7 @@ class NCERankingLoss(Loss):
     """
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
-        self.bce_loss = torch.nn.BCEWithLogitsLoss(reduction="none")
+        self.bce_wlogit_loss = torch.nn.BCEWithLogitsLoss(reduction="none")
         self.ce_loss = torch.nn.CrossEntropyLoss(reduction="none")
         if self.score_nn is None:
             raise ConfigurationError("score_nn cannot be None for NCERankingLoss")
@@ -79,9 +79,12 @@ class NCERankingLoss(Loss):
         predicted_score = self.score_nn(
             x, samples, buffer, **kwargs
         )  # (batch, num_samples)
-        p_n = self.bce_loss(
+        p_n = self.bce_wlogit_loss(
                 y_hat.expand_as(samples), samples.to(dtype=y_hat.dtype)
-        )
+        ) 
+        # y_hat should not be normalized for BCEWithLogitLoss(),
+        # samples should be between [0,1] for each entry.
+        
         p_n = torch.sum(p_n, dim=2)
         # (batch, num_samples)
         # y_hat.expand_as(samples): (batch, 1, labels) --> (batch, num_samples, labels)
