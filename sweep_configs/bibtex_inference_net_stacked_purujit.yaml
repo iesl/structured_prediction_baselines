@@ -1,0 +1,52 @@
+name: bibtex_inference_net_stacked
+program: wandb_allennlp
+method: bayes
+command:
+  - ${program}
+  - "--subcommand=train"
+  - "--include-package=structured_prediction_baselines"
+  - "--config_file=model_configs/multilabel_classification/bibtex_inference_net_stacked.jsonnet"
+  - "--wandb_run_name=bibtex-stacked_infnet"
+  - "--wandb_project structured_prediction_baselines"
+  - "--wandb_entity score-based-learning"
+  - "--wandb_tags=task=mlc,model=spen,sampler=inference_net,dataset=bibtex"
+  - ${args} 
+parameters:
+metric:
+  name: best_validation_fixed_f1
+  goal: maximize
+parameters:
+  env.ff_hidden:
+    values: [100, 200, 300, 400]
+  env.ff_dropout:
+    values: [0.3, 0.4, 0.5]
+  env.ff_linear_layers:
+    values: [2, 3]
+  env.global_score_hidden_dim:
+    values: [150, 200, 300, 400]
+  env.inference_score_weight:
+    min: 0
+    max: 1
+    distribution: uniform
+  env.cross_entorpy_loss_weight:
+    min: 0
+    max: 1
+    distribution: uniform
+  env.oracle_cost_weight:
+    min: 0
+    max: 1
+    distribution: uniform
+  model.sampler.optimizer.lr:
+    min: -10.0
+    max: 0
+    distribution: log_uniform
+  model.sampler.stopping_criteria:
+    values: [1, 5, 10]
+  trainer.optimizer.lr:
+    min: -7.0
+    max: 0
+    distribution: log_uniform
+  trainer.optimizer.weight_decay:
+    min: -12.0
+    max: -2.0
+    distribution: log_uniform
