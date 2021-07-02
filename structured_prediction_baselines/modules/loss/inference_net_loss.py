@@ -153,8 +153,7 @@ class MarginBasedLoss(Loss):
         )  # if you call this loss, labels cannot be None
 
         if y_cost_aug is None:
-            raise ValueError("y_cost_aug cannot be none, "
-                             "if you want to use only inference score, use InferenceScoreLoss")
+            y_cost_aug = torch.zeros_like(y_hat)
         elif self.normalize_y:  # y_cost_aug is not None
             y_cost_aug = self.normalize(y_cost_aug)
 
