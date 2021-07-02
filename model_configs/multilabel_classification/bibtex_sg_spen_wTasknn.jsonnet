@@ -74,7 +74,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
           {
             type: 'multi-label-inference-score',
             inference_score_weight: inference_score_weight,
-            reduction: 'none'
+            reduction: 'none',
             normalize_y: true,
           },  //This loss can be different from the main loss // change this
           {
