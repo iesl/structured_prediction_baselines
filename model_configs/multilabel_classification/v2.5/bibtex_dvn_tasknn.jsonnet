@@ -4,7 +4,7 @@ local cuda_device = std.extVar('CUDA_DEVICE');
 local use_wandb = (if test == '1' then false else true);
 
 local dataset_name = 'bibtex_original';
-local dataset_metadata = (import 'datasets.jsonnet')[dataset_name];
+local dataset_metadata = (import '../datasets.jsonnet')[dataset_name];
 local num_labels = dataset_metadata.num_labels;
 local num_input_features = dataset_metadata.input_features;
 
@@ -86,7 +86,7 @@ local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_w
             log_key: 'bce',
           },
         ],
-        loss_weights: [1.0, cross_entropy_loss_weight],
+        loss_weights: [0.0, cross_entropy_loss_weight],
         reduction: 'mean',
       },
       stopping_criteria: tasknn_stopping_criteria,
