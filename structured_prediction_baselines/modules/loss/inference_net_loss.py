@@ -9,6 +9,13 @@ from structured_prediction_baselines.modules.oracle_value_function import (
     OracleValueFunction,
 )
 from structured_prediction_baselines.modules.score_nn import ScoreNN
+from structured_prediction_baselines.modules.logging import (
+    LoggingMixin,
+    LoggedValue,
+    LoggedScalarScalar,
+    LoggedScalarScalarSample,
+    LoggedNPArrayNPArraySample,
+)
 
 
 class MarginBasedLoss(Loss):
@@ -96,10 +103,14 @@ class MarginBasedLoss(Loss):
         self.oracle_cost_weight = oracle_cost_weight
         self.margin_type = margin_type
         self.perceptron_loss_weight = perceptron_loss_weight
-        self._oracle_cost_values = []
-        self._cost_augmented_score_values = []
-        self._inference_score_values = []
-        self._ground_truth_score_values = []
+        # setup logging.
+
+        if not self.log_key:
+            self.log_key = "margin_loss"
+        self.logging_buffer["oracle_cost"] = LoggedScalarScalar()
+        self.logging_buffer["ca_score"] = LoggedScalarScalar()
+        self.logging_buffer["inf_score"] = LoggedScalarScalar()
+        self.logging_buffer["gt_score"] = LoggedScalarScalar()
 
     def _forward(
         self,
@@ -174,15 +185,11 @@ class MarginBasedLoss(Loss):
         oracle_cost: torch.Tensor = self.oracle_value_function.compute_as_cost(
             labels, y_cost_aug, mask=buffer.get("mask")
         )  # (batch, num_samples)
-
-        self._oracle_cost_values.append(float(torch.mean(oracle_cost)))
-        self._cost_augmented_score_values.append(
-            float(torch.mean(cost_aug_score))
-        )
-        self._inference_score_values.append(float(torch.mean(inference_score)))
-        self._ground_truth_score_values.append(
-            float(torch.mean(ground_truth_score))
-        )
+        # log
+        self.log("oracle_cost", oracle_cost.detach().mean().item())
+        self.log("ca_score", cost_aug_score.detach().mean().item())
+        self.log("inf_score", inference_score.detach().mean().item())
+        self.log("gt_score", ground_truth_score.detach().mean().item())
 
         return (
             oracle_cost,
@@ -190,27 +197,6 @@ class MarginBasedLoss(Loss):
             inference_score,
             ground_truth_score,
         )
-
-    def get_metrics(self, reset: bool = False):
-        metrics = {}
-
-        if self._oracle_cost_values:
-            metrics = {
-                "oracle_cost": np.mean(self._oracle_cost_values),
-                "cost_augmented_score": np.mean(
-                    self._cost_augmented_score_values
-                ),
-                "inference_score": np.mean(self._inference_score_values),
-                "ground_truth_score": np.mean(self._ground_truth_score_values),
-            }
-
-        if reset:
-            self._oracle_cost_values = []
-            self._cost_augmented_score_values = []
-            self._inference_score_values = []
-            self._ground_truth_score_values = []
-
-        return metrics
 
 
 class InferenceLoss(MarginBasedLoss):
