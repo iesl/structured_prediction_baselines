@@ -213,7 +213,7 @@ class DVNScoreLoss(Loss):
 
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
-
+        self._inference_score_values = []
         if self.score_nn is None:
             raise ConfigurationError("score_nn cannot be None for DVNLoss")
 
@@ -264,6 +264,8 @@ class DVNScoreLoss(Loss):
             x, y_hat, buffer, **kwargs
         )  # (batch, num_samples)
 
+        self._inference_score_values.append(float(torch.mean(predicted_score)))
+        
         return predicted_score
 
 
