@@ -15,10 +15,10 @@ local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
 //local ff_activation = std.parseJson(std.extVar('ff_activation'));
 local ff_activation = 'softplus';
 local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
-//local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
+local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
 //local global_score_hidden_dim = 150;
 local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
-local cross_entorpy_loss_weight = std.parseJson(std.extVar('cross_entorpy_loss_weight'));
+local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
 local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
 local oracle_cost_weight = std.parseJson(std.extVar('oracle_cost_weight'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
@@ -44,27 +44,19 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 
   // Model
   model: {
-    type: 'multi-label-classification',
+    type: 'multi-label-classification-with-infnet',
     sampler: {
-      type: 'inference-network',
+      type: 'appending-container',
+      log_key: 'sampler',
+      constituent_samplers: [],
+    },
+    inference_module: {
+      type: 'inference-network-unnormalized',
+      log_key: "tasknn",
       optimizer: {
-        lr: 0.001,
-        weight_decay: 1e-4,
+        lr: 0.0002,
+        weight_decay: ff_weight_decay,
         type: 'adam',
-      },
-      inference_nn: {
-        type: 'multi-label-classification',
-        feature_network: {
-          input_dim: num_input_features,
-          num_layers: ff_linear_layers,
-          activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + [ff_activation]),
-          hidden_dims: ff_hidden,
-          dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
-        },
-        label_embeddings: {
-          embedding_dim: ff_hidden,
-          vocab_namespace: 'labels',
-        },
       },
       cost_augmented_layer: {
         type: 'multi-label-stacked',
@@ -78,9 +70,11 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       },
       loss_fn: {
         type: 'combination-loss',
+        log_key: 'loss',
         constituent_losses: [
           {
             type: 'multi-label-inference',
+            log_key: 'infnet',
             inference_score_weight: inference_score_weight,
             oracle_cost_weight: oracle_cost_weight,
             reduction: 'none',
@@ -88,15 +82,30 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
           },  //This loss can be different from the main loss // change this
           {
             type: 'multi-label-bce',
+            log_key: 'bce',
             reduction: 'none',
           },
         ],
-        loss_weights: [1.0, cross_entorpy_loss_weight],
+        loss_weights: [1.0, cross_entropy_loss_weight],
         reduction: 'mean',
       },
-      stopping_criteria: 10,
+      stopping_criteria: 1,
     },
-    oracle_value_function: { type: 'per-instance-f1', differentiable: true },
+    task_nn: {
+        type: 'multi-label-classification',
+        feature_network: {
+          input_dim: num_input_features,
+          num_layers: ff_linear_layers,
+          activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + [ff_activation]),
+          hidden_dims: ff_hidden,
+          dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
+        },
+        label_embeddings: {
+          embedding_dim: ff_hidden,
+          vocab_namespace: 'labels',
+        },
+      },
+    oracle_value_function: { type: 'per-instance-f1', differentiable: false },
     score_nn: {
       type: 'multi-label-classification',
       task_nn: {
@@ -156,8 +165,8 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       verbose: true,
     },
     optimizer: {
-      lr: 0.001,
-      weight_decay: 1e-4,
+      lr: 0.0036,
+      weight_decay: 7.0563993657317645e-06,
       type: 'adam',
     },
     checkpointer: {
@@ -165,13 +174,6 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
     },
     callbacks: [
       'track_epoch_callback',
-      {
-        type: 'tensorboard-custom',
-        tensorboard_writer: {
-          should_log_learning_rate: true,
-        },
-        model_outputs_to_log: ['y_hat_extra'],
-      },
-    ] + (if use_wandb then ['log_metrics_to_wandb'] else []),
+    ] + (if use_wandb then ['wandb_allennlp'] else []),
   },
 }

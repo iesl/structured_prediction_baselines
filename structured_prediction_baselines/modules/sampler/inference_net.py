@@ -287,3 +287,6 @@ class InferenceNetSampler(Sampler):
             y_cost_aug = None
 
         return y_inf, y_cost_aug
+
+
+InferenceNetSampler.register("inference-network-unnormalized", constructor="from_partial_objects")(InferenceNetSampler)
