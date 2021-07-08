@@ -7,10 +7,17 @@ from structured_prediction_baselines.modules.score_nn import ScoreNN
 from structured_prediction_baselines.modules.oracle_value_function import (
     OracleValueFunction,
 )
+from structured_prediction_baselines.modules.logging import (
+    LoggingMixin,
+    LoggedValue,
+    LoggedScalarScalar,
+    LoggedScalarScalarSample,
+    LoggedNPArrayNPArraySample,
+)
 import numpy as np
 
 
-class Sampler(torch.nn.Module, Registrable):
+class Sampler(LoggingMixin, torch.nn.Module, Registrable):
     """
     Given input x, returns samples of shape `(batch, num_samples or 1,...)`
     and optionally their corresponding probabilities of shape `(batch, num_samples)`.
@@ -34,17 +41,12 @@ class Sampler(torch.nn.Module, Registrable):
         self,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
-        name: str = "sampler",
         **kwargs: Any,
     ):
-        super().__init__()  # type: ignore
+        super().__init__(**kwargs)  # type: ignore
         self.score_nn = score_nn
         self.oracle_value_function = oracle_value_function
         self._different_training_and_eval = False
-        self._metrics: Dict[str, float] = {}
-        self._total_loss = 0.0
-        self._num_batches = 0
-        self.name = name
 
     @property
     def is_normalized(self) -> bool:
@@ -68,9 +70,6 @@ class Sampler(torch.nn.Module, Registrable):
     @property
     def different_training_and_eval(self) -> bool:
         return self._different_training_and_eval
-
-    def get_metrics(self, reset: bool = False) -> Dict[str, float]:
-        return {}
 
 
 class SamplerModifier(torch.nn.Module, Registrable):
@@ -107,20 +106,49 @@ class SamplerContainer(Sampler):
         oracle_value_function: Optional[OracleValueFunction] = None,
         **kwargs: Any,
     ):
-        super().__init__(score_nn, oracle_value_function)
+        super().__init__(
+            score_nn=score_nn,
+            oracle_value_function=oracle_value_function,
+            **kwargs,
+        )
         self.constituent_samplers = torch.nn.ModuleList(constituent_samplers)
-        is_normalized = self.constituent_samplers[0].is_normalized
+
+        if len(self.constituent_samplers) > 0:
+            is_normalized = self.constituent_samplers[0].is_normalized
+        else:
+            is_normalized = None
+
+        for s in self.constituent_samplers:
+            self.logging_children.append(s)
 
         for s in self.constituent_samplers[1:]:
             assert (
                 s.is_normalized == is_normalized
             ), f"is_normalized for {s} does not match {self.constituent_samplers[0]}"
+        self._is_normalized = is_normalized
+
+    def append_sampler(self, sampler: Sampler) -> None:
+        self.constituent_samplers.append(sampler)
+        self.logging_children.append(sampler)
+
+        if self._is_normalized is not None:
+            assert (
+                self._is_normalized == sampler.is_normalized
+            ), f"is_normalized for the sampler being appended ({sampler}) is not same as that of other constituent samplers"
+        else:
+            self._is_normalized = sampler.is_normalized
 
     @property
     def is_normalized(self) -> bool:
-        return self.constituent_samplers[0].is_normalized
+        if self._is_normalized is not None:
+            return self._is_normalized
+        else:
+            raise RuntimeError("Cannot determine the value.")
 
 
+@SamplerContainer.register(
+    "appending-container", constructor="from_partial_constituent_samplers"
+)
 @Sampler.register(
     "appending-container", constructor="from_partial_constituent_samplers"
 )
@@ -140,7 +168,10 @@ class AppendingSamplerContainer(SamplerContainer):
         **kwargs: Any,
     ):
         super().__init__(
-            constituent_samplers, score_nn, oracle_value_function, **kwargs
+            constituent_samplers=constituent_samplers,
+            score_nn=score_nn,
+            oracle_value_function=oracle_value_function,
+            **kwargs,
         )
 
     @classmethod
@@ -162,6 +193,7 @@ class AppendingSamplerContainer(SamplerContainer):
             constructed_samplers,
             score_nn=score_nn,
             oracle_value_function=oracle_value_function,
+            **kwargs,
         )
 
     def forward(
@@ -187,14 +219,6 @@ class AppendingSamplerContainer(SamplerContainer):
 
         return all_samples, None
 
-    def get_metrics(self, reset: bool = False) -> Dict[str, float]:
-        metrics = {}
-
-        for sampler in self.constituent_samplers:
-            metrics.update(sampler.get_metrics(reset))
-
-        return metrics
-
 
 @Sampler.register(
     "random-picking-container", constructor="from_partial_constituent_samplers"
@@ -216,7 +240,10 @@ class RandomPickingSamplerContainer(SamplerContainer):
         **kwargs: Any,
     ):
         super().__init__(
-            constituent_samplers, score_nn, oracle_value_function, **kwargs
+            constituent_samplers=constituent_samplers,
+            score_nn=score_nn,
+            oracle_value_function=oracle_value_function,
+            **kwargs,
         )
 
         if probabilities is not None:
@@ -249,6 +276,7 @@ class RandomPickingSamplerContainer(SamplerContainer):
             probabilities=probabilities,
             score_nn=score_nn,
             oracle_value_function=oracle_value_function,
+            **kwargs,
         )
 
     def forward(
@@ -264,14 +292,6 @@ class RandomPickingSamplerContainer(SamplerContainer):
         )
 
         return sampler(x, labels, buffer, **kwargs)
-
-    def get_metrics(self, reset: bool = False):
-        metrics = {}
-
-        for sampler in self.constituent_samplers:
-            metrics.update(sampler.get_metrics(reset))
-
-        return metrics
 
 
 class SamplerWrapper(Sampler):
@@ -307,6 +327,7 @@ class SamplerWithModifier(Sampler):
         super().__init__(
             score_nn=score_nn,
             oracle_value_function=oracle_value_function,
+            **kwargs,
         )
 
         self.constituent_sampler = main_sampler
@@ -359,6 +380,7 @@ class SamplerFromContainer(Sampler):
         super().__init__(
             score_nn=score_nn,
             oracle_value_function=oracle_value_function,
+            **kwargs,
         )
 
         assert isinstance(

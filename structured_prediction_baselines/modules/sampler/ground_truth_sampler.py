@@ -26,7 +26,9 @@ class GroundTruthSampler(Sampler):
         **kwargs: Any,
     ):
         super().__init__(
-            score_nn=score_nn, oracle_value_function=oracle_value_function
+            score_nn=score_nn,
+            oracle_value_function=oracle_value_function,
+            **kwargs,
         )
 
         if dtype not in self.known_dtypes:
@@ -51,6 +53,3 @@ class GroundTruthSampler(Sampler):
             None,
         )  # because labels will have shape (batch, ...)
         # and samples should have shape (batch, num_samples, ...)
-
-    def get_metrics(self, reset: bool = False) -> dict:
-        return self._metrics
