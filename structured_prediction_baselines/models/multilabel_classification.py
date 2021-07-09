@@ -102,15 +102,15 @@ class MultilabelClassification(ScoreBasedLearningModel):
             'random_samples_score', []) + [random_samples_score]
 
         # call sampler on distribution samples
-        self.eval_only_module(x, labels, buffer, distribution_samples)
-        dist_sampler_loss = self.eval_only_module.get_metrics(reset=True).get(
-            'total_' + self.eval_only_module.name + '_loss')
+        self.evaluation_module(x, labels, buffer, distribution_samples)
+        dist_sampler_loss = self.evaluation_module.get_metrics(reset=True).get(
+            'total_' + self.evaluation_module.name + '_loss')
         self.eval_only_metrics['dist_sampler_loss'] = self.eval_only_metrics.get(
             'dist_sampler_loss', []) + [dist_sampler_loss]
 
         # call sampler on random samples
-        self.eval_only_module(x, labels, buffer, random_samples)
-        random_sampler_loss = self.eval_only_module.get_metrics(reset=True).get(
-            'total_' + self.eval_only_module.name + '_loss')
+        self.evaluation_module(x, labels, buffer, random_samples)
+        random_sampler_loss = self.evaluation_module.get_metrics(reset=True).get(
+            'total_' + self.evaluation_module.name + '_loss')
         self.eval_only_metrics['random_sampler_loss'] = self.eval_only_metrics.get(
             'random_sampler_loss', []) + [random_sampler_loss]
