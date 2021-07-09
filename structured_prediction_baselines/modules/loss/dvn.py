@@ -1,10 +1,19 @@
 from typing import List, Tuple, Union, Dict, Any, Optional, cast
 from structured_prediction_baselines.modules.loss import Loss
-from structured_prediction_baselines.modules.loss.inference_net_loss import MarginBasedLoss
+from structured_prediction_baselines.modules.loss.inference_net_loss import (
+    MarginBasedLoss,
+)
 from allennlp.common.checks import ConfigurationError
 from structured_prediction_baselines.modules.score_nn import ScoreNN
 from structured_prediction_baselines.modules.oracle_value_function import (
     OracleValueFunction,
+)
+from structured_prediction_baselines.modules.logging import (
+    LoggingMixin,
+    LoggedValue,
+    LoggedScalarScalar,
+    LoggedScalarScalarSample,
+    LoggedNPArrayNPArraySample,
 )
 import torch
 
@@ -17,9 +26,6 @@ class DVNLoss(Loss):
     Loss function to train DVN, typically soft BCE loss.
     """
 
-    def get_metrics(self, reset: bool = False):
-        return {}
-
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
 
@@ -30,6 +36,7 @@ class DVNLoss(Loss):
             raise ConfigurationError(
                 "oracle_value_function cannot be None for DVNLoss"
             )
+        self.logging_buffer["predicted_score"] = LoggedScalarScalar()
 
     def compute_loss(
         self,
@@ -51,6 +58,7 @@ class DVNLoss(Loss):
         predicted_score, oracle_value = self._get_values(
             x, labels, y_hat, y_hat_extra, buffer, **kwargs
         )
+        self.log("predicted_score", predicted_score.detach().mean().item())
 
         return self.compute_loss(predicted_score, oracle_value)
 
@@ -91,11 +99,12 @@ class DVNLoss(Loss):
 
         return predicted_score, oracle_score
 
+
 class DVNLossCostAugNet(Loss):
     """
     Loss function to train DVN, typically soft BCE loss.
     """
-    
+
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
 
@@ -129,9 +138,12 @@ class DVNLossCostAugNet(Loss):
         )
 
         loss = self.compute_loss(predicted_score_list[0], oracle_value_list[0])
-        if predicted_score_list[1] is not None: 
-            loss += self.compute_loss(predicted_score_list[1], oracle_value_list[1])
-    
+
+        if predicted_score_list[1] is not None:
+            loss += self.compute_loss(
+                predicted_score_list[1], oracle_value_list[1]
+            )
+
         return loss
 
     def _get_values(
@@ -158,26 +170,29 @@ class DVNLossCostAugNet(Loss):
         if self.normalize_y:
             y_hat = self.normalize(y_hat)
             y_hat_extra = self.normalize(y_hat_extra)
-        
+
         predicted_score = self.score_nn(
             x, y_hat, buffer, **kwargs
         )  # (batch, num_samples)
-        
+
         if labels is not None:
             # For dvn we do not take gradient of oracle_score, so we detach y_hat
             oracle_score: Optional[torch.Tensor] = self.oracle_value_function(
                 labels, y_hat.detach().clone(), **kwargs
             )  # (batch, num_samples)
+
             if y_hat_extra is not None:
-                oracle_score_extra: Optional[torch.Tensor] = self.oracle_value_function(
+                oracle_score_extra: Optional[
+                    torch.Tensor
+                ] = self.oracle_value_function(
                     labels, y_hat_extra.detach().clone(), **kwargs
                 )  # (batch, num_samples)
-            else: 
+            else:
                 oracle_score_extra = None
         else:
             oracle_score = None
             oracle_score_extra = None
-        
+
         if y_hat_extra is not None:
             predicted_score_extra = self.score_nn(
                 x, y_hat_extra, buffer, **kwargs
@@ -187,8 +202,8 @@ class DVNLossCostAugNet(Loss):
 
         predicted_score_list = [predicted_score, predicted_score_extra]
         oracle_score_list = [oracle_score, oracle_score_extra]
-        return predicted_score_list, oracle_score_list
 
+        return predicted_score_list, oracle_score_list
 
 
 class DVNScoreLoss(Loss):
@@ -198,7 +213,7 @@ class DVNScoreLoss(Loss):
 
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
-
+        self._inference_score_values = []
         if self.score_nn is None:
             raise ConfigurationError("score_nn cannot be None for DVNLoss")
 
@@ -249,14 +264,14 @@ class DVNScoreLoss(Loss):
             x, y_hat, buffer, **kwargs
         )  # (batch, num_samples)
 
+        self._inference_score_values.append(float(torch.mean(predicted_score)))
+
         return predicted_score
 
-    def get_metrics(self, reset: bool = False):
-        return {}
 
 class DVNScoreCostAugNet(Loss):
     """
-    Just uses score from the score network as the objective, 
+    Just uses score from the score network as the objective,
     but also train CostAug network (i.e. Cost-Augmented Network).
     """
 
@@ -289,9 +304,11 @@ class DVNScoreCostAugNet(Loss):
             x, labels, y_hat, y_hat_extra, buffer, **kwargs
         )
 
-        loss = self.compute_loss(pred_score_infnet) 
+        loss = self.compute_loss(pred_score_infnet)
+
         if pred_score_costaugnet is not None:
             loss += self.compute_loss(pred_score_costaugnet)
+
         return loss
 
     def _get_predicted_score(
@@ -318,7 +335,7 @@ class DVNScoreCostAugNet(Loss):
         predicted_score_infnet = self.score_nn(
             x, y_hat, buffer, **kwargs
         )  # (batch, num_samples)
-        
+
         if y_hat_extra is not None:
             predicted_score_costaug = self.score_nn(
                 x, y_hat_extra, buffer, **kwargs
@@ -327,9 +344,6 @@ class DVNScoreCostAugNet(Loss):
             predicted_score_costaug = None
 
         return [predicted_score_infnet, predicted_score_costaug]
-
-    def get_metrics(self, reset: bool = False):
-        return {}
 
 
 class DVNScoreAndCostAugLoss(MarginBasedLoss):
@@ -369,7 +383,8 @@ class DVNScoreAndCostAugLoss(MarginBasedLoss):
             oracle_cost
             + self.compute_loss(cost_augmented_inference_score)
             + self.inference_score_weight * self.compute_loss(inference_score)
-          # the minus sign turns this into argmin objective
-          # DVN scores are normalized by compute_loss of sigmoid.
-        ) 
+            # the minus sign turns this into argmin objective
+            # DVN scores are normalized by compute_loss of sigmoid.
+        )
+
         return loss_unreduced
