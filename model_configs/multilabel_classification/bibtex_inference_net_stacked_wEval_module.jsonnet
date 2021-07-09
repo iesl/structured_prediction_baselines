@@ -48,6 +48,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
     type: 'multi-label-classification',
     sampler: {
       type: 'inference-network',
+      log_key: 'sampler',
       optimizer: {
         lr: 0.001,
         weight_decay: 1e-4,
@@ -79,9 +80,11 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       },
       loss_fn: {
         type: 'combination-loss',
+        log_key: 'loss',
         constituent_losses: [
           {
             type: 'multi-label-inference',
+            log_key: 'infnet',
             inference_score_weight: inference_score_weight,
             oracle_cost_weight: oracle_cost_weight,
             reduction: 'none',
@@ -89,6 +92,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
           },  //This loss can be different from the main loss // change this
           {
             type: 'multi-label-bce',
+            log_key: 'bce',
             reduction: 'none',
           },
         ],
@@ -131,8 +135,9 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       oracle_cost_weight: oracle_cost_weight,
       normalize_y: true
     },
-    eval_only_module: {
+    evaluation_module: {
       type: 'gradient-based-inference',
+      log_key: 'eval_gbi',
       gradient_descent_loop: {
         optimizer: {
           lr: 0.1,  //0.1
@@ -140,7 +145,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
           type: 'sgd',
         },
       },
-      loss_fn: { type: 'multi-label-dvn-score', reduction: 'none' },  //This loss can be different from the main loss // change this
+      loss_fn: { type: 'multi-label-dvn-score', reduction: 'none', log_key: 'neg.dvn_score'},
       stopping_criteria: 20,
       sample_picker: { type: 'lastn' },  // {type: 'best'}
     },
@@ -179,13 +184,6 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
     },
     callbacks: [
       'track_epoch_callback',
-      {
-        type: 'tensorboard-custom',
-        tensorboard_writer: {
-          should_log_learning_rate: true,
-        },
-        model_outputs_to_log: ['y_hat_extra'],
-      },
-    ] + (if use_wandb then ['log_metrics_to_wandb'] else []),
-  },
+    ] + (if use_wandb then ['wandb_allennlp'] else [])
+},
 }

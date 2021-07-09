@@ -73,4 +73,4 @@ class ScoreNN(torch.nn.Module, Registrable):
             else:
                 score = global_score
 
-        return score  # (batch, num_samples, ...)
+        return score  # (batch, num_samples)
