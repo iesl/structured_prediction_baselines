@@ -117,7 +117,7 @@ local num_samples = std.parseJson(std.extVar('num_samples'));
       },
     },
     loss_fn: { // for learning the score-NN
-      type: 'multi-label-nce-ranking',
+      type: 'multi-label-nce-ranking-interp',
       reduction: 'mean',
     },
     initializer: {
@@ -155,9 +155,12 @@ local num_samples = std.parseJson(std.extVar('num_samples'));
     callbacks: [
       'track_epoch_callback',
       {
-        type: 'lossweight-set-callback',
-        loss_idx_list: [0],
-        epoch_to_turn_on: [8],
+        type: 'scoreloss-smooth-increase-callback',
+        score_loss_idx: 0,
+        decay_rate: 0.95,
+      },
+      {
+        type: 'nceloss-sample-weight',
       },
       {
         type: 'tensorboard-custom',
