@@ -101,7 +101,6 @@ class TurnOnLossAfterEpochs(TrainerCallback):
         ):
             for i, epoch_thresh in enumerate(self.epoch_to_turn_on):
                 if trainer.model.epoch > epoch_thresh:
-<<<<<<< HEAD
                    self.set_loss_weights(trainer, self.loss_idx_list[i]) #trainer.model.sampler.loss_fn.loss_weights[loss_idx] = self.initial_weight_list[loss_idx]
 
 @TrainerCallback.register("scoreloss-smooth-increase-callback")
@@ -151,11 +150,6 @@ class IncreaseScoreLossSmooth(TrainerCallback):
         """
         self.score_rate = self.score_rate*self.decay_rate
         trainer.model.sampler.loss_fn.loss_weights[self.score_loss_idx] = (1-self.score_rate)*self.initial_score_weight
-=======
-                    self.set_loss_weights(
-                        trainer, self.loss_idx_list[i]
-                    )  # trainer.model.sampler.loss_fn.loss_weights[loss_idx] = self.initial_weight_list[loss_idx]
->>>>>>> 0354e77fe2e456f38016e8f036317a10bf5fa885
 
 
 @TrainerCallback.register("nceloss-sample-weight")
@@ -251,7 +245,6 @@ class ReduceNCESampleWeights(TrainerCallback):
 #         batch_grad_norm: Optional[float] = None,
 #         **kwargs: Any,
 #     ) -> None:
-<<<<<<< HEAD
 #         """
 #         Overriding on_epoch to control the weights.
 #         """
@@ -262,53 +255,3 @@ class ReduceNCESampleWeights(TrainerCallback):
 #                                                                             * self.initial_xtropy_weight
 #                                                                         )
 # 
-=======
-#         # do everything as the parent does
-#         super().on_batch(
-#             trainer,
-#             batch_inputs,
-#             batch_outputs,
-#             batch_metrics,
-#             epoch,
-#             batch_number,
-#             is_training,
-#             is_primary=is_primary,
-#             batch_grad_norm=batch_grad_norm,
-#             **kwargs,
-#         )
-#         assert len(batch_outputs) == 1, "Gradient accumulation not supported"
-#         self._warn_about_missing_keys(batch_outputs)
-
-#         for key in self._model_outputs_to_log:
-#             value = batch_outputs[0].get(key, None)
-
-#             if value is not None:
-#                 if is_training:
-#                     self._tensorboard.add_train_histogram(  # type: ignore
-#                         "model_outputs/" + key, value
-#                     )
-# # @TrainerCallback.register("track_epoch_callback")
-# # class TrackEpochCallback(TrainerCallback):
-# #     """
-# #     A callback that you can pass to the `GradientDescentTrainer` to access the current epoch number
-# #     in your model during training. This callback sets `model.epoch`, which can be read inside of
-# #     `model.forward()`. We set `model.epoch = epoch + 1` which now denotes the number of
-# #     completed epochs at a given training state.
-# #     """
-# #     def on_start(
-# #         self, trainer: "GradientDescentTrainer", is_primary: bool = True, **kwargs
-# #     ) -> None:
-# #         super().on_start(trainer, is_primary)
-# #         trainer.model.apply(lambda module: module.epoch = 0)
-# #         trainer.model.epoch = 0
-# #     def on_epoch(
-# #         self,
-# #         trainer: "GradientDescentTrainer",
-# #         metrics: Dict[str, Any],
-# #         epoch: int,
-# #         is_primary: bool = True,
-# #         **kwargs,
-# #     ) -> None:
-# #         trainer.model.apply(lambda module: module.epoch = module.epoch+1)
-# #         trainer.model.epoch = epoch + 1
->>>>>>> 0354e77fe2e456f38016e8f036317a10bf5fa885
