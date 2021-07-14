@@ -41,7 +41,6 @@ class InfnetRankingNCE(Sampler):
     Draw discrete samples (s_i) from Task-NN output (y_hat) and then 
     make a ranking loss between score(y_i)-P_N(y_i) where P_N is probability of the noise model.
     We assume that noise model is provided by the Task-NN. (whereas most NCE method regards fixed Task-NN)
-    loss_function: g * binary_cross_entropy(labels=s_i,y_hat)  
     """
     def __init__(
         self,
@@ -242,7 +241,6 @@ class InfnetRankingNCE(Sampler):
                 1
             )  # (batch_size, 1, ...)
             samples = self.draw_samples(y_inf)
-            
             return y_inf, samples
         else:
             # switch on gradients on the parameters of inference network using context manager
@@ -327,11 +325,12 @@ class InfnetRankingNCE(Sampler):
     #     return metrics
 
 
-# @Sampler.register("infnet-sample-label-stdnorm", constructor="from_partial_objects")
-class InfnetBinaryNCE(InfnetRankingNCE):
+@Sampler.register("infnet-nce-interpolate", constructor="from_partial_objects")
+# --> change it to "multi-sample-logprob"
+class InfnetRankingNCEInterpolate(InfnetRankingNCE):
     """
-    Take  (score_i - mean) / std as the new score_i.
-    Here mean & std are computed across labels. 
+    The same class as the NCE ranking loss but provides samples that are interpolated 
+    between samples & label. i.e. sampels = (a* samples + b* label)/(a+b) 
     """
     def __init__(
         self,
@@ -339,7 +338,8 @@ class InfnetBinaryNCE(InfnetRankingNCE):
         inference_nn: TaskNN,
         score_nn: ScoreNN,
         loss_fn: Loss,
-        keep_probs: bool = False, # newly added
+        num_samples: int = 1,
+        keep_labels: bool = True, # newly added
         cost_augmented_layer: Optional[CostAugmentedLayer] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
@@ -347,27 +347,61 @@ class InfnetBinaryNCE(InfnetRankingNCE):
     ):
         assert ScoreNN is not None
         super().__init__(
-            optimizer,
-            inference_nn,
             score_nn,
-            loss_fn,
-            keep_probs,
-            cost_augmented_layer,
             oracle_value_function,
-            stopping_criteria
         )
 
-    def get_metrics(self, reset: bool = False):
-        metrics = self._metrics
-        metrics['total_' + self.name + '_loss'] = float(
-            self._total_loss / self._num_batches) if self._num_batches > 0 else 0.0
-        if reset:
-            self._metrics = {}
-            self._total_loss = 0.0
-            self._num_batches = 0
-            metrics.pop(self.name + '_loss', None)
+    def forward(
+        self,
+        x: Any,
+        labels: Optional[
+            torch.Tensor
+        ],  #: If given will have shape (batch, ...)
+        buffer: Dict,
+        **kwargs: Any,
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+        if labels is None or (not self.training):
+            y_inf: torch.Tensor = self.inference_nn(x, buffer).unsqueeze(
+                1
+            )  # (batch_size, 1, ...)
+            samples = self.draw_samples(y_inf)
+            # Newly added lines on top of InfnetRankingNCE
+            samples = (samples + labels)/2
+            return y_inf, samples
         else:
-            loss_metrics = self.loss_fn.get_metrics(reset=True)
-            metrics.update(loss_metrics)
+            # switch on gradients on the parameters of inference network using context manager
+            with self.only_inference_nn_grad_on():
+                labels = labels.unsqueeze(1)
+                # loss_fn = self.get_loss_fn(
+                #     x, labels
+                # )  #: Loss function will expect labels in form (batch, num_samples or 1, labels)
+                ## This part is removed. 
+                loss_values: List[float] = []
+                step_number = 0
+                loss_value: Union[torch.Tensor, float] = float("inf")
 
-        return metrics
+                while not self.stopping_criteria(
+                    step_number, float(loss_value)
+                ):
+                    self.optimizer.zero_grad(set_to_none=True)
+                    y_inf, y_cost_aug = self._get_values(x, labels, buffer) # 
+                    samples = self.draw_samples(y_inf) # (batch, num_samples, num_labels)
+                    
+
+                    loss_value = self.update( # made self.update to be the same as Loss class forward()
+                        x, labels, samples, y_inf, y_cost_aug, buffer 
+                    )
+                    loss_values.append(float(loss_value))
+                    step_number += 1
+                
+                self._metrics[self.name + '_loss'] = np.mean(loss_values)
+                self._total_loss += np.mean(loss_values)
+                self._num_batches += 1
+
+            # once out of Sampler, y_inf and y_cost_aug should not get gradients
+            return (
+                y_inf.detach().clone(),
+                y_cost_aug.detach().clone()
+                if y_cost_aug is not None
+                else None,
+            )    

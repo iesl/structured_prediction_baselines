@@ -29,6 +29,22 @@ class NCERankingLoss(Loss):
     ) -> torch.Tensor:
         raise NotImplementedError
 
+    def _compute_ranking_loss(
+        self,
+        predicted_score: torch.Tensor,
+        neg_log_pn: torch.Tensor,
+    ) -> torch.Tensor:
+        neg_log_pn = torch.sum(neg_log_pn, dim=2) # (batch, num_samples)
+        new_score = predicted_score + neg_log_pn
+        ranking_loss = self.ce_loss(new_score, torch.zeros(new_score.shape[0],dtype=torch.long).cuda())
+
+        # for debugging 
+        # y_hat.expand_as(samples): (batch, 1, labels) --> (batch, num_samples, labels)
+        # print("==============================================predicted_score.shape:{}".format(predicted_score.shape))
+        # print("==============================================p_n.shape:{}".format(p_n.shape))
+
+        return ranking_loss # (batch, num_samples)
+
     def _forward(
         self,
         x: Any,
@@ -45,22 +61,6 @@ class NCERankingLoss(Loss):
 
         return self.compute_loss(ranking_loss)
     
-    def _compute_ranking_loss(
-        self,
-        predicted_score: torch.Tensor,
-        neg_p_n: torch.Tensor,
-    ) -> torch.Tensor:
-        neg_p_n = torch.sum(neg_p_n, dim=2) # (batch, num_samples)
-        new_score = predicted_score + neg_p_n
-        ranking_loss = self.ce_loss(new_score, torch.zeros(new_score.shape[0],dtype=torch.long).cuda())
-
-        # for debugging 
-        # y_hat.expand_as(samples): (batch, 1, labels) --> (batch, num_samples, labels)
-        # print("==============================================predicted_score.shape:{}".format(predicted_score.shape))
-        # print("==============================================p_n.shape:{}".format(p_n.shape))
-
-        return ranking_loss # (batch, num_samples)
-
     def _get_values(
         self,
         x: Any,
@@ -97,147 +97,47 @@ class NCERankingLoss(Loss):
         predicted_score = self.score_nn(
             x, samples, buffer, **kwargs
         )  # (batch, num_samples)
-        neg_p_n = self.bce_wlogit_loss(
+        neg_log_pn = self.bce_wlogit_loss(
                 y_hat.expand_as(samples), samples.to(dtype=y_hat.dtype)
         ) 
         # y_hat should not be normalized for BCEWithLogitLoss(),
         # samples should be between [0,1] for each entry.
-        ranking_loss = self._compute_ranking_loss(predicted_score,neg_p_n)
+        ranking_loss = self._compute_ranking_loss(predicted_score,neg_log_pn)
         return ranking_loss
 
     def get_metrics(self, reset: bool = False):
         metrics = {}
         return metrics
 
-# organize this so that _get_values has two parts.
-
-class NCERevRankingLoss(Loss):
+class NCERevRankingLoss(NCERankingLoss):
     """
-    Loss function to train DVN, 
-    NCE ranking loss: 0 index has label & rest has samples from Task-NN.
+    Loss function to train score model based on NCE ranking loss.
+    Difference to NCERankingLoss: logP_N is added rather than subtracted. 
+    c.f. binary cross entropy delivers nll by default.
     """
-    def __init__(self, **kwargs: Any):
-        super().__init__(**kwargs)
-        self.bce_wlogit_loss = torch.nn.BCEWithLogitsLoss(reduction="none")
-        self.ce_loss = torch.nn.CrossEntropyLoss(reduction="none")
-        if self.score_nn is None:
-            raise ConfigurationError("score_nn cannot be None for NCERankingLoss")
-
-    def compute_loss(
+    def _compute_ranking_loss(
         self,
-        predicted_score: torch.Tensor,  # (batch, num_samples)
-        oracle_value: Optional[torch.Tensor],  # (batch, num_samples)
+        predicted_score: torch.Tensor,
+        neg_log_pn: torch.Tensor,
     ) -> torch.Tensor:
-        raise NotImplementedError
-
-    def _forward(
-        self,
-        x: Any,
-        labels: Optional[torch.Tensor],  # (batch, 1, ...)
-        y_hat: torch.Tensor,  # (batch, num_samples, ...)
-        y_hat_extra: Optional[torch.Tensor],  # (batch, num_samples)
-        buffer: Dict,
-        **kwargs: Any,
-    ) -> torch.Tensor:
-        # I want to get individual Energy scores & probability scores.
-        ranking_loss = self._get_values(
-            x, labels, y_hat, y_hat_extra, buffer, **kwargs
-        )
-
-        return self.compute_loss(ranking_loss)
-
-    def _get_values(
-        self,
-        x: Any,
-        labels: Optional[torch.Tensor],
-        y_hat: torch.Tensor,
-        y_hat_extra: Optional[torch.Tensor],
-        buffer: Dict,
-        **kwargs: Any,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
-        # labels shape (batch, 1, ...)
-        # y_hat shape (batch, 1, ...)
-        # samples shape (batch, num_samples, num_labels)
-        if 'samples' in buffer.keys():
-            samples = buffer['samples']    
-        else:
-            samples = y_hat_extra # hack for validation loop. (buffer not explicitly passed)
-
-        if labels is not None:
-            samples = torch.cat(
-                        (labels, samples), dim=1
-                    ) # concatenate true label on the front (0 index).
-        num_samples = samples.shape[1] 
-
-        self.score_nn = cast(
-            ScoreNN, self.score_nn
-        )  # purely for typing, no runtime effect
-        # score_nn always expects y to be normalized
-        # do the normalization based on the task
-        
-        # self.normalize_y = False --> as it's already normalzied.
-        if self.normalize_y: 
-            samples = self.normalize(samples)
-
-        predicted_score = self.score_nn(
-            x, samples, buffer, **kwargs
-        )  # (batch, num_samples)
-        neg_p_n = self.bce_wlogit_loss(
-                y_hat.expand_as(samples), samples.to(dtype=y_hat.dtype)
-        ) 
-        # y_hat should not be normalized for BCEWithLogitLoss(),
-        # samples should be between [0,1] for each entry.
-        
-        neg_p_n = torch.sum(neg_p_n, dim=2)
-        # (batch, num_samples)
-        # y_hat.expand_as(samples): (batch, 1, labels) --> (batch, num_samples, labels)
-        # print("==============================================predicted_score.shape:{}".format(predicted_score.shape))
-        # print("==============================================p_n.shape:{}".format(p_n.shape))
-        new_score = predicted_score - neg_p_n
+        neg_log_pn = torch.sum(neg_log_pn, dim=2) # (batch, num_samples)
+        new_score =  predicted_score - neg_log_pn
         ranking_loss = self.ce_loss(new_score, torch.zeros(new_score.shape[0],dtype=torch.long).cuda())
-        
-        return ranking_loss
-    
-    def get_metrics(self, reset: bool = False):
-        metrics = {}
-        return metrics
+
+        return ranking_loss # (batch, num_samples)
 
 
-
-class RankingWithoutNoise(Loss):
+class RankingWithoutNoise(NCERankingLoss):
     """
     Loss function to train DVN, 
     NCE ranking loss: 0 index has label & rest has samples from Task-NN.
     """
-    def __init__(self, **kwargs: Any):
-        super().__init__(**kwargs)
-        self.bce_wlogit_loss = torch.nn.BCEWithLogitsLoss(reduction="none")
-        self.ce_loss = torch.nn.CrossEntropyLoss(reduction="none")
-        if self.score_nn is None:
-            raise ConfigurationError("score_nn cannot be None for NCERankingLoss")
-
-    def compute_loss(
+    def _compute_ranking_loss(
         self,
-        predicted_score: torch.Tensor,  # (batch, num_samples)
-        oracle_value: Optional[torch.Tensor],  # (batch, num_samples)
+        predicted_score: torch.Tensor,
     ) -> torch.Tensor:
-        raise NotImplementedError
-
-    def _forward(
-        self,
-        x: Any,
-        labels: Optional[torch.Tensor],  # (batch, 1, ...)
-        y_hat: torch.Tensor,  # (batch, num_samples, ...)
-        y_hat_extra: Optional[torch.Tensor],  # (batch, num_samples)
-        buffer: Dict,
-        **kwargs: Any,
-    ) -> torch.Tensor:
-        # I want to get individual Energy scores & probability scores.
-        ranking_loss = self._get_values(
-            x, labels, y_hat, y_hat_extra, buffer, **kwargs
-        )
-
-        return self.compute_loss(ranking_loss)
+        ranking_loss = self.ce_loss(predicted_score, torch.zeros(predicted_score.shape[0],dtype=torch.long).cuda())
+        return ranking_loss # (batch, num_samples)
 
     def _get_values(
         self,
@@ -248,6 +148,9 @@ class RankingWithoutNoise(Loss):
         buffer: Dict,
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+        """
+        The NLL (logP_N, noise log probability) calculation can be skipped as it's not used at all.
+        """
         # labels shape (batch, 1, ...)
         # y_hat shape (batch, 1, ...)
         # samples shape (batch, num_samples, num_labels)
@@ -265,8 +168,8 @@ class RankingWithoutNoise(Loss):
         self.score_nn = cast(
             ScoreNN, self.score_nn
         )  # purely for typing, no runtime effect
-        # score_nn always expects y to be normalized
-        # do the normalization based on the task
+        # score_nn always expects y to be normalized.
+        # Thus peform the normalization based on the task
         
         # self.normalize_y = False --> as it's already normalzied.
         if self.normalize_y: 
@@ -275,14 +178,13 @@ class RankingWithoutNoise(Loss):
         predicted_score = self.score_nn(
             x, samples, buffer, **kwargs
         )  # (batch, num_samples)
-        ranking_loss = self.ce_loss(predicted_score, torch.zeros(predicted_score.shape[0],dtype=torch.long).cuda())
-        
+
+        # y_hat should not be normalized for BCEWithLogitLoss(),
+        # samples should be between [0,1] for each entry.
+        ranking_loss = self._compute_ranking_loss(predicted_score)
         return ranking_loss
 
-    def get_metrics(self, reset: bool = False):
-        metrics = {}
-        return metrics
-
+# in progress.
 class NCERankingInterpolatedLoss(NCERankingLoss):
     """
     On top of the hard samples, 
@@ -337,18 +239,14 @@ class NCERankingInterpolatedLoss(NCERankingLoss):
         predicted_score = self.score_nn(
             x, samples, buffer, **kwargs
         )  # (batch, num_samples)
-        neg_p_n = self.bce_wlogit_loss(
+        neg_log_pn = self.bce_wlogit_loss(
                 y_hat.expand_as(samples), samples.to(dtype=y_hat.dtype)
         ) 
         # y_hat should not be normalized for BCEWithLogitLoss(),
         # samples should be between [0,1] for each entry.
         
-        neg_p_n = torch.sum(neg_p_n, dim=2)
-        # (batch, num_samples)
-        # y_hat.expand_as(samples): (batch, 1, labels) --> (batch, num_samples, labels)
-        # print("==============================================predicted_score.shape:{}".format(predicted_score.shape))
-        # print("==============================================p_n.shape:{}".format(p_n.shape))
-        new_score = predicted_score + neg_p_n
+        neg_log_pn = torch.sum(neg_log_pn, dim=2)
+        new_score = predicted_score + neg_log_pn
         ranking_loss = self.ce_loss(new_score, torch.zeros(new_score.shape[0],dtype=torch.long).cuda())
         
         return ranking_loss

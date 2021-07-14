@@ -1,14 +1,14 @@
-name: bibtex_inference_net_wNCE_s40_negpn
+name: bibtex_infnet_wNCE_s750_revNCE
 program: wandb_allennlp
-method: bayes
+method: random
 command:
   - ${program}
   - "--subcommand=train"
   - "--include-package=structured_prediction_baselines"
-  - "--config_file=model_configs/multilabel_classification/bibtex_infnet_wNCE_infscore.jsonnet"
+  - "--config_file=model_configs/multilabel_classification/bibtex_infnet_wNCErev_infscore.jsonnet"
   - "--wandb_project structured_prediction_baselines"
   - "--wandb_entity score-based-learning"
-  - "--wandb_tags=task=mlc,scoreNN=NCE,taskNN=inference_net,dataset=bibtex"
+  - "--wandb_tags=task=mlc,scoreNN=NCE,taskNN=inference_net,loss=revNCE,dataset=bibtex"
   - ${args} 
 parameters:
 metric:
@@ -37,19 +37,32 @@ parameters:
   env.global_score_hidden_dim:
     values: [200]
   env.num_samples:
-    values: [40]
+    values: [750]
   # Direct config variables.
-  model.sampler.optimizer.lr:
-    distribution: log_uniform
-    max: 0
-    min: -10
   model.sampler.stopping_criteria:
     values: [10]
+  model.sampler.optimizer.lr:
+    distribution: log_uniform
+    max: -6
+    min: -12
   trainer.optimizer.lr:
     distribution: log_uniform
-    max: 0
+    max: -3
     min: -7
   trainer.optimizer.weight_decay:
     distribution: log_uniform
-    max: -2
-    min: -12
+    max: -6
+    min: -14
+  ## originally. 
+  # model.sampler.optimizer.lr:
+  #   distribution: log_uniform
+  #   max: 0
+  #   min: -10
+  # trainer.optimizer.lr:
+  #   distribution: log_uniform
+  #   max: 0
+  #   min: -7
+  # trainer.optimizer.weight_decay:
+  #   distribution: log_uniform
+  #   max: -2
+  #   min: -12
