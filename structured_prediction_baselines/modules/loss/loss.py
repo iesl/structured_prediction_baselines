@@ -5,10 +5,17 @@ from structured_prediction_baselines.modules.score_nn import ScoreNN
 from structured_prediction_baselines.modules.oracle_value_function import (
     OracleValueFunction,
 )
+from structured_prediction_baselines.modules.logging import (
+    LoggingMixin,
+    LoggedValue,
+    LoggedScalarScalar,
+    LoggedScalarScalarSample,
+    LoggedNPArrayNPArraySample,
+)
 from allennlp.common.lazy import Lazy
 
 
-class Loss(torch.nn.Module, Registrable):
+class Loss(LoggingMixin, torch.nn.Module, Registrable):
     """Base class for all the loss functions.
 
     In some cases, this will only act as a wrapper around loss modules from pytorch.
@@ -30,7 +37,7 @@ class Loss(torch.nn.Module, Registrable):
             oracle_value_function: Needed if we are doing DVN or SPEN.
             normalize_y: y_hat and y_hat_extra might not always be normalized. Set this flag to True in such cases to inform the loss.
         """
-        super().__init__()  # type: ignore
+        super().__init__(**kwargs)  # type: ignore
         self.score_nn = score_nn
         self.oracle_value_function = oracle_value_function
 
@@ -40,6 +47,8 @@ class Loss(torch.nn.Module, Registrable):
             )
         self.reduction = reduction
         self.normalize_y = normalize_y
+        # we will use empty string to log the main loss value
+        self.logging_buffer[""] = LoggedScalarScalar()
 
     def forward(
         self,
@@ -56,7 +65,10 @@ class Loss(torch.nn.Module, Registrable):
             x, labels, y_hat, y_hat_extra, buffer, **kwargs
         )
 
-        return self.reduce(loss_unreduced)
+        loss = self.reduce(loss_unreduced)
+        self.log("", loss.detach().mean().item())
+
+        return loss
 
     def reduce(self, loss_unreduced: torch.Tensor) -> torch.Tensor:
         if self.reduction == "sum":
@@ -92,9 +104,6 @@ class Loss(torch.nn.Module, Registrable):
                 2. (,), ie a scaler loss if reduction is sum or mean
         """
         raise NotImplementedError
-
-    def get_metrics(self, reset: bool = False) -> Dict[str, float]:
-        return {}
 
 
 # @Loss.register("zero-loss")
@@ -132,6 +141,10 @@ class CombinationLoss(Loss):
             self.constituent_losses
         )
         assert len(self.loss_weights) == len(self.constituent_losses)
+        # register children losses
+
+        for cl in self.constituent_losses:
+            self.logging_children.append(cl)
 
     def _forward(
         self,
@@ -155,14 +168,6 @@ class CombinationLoss(Loss):
 
         return total_loss
 
-    def get_metrics(self, reset: bool = False):
-        metrics = {}
-
-        for loss in self.constituent_losses:
-            metrics.update(loss.get_metrics(reset))
-
-        return metrics
-
 
 @Loss.register("negative")
 class NegativeLoss(Loss):
@@ -175,6 +180,8 @@ class NegativeLoss(Loss):
     ):
         super().__init__(**kwargs)
         self.constituent_loss = constituent_loss
+        # register child for logging
+        self.logging_children.append(self.constituent_loss)
 
     def _forward(
         self,
@@ -190,11 +197,3 @@ class NegativeLoss(Loss):
         return -self.constituent_loss(
             x, labels, y_hat, y_hat_extra, buffer, **kwargs
         )
-
-    def get_metrics(self, reset: bool = False):
-        metrics = self.constituent_loss.get_metrics(reset)
-
-        for key in metrics:
-            metrics[key] *= -1
-
-        return metrics

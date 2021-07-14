@@ -242,17 +242,20 @@ class GradientBasedInferenceSampler(Sampler):
         self,
         gradient_descent_loop: GradientDescentLoop,
         loss_fn: Loss,  #: This loss can be different from the main loss
-        output_space: OutputSpace,
+        output_space: Optional[OutputSpace] = None,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
         sample_picker: SamplePicker = None,
         number_init_samples: int = 1,
         random_mixing_in_init: float = 0.5,
-        name: str = "gbi",
         **kwargs: Any,
     ):
-        super().__init__(score_nn, oracle_value_function, name)
+        super().__init__(
+            score_nn=score_nn,
+            oracle_value_function=oracle_value_function,
+            **kwargs,
+        )
         self.loss_fn = loss_fn
         assert self.loss_fn.reduction == "none", "We do reduction or our own"
         self.gradient_descent_loop = gradient_descent_loop
@@ -262,20 +265,20 @@ class GradientBasedInferenceSampler(Sampler):
         self.number_init_samples = number_init_samples
         self.random_mixing_in_init = random_mixing_in_init
         self._different_training_and_eval = True
+        self.logging_children.append(self.loss_fn)
 
     @classmethod
     def from_partial_objects(
         cls,
         gradient_descent_loop: GradientDescentLoop,
         loss_fn: Lazy[Loss],  #: This loss can be different from the main loss
-        output_space: OutputSpace,
+        output_space: Optional[OutputSpace] = None,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
         sample_picker: SamplePicker = None,
         number_init_samples: int = 1,
         random_mixing_in_init: float = 0.5,
-        name: str = "gbi",
         **kwargs: Any,
     ) -> "GradientBasedInferenceSampler":
         loss_fn_ = loss_fn.construct(
@@ -292,9 +295,13 @@ class GradientBasedInferenceSampler(Sampler):
             sample_picker=sample_picker,
             number_init_samples=number_init_samples,
             random_mixing_in_init=random_mixing_in_init,
-            name=name,
             **kwargs,
         )
+
+    @torch.no_grad()  # type:ignore
+    def projection_function_(self, inp: torch.Tensor) -> None:
+        """Inplace projection function"""
+        inp.clamp_(0, 1)
 
     def get_loss_fn(
         self,
@@ -425,11 +432,15 @@ class GradientBasedInferenceSampler(Sampler):
             torch.Tensor
         ],  #: If given will have shape (batch, ...)
         buffer: Dict,
+        init_samples: torch.tensor = None,
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
-        init = self.get_initial_output(
-            x, labels
-        )  # E (batch*num_init_samples, ...)
+        if self.output_space is not None:
+            init = self.get_initial_output(
+                x, labels
+            )  # E (batch*num_init_samples, ...)
+        else:
+            init = init_samples
         # new: (batch, num_init_samples,...)
         # we have to reshape labels from (batch, ...) to (batch*num_init_samples, ...)
 
@@ -441,6 +452,12 @@ class GradientBasedInferenceSampler(Sampler):
 
         if labels is not None:
             labels = labels.unsqueeze(1)
+
+        if self.output_space is not None:
+            projection_func = self.output_space.projection_function_
+        else:
+            projection_func = self.projection_function_
+
         # switch of gradients on parameters using context manager
         with self.no_param_grad():
             loss_fn = self.get_loss_fn(
@@ -456,13 +473,8 @@ class GradientBasedInferenceSampler(Sampler):
                 init,
                 loss_fn,
                 self.stopping_criteria,
-                self.output_space.projection_function_,
+                projection_func,
             )
-
-        # print(f"\nloss_values:\n{loss_values}")
-        self._metrics[self.name + "_loss"] = np.mean(loss_values)
-        self._total_loss += np.mean(loss_values)
-        self._num_batches += 1
 
         return (
             self.get_samples_from_trajectory(
@@ -470,22 +482,6 @@ class GradientBasedInferenceSampler(Sampler):
             ),  # (batch, num_samples, ...)
             torch.tensor(loss_values),
         )
-
-    def get_metrics(self, reset: bool = False) -> dict:
-        metrics = self._metrics
-        metrics["total_" + self.name + "_loss"] = (
-            float(self._total_loss / self._num_batches)
-            if self._num_batches > 0
-            else 0.0
-        )
-
-        if reset:
-            self._metrics = {}
-            self._total_loss = 0.0
-            self._num_batches = 0
-            metrics.pop(self.name + "_loss", None)
-
-        return metrics
 
 
 @Sampler.register(

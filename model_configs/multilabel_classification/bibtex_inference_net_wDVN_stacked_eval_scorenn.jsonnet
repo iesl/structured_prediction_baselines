@@ -17,17 +17,17 @@ local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
 local ff_dropout_score = 0.3;                // std.parseJson(std.extVar('ff_dropout'));
 local ff_activation = 'tanh';                   // std.parseJson(std.extVar('ff_activation'));
 local ff_linear_layers_score = 3;                // std.parseJson(std.extVar('ff_linear_layers'));
-local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
+local ff_linear_layers = 2; //std.parseJson(std.extVar('ff_linear_layers'));
 // local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));    --> not used below (also not used in InfNN)
 local global_score_hidden_dim = 200;            // local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
 // local inf_lr = std.parseJson(std.extVar('inf_lr'));                      --> used in orig DVN sampler but not used here.
 // local inf_optim = std.parseJson(std.extVar('inf_optim'));                --> used in orig DVN sampler but not used here.
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
-// local score_loss_weight = std.parseJson(std.extVar('score_loss_weight')); 
+local score_loss_weight = 0.8627099771947461; //std.parseJson(std.extVar('score_loss_weight'));
 local cross_entorpy_loss_weight = 1;
-local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
-local margin_based_loss_weight = std.parseJson(std.extVar('margin_based_loss_weight'));
-local oracle_cost_weight = std.parseJson(std.extVar('oracle_cost_weight'));
+//local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
+//local margin_based_loss_weight = std.parseJson(std.extVar('margin_based_loss_weight'));
+//local oracle_cost_weight = std.parseJson(std.extVar('oracle_cost_weight'));
 
 // ToDo:
 // 1. turn off the optimizer score_NN.
@@ -59,7 +59,7 @@ local oracle_cost_weight = std.parseJson(std.extVar('oracle_cost_weight'));
     sampler: {
       type: 'inference-network',
       optimizer: {
-        lr: 0.0005,
+        lr: 0.0007593144869058062,
         weight_decay: 1e-4,
         type: 'adam',
       },
@@ -92,20 +92,18 @@ local oracle_cost_weight = std.parseJson(std.extVar('oracle_cost_weight'));
         type: 'combination-loss',
         constituent_losses: [
           {
-            type: 'multi-label-dvn-plus-ca-loss',
-            inference_score_weight: inference_score_weight,
-            oracle_cost_weight: oracle_cost_weight,
-            reduction: 'none',
-          },  //This loss can be different from the main loss // change this
-          {
-            type: 'multi-label-bce', //cross entropy loss.
+            type: 'multi-label-dvn-score',
             reduction: 'none',
           },
-        ], //xtropy weight set to 1 for now.
-        loss_weights: [margin_based_loss_weight, cross_entorpy_loss_weight], 
-        reduction: 'mean',
+          {
+            type: 'multi-label-bce',
+            reduction: 'none',
+          },
+        ],
+        loss_weights: [score_loss_weight, cross_entorpy_loss_weight],
+        reduction: 'mean'
       },
-      stopping_criteria: 10,
+      stopping_criteria: 5,
     },
     // oracle_value_function: { type: 'per-instance-f1' },
     score_nn: {
@@ -135,9 +133,22 @@ local oracle_cost_weight = std.parseJson(std.extVar('oracle_cost_weight'));
       },
     },
     loss_fn: { // for maximzing score (in SPEN, min step of energy)
-      type: 'multi-label-dvn-ca-bce',
+      type: 'multi-label-dvn-bce',
       reduction: 'mean',
       oracle_value_function: { type: 'per-instance-f1', differentiable: false },
+    },
+    eval_only_module: {
+      type: 'gradient-based-inference',
+      gradient_descent_loop: {
+        optimizer: {
+          lr: 0.1,  //0.1
+          weight_decay: 0,
+          type: 'sgd',
+        },
+      },
+      loss_fn: { type: 'multi-label-dvn-score', reduction: 'none' },  //This loss can be different from the main loss // change this
+      stopping_criteria: 20,
+      sample_picker: { type: 'lastn' },  // {type: 'best'}
     },
     initializer: {
       regexes: [
@@ -165,12 +176,12 @@ local oracle_cost_weight = std.parseJson(std.extVar('oracle_cost_weight'));
       verbose: true,
     },
     optimizer: {
-      lr: 0.8,
-      weight_decay: 1e-4,
+      lr: 0.1913243954156592,
+      weight_decay: 0.0007181091490123767,
       type: 'adam',
     },
     checkpointer: {
-      keep_most_recent_by_count: 1,
+      num_serialized_models_to_keep: 1,
     },
     callbacks: [
       'track_epoch_callback',
