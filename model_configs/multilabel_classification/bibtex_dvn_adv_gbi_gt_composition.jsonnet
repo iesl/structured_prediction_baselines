@@ -46,10 +46,12 @@ local sample_picker = 'lastn'; //std.parseJson(std.extVar('sample_picker'));
     type: 'multi-label-classification',
     sampler: {
       type: 'appending-container',
+      log_key: 'sampler',
       constituent_samplers: [
         //GBI
         {
           type: 'gradient-based-inference',
+          log_key: 'gbi',
           gradient_descent_loop: {
             optimizer: {
               lr: inf_lr,  //0.1
@@ -57,7 +59,7 @@ local sample_picker = 'lastn'; //std.parseJson(std.extVar('sample_picker'));
               type: inf_optim,
             },
           },
-          loss_fn: { type: 'multi-label-dvn-score', reduction: 'none' },  //This loss can be different from the main loss // change this
+          loss_fn: { type: 'multi-label-dvn-score', reduction: 'none', log_key: 'neg_dvn_score' },  //This loss can be different from the main loss // change this
           output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
           stopping_criteria: 20,
           sample_picker: { type: sample_picker },
@@ -67,7 +69,7 @@ local sample_picker = 'lastn'; //std.parseJson(std.extVar('sample_picker'));
         // Adversarial
         {
           type: 'gradient-based-inference',
-          name: 'adv',
+          log_key: 'adv',
           gradient_descent_loop: {
             optimizer: {
               lr: inf_lr,  //0.1
@@ -77,7 +79,8 @@ local sample_picker = 'lastn'; //std.parseJson(std.extVar('sample_picker'));
           },
           loss_fn: {
             type: 'negative',
-            constituent_loss: { type: 'multi-label-dvn-bce', reduction: 'none' },
+            log_key: 'neg',
+            constituent_loss: { type: 'multi-label-dvn-bce', reduction: 'none', log_key: 'dvn_bce' },
             reduction: 'none',
           },
           output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
@@ -92,6 +95,7 @@ local sample_picker = 'lastn'; //std.parseJson(std.extVar('sample_picker'));
     },
     inference_module: {
       type: 'gradient-based-inference',
+      log_key: 'inference',
       gradient_descent_loop: {
         optimizer: {
           lr: inf_lr,  //0.1
@@ -99,7 +103,7 @@ local sample_picker = 'lastn'; //std.parseJson(std.extVar('sample_picker'));
           type: inf_optim,
         },
       },
-      loss_fn: { type: 'multi-label-dvn-score', reduction: 'none' },  //This loss can be different from the main loss
+      loss_fn: { type: 'multi-label-dvn-score', reduction: 'none', log_key: 'neg_dvn_score' },  //This loss can be different from the main loss
       output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
       stopping_criteria: 30,
       sample_picker: { type: 'best' },
@@ -133,7 +137,7 @@ local sample_picker = 'lastn'; //std.parseJson(std.extVar('sample_picker'));
         },
       },
     },
-    loss_fn: { type: 'multi-label-dvn-bce' },
+    loss_fn: { type: 'multi-label-dvn-bce', log_key: 'dvn_bce' },
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
@@ -165,7 +169,7 @@ local sample_picker = 'lastn'; //std.parseJson(std.extVar('sample_picker'));
       type: 'adamw',
     },
     checkpointer: {
-      num_serialized_models_to_keep: 1,
+      keep_most_recent_by_count: 1,
     },
     callbacks: [
       'track_epoch_callback',

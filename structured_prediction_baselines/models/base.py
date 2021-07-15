@@ -1,7 +1,13 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
 import torch
 from allennlp.models import Model
-from structured_prediction_baselines.modules.sampler import Sampler
+from structured_prediction_baselines.modules.sampler import (
+    Sampler,
+    SamplerContainer,
+)
+from structured_prediction_baselines.modules.sampler.inference_net import (
+    InferenceNetSampler,
+)
 from structured_prediction_baselines.modules.oracle_value_function import (
     OracleValueFunction,
 )
@@ -10,10 +16,22 @@ from structured_prediction_baselines.modules.loss import Loss
 from allennlp.data.vocabulary import Vocabulary
 from allennlp.common.lazy import Lazy
 from allennlp.nn import InitializerApplicator, RegularizerApplicator, util
+from structured_prediction_baselines.modules.logging import (
+    LoggingMixin,
+    LoggedValue,
+    LoggedScalarScalar,
+    LoggedScalarScalarSample,
+    LoggedNPArrayNPArraySample,
+)
+from structured_prediction_baselines.modules.task_nn import TaskNN
 
 
+@Model.register(
+    "score-based-learning-with-infnet",
+    constructor="from_partial_objects_with_shared_tasknn",
+)
 @Model.register("score-based-learning", constructor="from_partial_objects")
-class ScoreBasedLearningModel(Model):
+class ScoreBasedLearningModel(LoggingMixin, Model):
     def __init__(
         self,
         vocab: Vocabulary,
@@ -22,13 +40,16 @@ class ScoreBasedLearningModel(Model):
         oracle_value_function: Optional[OracleValueFunction] = None,
         score_nn: Optional[ScoreNN] = None,
         inference_module: Optional[Sampler] = None,
-        eval_only_module: Optional[Sampler] = None,
+        run_eval: bool = True,
+        evaluation_module: Optional[Sampler] = None,
         num_eval_samples: int = 10,
         regularizer: Optional[RegularizerApplicator] = None,
         initializer: Optional[InitializerApplicator] = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(vocab, regularizer=regularizer)  # type:ignore
+        super().__init__(
+            vocab=vocab, regularizer=regularizer, **kwargs
+        )  # type:ignore
         self.sampler = sampler
         self.loss_fn = loss_fn
         self.oracle_value_function = oracle_value_function
@@ -39,11 +60,17 @@ class ScoreBasedLearningModel(Model):
         else:
             self.inference_module = sampler
 
-        self.eval_only_module = eval_only_module
+        self.run_eval = run_eval
+        self.evaluation_module = evaluation_module
         self.num_eval_samples = num_eval_samples
-        self.eval_only_metrics = {}
+        # self.eval_only_metrics = {}
         if initializer is not None:
             initializer(self)
+        self.logging_children.append(self.loss_fn)
+        self.logging_children.append(self.sampler)
+        self.logging_children.append(self.inference_module)
+        if evaluation_module is not None:
+            self.logging_children.append(self.evaluation_module)
 
     @classmethod
     def from_partial_objects(
@@ -54,12 +81,13 @@ class ScoreBasedLearningModel(Model):
         inference_module: Optional[Lazy[Sampler]] = None,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
-        eval_only_module: Optional[Lazy[Sampler]] = None,
+        run_eval: bool = True,
+        evaluation_module: Optional[Lazy[Sampler]] = None,
         regularizer: Optional[RegularizerApplicator] = None,
         initializer: Optional[InitializerApplicator] = None,
         **kwargs: Any,
     ) -> "ScoreBasedLearningModel":
-        
+
         if oracle_value_function is not None:
             sampler_ = sampler.construct(
                 score_nn=score_nn, oracle_value_function=oracle_value_function
@@ -77,21 +105,25 @@ class ScoreBasedLearningModel(Model):
 
         # if no seperate inference module is given,
         # we will be using the same sampler
-        
+
         # test-time inference.
+
         if inference_module is None:
             inference_module_ = sampler_
         else:
             inference_module_ = inference_module.construct(
-                score_nn=score_nn, oracle_value_function=oracle_value_function
+                score_nn=score_nn,
+                oracle_value_function=oracle_value_function,
+                main_sampler=sampler_,
             )
 
-        if eval_only_module is not None:
-            eval_only_module_ = eval_only_module.construct(
-                score_nn=score_nn, oracle_value_function=oracle_value_function
+        if evaluation_module is not None:
+            evaluation_module_ = evaluation_module.construct(
+                score_nn=score_nn,
+                oracle_value_function=oracle_value_function
             )
         else:
-            eval_only_module_ = None
+            evaluation_module_ = None
 
         return cls(
             vocab=vocab,
@@ -100,7 +132,83 @@ class ScoreBasedLearningModel(Model):
             oracle_value_function=oracle_value_function,
             score_nn=score_nn,
             inference_module=inference_module_,
-            eval_only_module=eval_only_module_,
+            run_eval=run_eval,
+            evaluation_module=evaluation_module_,
+            regularizer=regularizer,
+            initializer=initializer,
+            **kwargs,
+        )
+
+    @classmethod
+    def from_partial_objects_with_shared_tasknn(
+        cls,
+        vocab: Vocabulary,
+        sampler: Lazy[SamplerContainer],
+        loss_fn: Lazy[Loss],
+        inference_module: Lazy[InferenceNetSampler],
+        task_nn: TaskNN,
+        score_nn: Optional[ScoreNN] = None,
+        oracle_value_function: Optional[OracleValueFunction] = None,
+        run_eval: bool = True,
+        evaluation_module: Optional[Lazy[Sampler]] = None,
+        regularizer: Optional[RegularizerApplicator] = None,
+        initializer: Optional[InitializerApplicator] = None,
+        **kwargs: Any,
+    ) -> "ScoreBasedLearningModel":
+        """
+        This constructor is used only when the `sampler` is an instance of `SamplerContainer`
+        and we wish to use tasknn as both the inference_module and a sampler in the constituent sampler.
+        """
+        infnet_sampler = inference_module.construct(
+            inference_nn=task_nn,
+            score_nn=score_nn,
+            oracle_value_function=oracle_value_function,
+        )
+
+        if oracle_value_function is not None:
+            sampler_ = sampler.construct(
+                score_nn=score_nn, oracle_value_function=oracle_value_function
+            )
+            loss_fn_ = loss_fn.construct(
+                score_nn=score_nn, oracle_value_function=oracle_value_function
+            )
+        else:
+            sampler_ = sampler.construct(
+                score_nn=score_nn,
+            )
+            loss_fn_ = loss_fn.construct(
+                score_nn=score_nn,
+            )
+        # add the infnet sampler
+        sampler_.append_sampler(infnet_sampler)
+
+        # test-time inference.
+        # reconstruct the infnet sampler with shared tasknn weights
+        # to set it as the inference_module
+        inference_module_ = inference_module.construct(
+            inference_nn=task_nn,
+            score_nn=score_nn,
+            oracle_value_function=oracle_value_function,
+        )
+        inference_module_.log_key = inference_module_.log_key + "_inf"
+
+        if evaluation_module is not None:
+            evaluation_module_ = evaluation_module.construct(
+                score_nn=score_nn,
+                oracle_value_function=oracle_value_function
+            )
+        else:
+            evaluation_module_ = None
+
+        return cls(
+            vocab=vocab,
+            sampler=sampler_,
+            loss_fn=loss_fn_,
+            oracle_value_function=oracle_value_function,
+            score_nn=score_nn,
+            inference_module=inference_module_,
+            run_eval=run_eval,
+            evaluation_module=evaluation_module_,
             regularizer=regularizer,
             initializer=initializer,
             **kwargs,
@@ -142,6 +250,17 @@ class ScoreBasedLearningModel(Model):
     def forward(self, **kwargs: Any) -> Dict:
         return self._forward(**self.construct_args_for_forward(**kwargs))
 
+    def get_true_metrics(self, reset: bool = False) -> Dict[str, float]:
+        return {}
+
+    def get_metrics(self, reset: bool = False) -> Dict[str, float]:
+        non_metrics: Dict[str, Union[float, int]] = self.get_all(
+            reset=reset, type_=(LoggedScalarScalar,)
+        )
+        metrics = self.get_true_metrics(reset=reset)
+
+        return {**metrics, **non_metrics}
+
     def _forward(  # type: ignore
         self,
         x: Any,
@@ -169,8 +288,10 @@ class ScoreBasedLearningModel(Model):
             # y_hat are for loss computation
             # For some models this two can be different
 
-            if (self.sampler != self.inference_module) or (
-                self.inference_module.different_training_and_eval
+            if (
+                (self.sampler != self.inference_module)
+                or self.inference_module.different_training_and_eval
+                or (y_hat is None)
             ):
                 # we have different sampler for training and inference
                 # or the sampler behaves differently
@@ -178,16 +299,16 @@ class ScoreBasedLearningModel(Model):
                 # Note: It is vital to set the module in the eval mode
                 # ie with .training = False because the implementation
                 # checks this
-                model_state = self.training
+                state = self.inference_module.training
                 self.inference_module.eval()
                 y_pred, _ = self.inference_module(
-                    x, labels=None, buffer=buffer
+                    x, labels=labels, buffer=buffer
                 )
-                self.inference_module.train(model_state)
+                self.inference_module.train(state)
             else:
                 y_pred = y_hat
 
-            if not self.training and self.eval_only_module is not None:
+            if not self.training and self.run_eval:
                 self.on_epoch(x, labels, y_pred, buffer, self.num_eval_samples)
 
             # Loss needs one-hot labels of shape (batch, 1, ...)
@@ -215,5 +336,5 @@ class ScoreBasedLearningModel(Model):
 
         return results
 
-    def on_epoch(self, x: Any, labels: torch.Tensor, y_pred: torch.Tensor, buffer: Dict, num_samples: int, kwargs: Any):
+    def on_epoch(self, x: Any, labels: torch.Tensor, y_pred: torch.Tensor, buffer: Dict, num_samples: int, **kwargs: Any):
         raise NotImplementedError

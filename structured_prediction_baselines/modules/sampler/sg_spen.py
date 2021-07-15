@@ -45,14 +45,12 @@ class SGSpenSampler(Sampler):
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
         n_samples: int = 10,
-        name: str = 'inf_net',
         **kwargs: Any,
     ):
         assert ScoreNN is not None
         super().__init__(
             score_nn,
             oracle_value_function,
-            name
         )
         self.inference_nn = inference_nn
         self.cost_augmented_layer = cost_augmented_layer
@@ -85,7 +83,6 @@ class SGSpenSampler(Sampler):
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
         n_samples: int = 10,
-        name: str = 'sg_spen',
     ) -> "SGSpenSampler":
         loss_fn_ = loss_fn.construct(
             score_nn=score_nn, oracle_value_function=oracle_value_function
@@ -113,7 +110,6 @@ class SGSpenSampler(Sampler):
             cost_augmented_layer=cost_augmented_layer,
             oracle_value_function=oracle_value_function,
             stopping_criteria=stopping_criteria,
-            name=name,
             n_samples=n_samples
         )
 
@@ -303,18 +299,3 @@ class SGSpenSampler(Sampler):
             y_cost_aug = None
 
         return y_inf, y_cost_aug
-
-    def get_metrics(self, reset: bool = False):
-        metrics = self._metrics
-        metrics['total_' + self.name + '_loss'] = float(
-            self._total_loss / self._num_batches) if self._num_batches > 0 else 0.0
-        if reset:
-            self._metrics = {}
-            self._total_loss = 0.0
-            self._num_batches = 0
-            metrics.pop(self.name + '_loss', None)
-        else:
-            loss_metrics = self.loss_fn.get_metrics(reset=True)
-            metrics.update(loss_metrics)
-
-        return metrics

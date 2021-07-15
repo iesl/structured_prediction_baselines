@@ -14,6 +14,8 @@ from structured_prediction_baselines.metrics import (
     MultilabelClassificationMeanAvgPrecision,
     MultilabelClassificationMicroAvgPrecision,
     MultilabelClassificationRelaxedF1,
+    MultilabelClassificationAvgRank,
+    MultilabelClassificationMeanReciprocalRank
 )
 from allennlp.models import Model
 import logging
@@ -21,6 +23,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+@Model.register(
+    "multi-label-classification-with-infnet",
+    constructor="from_partial_objects_with_shared_tasknn",
+)
 @Model.register(
     "multi-label-classification", constructor="from_partial_objects"
 )
@@ -35,6 +41,8 @@ class MultilabelClassification(ScoreBasedLearningModel):
         self.map = MultilabelClassificationMeanAvgPrecision()
         self.micro_map = MultilabelClassificationMicroAvgPrecision()
         self.relaxed_f1 = MultilabelClassificationRelaxedF1()
+        self.average_rank = MultilabelClassificationAvgRank()
+        self.mrr = MultilabelClassificationMeanReciprocalRank()
 
     def unsqueeze_labels(self, labels: torch.Tensor) -> torch.Tensor:
         """Unsqueeze and turn the labels into one-hot if required"""
@@ -64,18 +72,16 @@ class MultilabelClassification(ScoreBasedLearningModel):
         self.relaxed_f1(y_hat_n, labels)
         self.f1(y_hat_n, labels)
 
-    def get_metrics(self, reset: bool = False) -> Dict[str, float]:
+    def get_true_metrics(self, reset: bool = False) -> Dict[str, float]:
         metrics = {
             "MAP": self.map.get_metric(reset),
             "fixed_f1": self.f1.get_metric(reset),
             "micro_map": self.micro_map.get_metric(reset),
             "relaxed_f1": self.relaxed_f1.get_metric(reset),
+            "average_rank": self.average_rank.get_metric(reset),
+            "MRR": self.mrr.get_metric(reset)
         }
-        metrics.update(self.sampler.get_metrics(reset))
-        if reset:
-            for key in self.eval_only_metrics:
-                metrics[key] = float(np.mean(self.eval_only_metrics[key]))
-            self.eval_only_metrics = {}
+
         return metrics
 
     @torch.no_grad()
@@ -85,27 +91,25 @@ class MultilabelClassification(ScoreBasedLearningModel):
 
         p = y_pred.squeeze(1)  # (batch, num_labels)
         distribution = torch.distributions.Bernoulli(probs=p)
+
+        # (batch, num_samples, num_labels)
         distribution_samples = torch.transpose(distribution.sample([num_samples]), 0, 1)
         random_samples = torch.transpose(
-            torch.randint(low=0, high=2, size=(num_samples,) + p.shape, dtype=p.dtype, device=p.device), 0, 1)
+            torch.randint(low=0, high=2, size=(num_samples,) + p.shape, dtype=p.dtype, device=p.device), 0, 1
+        )
 
-        distribution_samples_score = float(torch.mean(self.score_nn(x, distribution_samples, buffer)))
-        random_samples_score = float(torch.mean(self.score_nn(x, random_samples, buffer)))
-        self.eval_only_metrics['distribution_samples_score'] = self.eval_only_metrics.get(
-            'distribution_samples_score', []) + [distribution_samples_score]
-        self.eval_only_metrics['random_samples_score'] = self.eval_only_metrics.get(
-            'random_samples_score', []) + [random_samples_score]
+        # (batch, num_samples+1, num_labels)
+        ranking_samples = torch.hstack([self.unsqueeze_labels(labels), distribution_samples])
 
-        # call sampler on distribution samples
-        self.eval_only_module(x, labels, buffer, distribution_samples)
-        dist_sampler_loss = self.eval_only_module.get_metrics(reset=True).get(
-            'total_' + self.eval_only_module.name + '_loss')
-        self.eval_only_metrics['dist_sampler_loss'] = self.eval_only_metrics.get(
-            'dist_sampler_loss', []) + [dist_sampler_loss]
+        ranking_scores = self.score_nn(x, ranking_samples, buffer)  # (batch, num_samples+1)
+        ranking_labels = torch.zeros_like(ranking_scores)  # (batch, num_samples+1)
+        ranking_labels[:, 0] = 1  # set true label index to 1
 
-        # call sampler on random samples
-        self.eval_only_module(x, labels, buffer, random_samples)
-        random_sampler_loss = self.eval_only_module.get_metrics(reset=True).get(
-            'total_' + self.eval_only_module.name + '_loss')
-        self.eval_only_metrics['random_sampler_loss'] = self.eval_only_metrics.get(
-            'random_sampler_loss', []) + [random_sampler_loss]
+        # calculate evaluation only metrics
+        self.average_rank(ranking_scores, ranking_labels)
+        self.mrr(ranking_scores, ranking_labels)
+
+        # call evaluation_module on distribution and random samples
+        if self.evaluation_module:
+            self.evaluation_module(x, labels, buffer, init_samples=distribution_samples, index=0)
+            self.evaluation_module(x, labels, buffer, init_samples=random_samples, index=1)
