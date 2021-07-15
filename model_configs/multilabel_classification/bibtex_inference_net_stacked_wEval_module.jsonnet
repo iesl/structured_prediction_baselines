@@ -136,18 +136,38 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       normalize_y: true
     },
     evaluation_module: {
-      type: 'gradient-based-inference',
-      log_key: 'eval_gbi',
-      gradient_descent_loop: {
-        optimizer: {
-          lr: 0.1,  //0.1
-          weight_decay: 0,
-          type: 'sgd',
+      type: 'indexed-container',
+      log_key: 'evaluation',
+      constituent_samplers: [
+        {
+          type: 'gradient-based-inference',
+          log_key: 'distribution_gbi',
+          gradient_descent_loop: {
+            optimizer: {
+              lr: 0.1,  //0.1
+              weight_decay: 0,
+              type: 'sgd',
+            },
+          },
+          loss_fn: { type: 'multi-label-dvn-score', reduction: 'none', log_key: 'neg.dvn_score'},
+          stopping_criteria: 20,
+          sample_picker: { type: 'lastn' },  // {type: 'best'}
         },
-      },
-      loss_fn: { type: 'multi-label-dvn-score', reduction: 'none', log_key: 'neg.dvn_score'},
-      stopping_criteria: 20,
-      sample_picker: { type: 'lastn' },  // {type: 'best'}
+        {
+          type: 'gradient-based-inference',
+          log_key: 'random_gbi',
+          gradient_descent_loop: {
+            optimizer: {
+              lr: 0.1,  //0.1
+              weight_decay: 0,
+              type: 'sgd',
+            },
+          },
+          loss_fn: { type: 'multi-label-dvn-score', reduction: 'none', log_key: 'neg.dvn_score'},
+          stopping_criteria: 20,
+          sample_picker: { type: 'lastn' },  // {type: 'best'}
+        },
+      ],
     },
     initializer: {
       regexes: [
