@@ -1,8 +1,9 @@
-from typing import List, Tuple, Union, Dict, Any, Optional
+from typing import List, Tuple, Union, Dict, Any, Optional, overload, Iterator
 from allennlp.common.registrable import Registrable
 from allennlp.common.params import ConfigurationError
 import torch
 from allennlp.common.lazy import Lazy
+from structured_prediction_baselines.common import ModelMode
 from structured_prediction_baselines.modules.score_nn import ScoreNN
 from structured_prediction_baselines.modules.oracle_value_function import (
     OracleValueFunction,
@@ -37,6 +38,22 @@ class Sampler(LoggingMixin, torch.nn.Module, Registrable):
         6. In the case of vanilla feedforward model, one can just return the logits with shape `(batch, 1, ... )`
     """
 
+    def mark_parameters_with_model_mode(self) -> None:
+        """
+        Use this to mark parameters that need to get gradients in a particular mode.
+        If a parameter is not marked, then it will not get gradient in any mode.
+
+        A parameter can be marked by adding and attribute "model_mode=MODEL_MODE" on the Parameter.
+        Call this method after creating all the parameters of the class.
+        """
+
+        return None
+
+    def parameters_with_model_mode(
+        self, mode: ModelMode
+    ) -> Iterator[torch.nn.Parameter]:
+        yield from []
+
     def __init__(
         self,
         score_nn: Optional[ScoreNN] = None,
@@ -53,17 +70,29 @@ class Sampler(LoggingMixin, torch.nn.Module, Registrable):
         """Whether the sampler produces normalized or unnormalized samples"""
         raise NotImplementedError
 
+    @overload
+    def normalize(self, y: None) -> None:
+        ...
+
+    @overload
+    def normalize(self, y: torch.Tensor) -> torch.Tensor:
+        ...
+
+    def normalize(self, y: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
+        raise NotImplementedError
+
     def forward(
         self,
         x: Any,
         labels: Optional[torch.Tensor],
         buffer: Dict,
         **kwargs: Any,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
         """
         Returns:
             samples: Tensor of shape (batch, num_samples, ...)
             probabilities: None or tensor of shape (batch, num_samples)
+            loss: None or tensor (scalar) loss.
         """
         raise NotImplementedError
 
@@ -202,8 +231,8 @@ class AppendingSamplerContainer(SamplerContainer):
         labels: Optional[torch.Tensor],
         buffer: Dict,
         **kwargs: Any,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
-        samples, probs = list(
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
+        samples, probs, loss = list(
             zip(
                 *[
                     sampler(x, labels, buffer, **kwargs)
@@ -216,8 +245,12 @@ class AppendingSamplerContainer(SamplerContainer):
         # DP: Currently we will not support combining probs
         # We can do it later if we need.
         all_samples = torch.cat(samples, dim=1)
+        loss_ = torch.zeros_like(loss[0])
 
-        return all_samples, None
+        for l_ in loss:
+            loss_ = loss_ + l_
+
+        return (all_samples, None, loss_)
 
 
 @Sampler.register(

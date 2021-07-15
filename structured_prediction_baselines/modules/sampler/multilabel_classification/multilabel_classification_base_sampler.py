@@ -1,4 +1,4 @@
-from typing import List, Tuple, Union, Dict, Any, Optional
+from typing import List, Tuple, Union, Dict, Any, Optional, overload
 from structured_prediction_baselines.modules.sampler import (
     Sampler,
     SamplerModifier,
@@ -39,50 +39,45 @@ class MultilabelClassificationSampler(Sampler):
         labels: Optional[torch.Tensor],
         buffer: Dict,
         **kwargs: Any,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
         return (
             self.inference_nn(x, buffer=buffer).unsqueeze(1),
+            None,
             None,
         )  # unormalized logits (batch, 1, ...)
 
 
-@Sampler.register(
-    "multi-label-inference-net-normalized", constructor="from_partial_objects"
+@Sampler.register("multi-label-inference-net-normalized")
+@InferenceNetSampler.register(
+    "multi-label-inference-net-normalized",
 )
 class MultiLabelNormalized(InferenceNetSampler):
-    def forward(
-        self,
-        x: Any,
-        labels: Optional[
-            torch.Tensor
-        ],  #: If given will have shape (batch, ...)
-        buffer: Dict,
-        **kwargs: Any,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
-        """
-        Note:
-            This will only normalize the final output that goes out of the sampler.
-            The internal learning loop of the tasknn will use unnormalized outputs only.
-            Hence, the losses that train the tasknn should expect unnormalized outputs.
-        """
-        y_hat, y_hat_extra = super().forward(x, labels, buffer, **kwargs)
-
-        return torch.sigmoid(y_hat), (
-            torch.sigmoid(y_hat_extra) if y_hat_extra is not None else None
-        )
-
     @property
     def is_normalized(self) -> bool:
         return True
+
+    @overload
+    def normalize(self, y: None) -> None:
+        ...
+
+    @overload
+    def normalize(self, y: torch.Tensor) -> torch.Tensor:
+        ...
+
+    def normalize(self, y: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
+        if y is not None:
+            return torch.sigmoid(y)
+        else:
+            return None
 
     @property
     def different_training_and_eval(self) -> bool:
         return False
 
 
-@Sampler.register(
-    "multi-label-inference-net-normalized-or-sampled",
-    constructor="from_partial_objects",
+@Sampler.register("multi-label-inference-net-normalized-or-sampled")
+@InferenceNetSampler.register(
+    "multi-label-inference-net-normalized-or-sampled"
 )
 class MultiLabelNormalizedOrSampled(InferenceNetSampler):
     """
@@ -96,40 +91,45 @@ class MultiLabelNormalizedOrSampled(InferenceNetSampler):
         self.num_samples = num_samples
         self.keep_probs = keep_probs
 
-    def forward(
-        self,
-        x: Any,
-        labels: Optional[
-            torch.Tensor
-        ],  #: If given will have shape (batch, ...)
-        buffer: Dict,
-        **kwargs: Any,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
-        samples, samples_extra = super().forward(x, labels, buffer, **kwargs)
-        assert samples.dim() == 3
-        assert samples.shape[1] == 1
-        y_hat_n = torch.sigmoid(samples)
-        y_hat_extra_n = (
-            torch.sigmoid(samples_extra) if samples_extra is not None else None
-        )
+    @overload
+    def normalize(self, y: None) -> None:
+        ...
 
-        if self.training:  # sample during training
-            p = y_hat_n.squeeze(1)  # (batch, num_labels)
+    @overload
+    def normalize(self, y: torch.Tensor) -> torch.Tensor:
+        ...
 
-            y_hat_n = torch.transpose(
-                torch.distributions.Bernoulli(probs=p).sample(
-                    [self.num_samples]  # (num_samples, batch, num_labels)
-                ),
-                0,
-                1,
-            )  # (batch, num_samples, num_labels)
+    def normalize(self, y: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
+        if y is not None:
+            if self.training:
+                return self.generate_samples(y)
+            else:  # eval
+                return y
+        else:
+            return None
 
-            if self.keep_probs:
-                y_hat_n = torch.cat(
-                    (y_hat_n, y_hat_n), dim=1
-                )  # (batch, num_samples+1, num_labels)
+    def generate_samples(self, y: torch.Tensor) -> torch.Tensor:
+        assert (
+            y.dim() == 3
+        ), "Output of inference_net should be of shape (batch, 1, ...)"
+        assert (
+            y.shape[1] == 1
+        ), "Output of inference_net should be of shape (batch, 1, ...)"
+        p = torch.sigmoid(y).squeeze(1)  # (batch, num_labels)
+        samples = torch.transpose(
+            torch.distributions.Bernoulli(probs=p).sample(  # type: ignore
+                [self.num_samples]  # (num_samples, batch, num_labels)
+            ),
+            0,
+            1,
+        )  # (batch, num_samples, num_labels)
 
-        return y_hat_n, y_hat_extra_n
+        if self.keep_probs:
+            samples = torch.cat(
+                (samples, p.unsqueeze(1)), dim=1
+            )  # (batch, num_samples+1, num_labels)
+
+        return samples
 
     @property
     def different_training_and_eval(self) -> bool:
@@ -138,8 +138,3 @@ class MultiLabelNormalizedOrSampled(InferenceNetSampler):
     @property
     def is_normalized(self) -> bool:
         return True
-
-
-InferenceNetSampler.register(
-    "multi-label-inference-net-normalized", constructor="from_partial_objects"
-)(MultiLabelNormalized)
