@@ -461,7 +461,7 @@ class IndexedSamplerContainer(SamplerContainer):
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         assert (
-            0 < index < len(self.constituent_samplers)
+            0 <= index < len(self.constituent_samplers)
         ), f"There is no constituent_sampler with index {index}"
         sampler = self.constituent_samplers[index]
         return sampler(x, labels, buffer, **kwargs)
