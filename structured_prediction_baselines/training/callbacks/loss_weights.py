@@ -3,14 +3,13 @@ import torch
 from allennlp.common.lazy import Lazy
 from allennlp.common.checks import ConfigurationError
 
-# from allennlp.training.callbacks import TrainerCallback, TrackEpochCallback
 from allennlp.data import TensorDict
 
 
 from allennlp.training import (
     GradientDescentTrainer,
 )
-from allennlp.training.callbacks import TrainerCallback, TrackEpochCallback
+from allennlp.training.callbacks import TrainerCallback
 
 import warnings
 import logging
@@ -93,8 +92,7 @@ class TurnOnLossAfterEpochs(TrainerCallback):
         """
         super().on_epoch(
             trainer, metrics, epoch, is_primary, **kwargs
-        )  # --> trainer.model.epoch = epoch + 1  # type: ignore[assignment]
-
+        )  
         if (
             self.loss_idx_list is not None
             and self.epoch_to_turn_on is not None

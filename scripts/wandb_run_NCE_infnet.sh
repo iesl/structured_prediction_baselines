@@ -33,10 +33,30 @@ export num_samples=10
 #   --config_file=model_configs/multilabel_classification/Infnet_wDVN.config \
 # --config_file=./model_configs/multilabel_classification/bibtex_inference_net_wDVN_fscratch.jsonnet \
 ## running with config file.
-wandb_allennlp --subcommand=train \
-  --config_file=./model_configs/multilabel_classification/bibtex_infnet_wNCE_infscore.jsonnet \
+
+# infnet + NCE 
+allennlp train_with_wandb \
+  model_configs/multilabel_classification/bibtex_infnet_wNCE_infscore.jsonnet \
   --include-package=structured_prediction_baselines \
-  --wandb_run_name=bibtex_inference_net_wNCE_test \
+  --wandb_name=bibtex_inference_net_wNCE_test \
   --wandb_project structured_prediction_baselines \
   --wandb_entity score-based-learning \
   --wandb_tags="bibtex,infnet_wDVN,without_sampling"
+
+# # NCE with task-NN zero loss + pre-trained task-NN
+# allennlp train_with_wandb \
+#   model_configs/multilabel_classification/bibtex_revNCE_zerotasknn.jsonnet \
+#   --include-package=structured_prediction_baselines \
+#   --wandb_name=bibtex_revNCE_test \
+#   --wandb_project structured_prediction_baselines \
+#   --wandb_entity score-based-learning \
+#   --wandb_tags="bibtex,revNCE testing"
+
+# # revNCE with task-NN zero loss + pre-trained task-NN
+# # wandb_allennlp --subcommand=train \
+# #   --config_file=./model_configs/multilabel_classification/bibtex_revNCE_zerotasknn.jsonnet \
+# #   --include-package=structured_prediction_baselines \
+# #   --wandb_run_name=bibtex_inference_net_wNCE_test \
+# #   --wandb_project structured_prediction_baselines \
+# #   --wandb_entity score-based-learning \
+# #   --wandb_tags="bibtex,infnet_wDVN,without_sampling"

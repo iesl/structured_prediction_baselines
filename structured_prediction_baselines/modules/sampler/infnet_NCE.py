@@ -266,9 +266,9 @@ class InfnetRankingNCE(Sampler):
                     loss_values.append(float(loss_value))
                     step_number += 1
                 
-                self._metrics[self.name + '_loss'] = np.mean(loss_values)
-                self._total_loss += np.mean(loss_values)
-                self._num_batches += 1
+                # self._metrics[self.name + '_loss'] = np.mean(loss_values)
+                # self._total_loss += np.mean(loss_values)
+                # self._num_batches += 1
 
             # once out of Sampler, y_inf and y_cost_aug should not get gradients
             return (
@@ -304,25 +304,6 @@ class InfnetRankingNCE(Sampler):
         self.optimizer.step()
 
         return total_loss
-
-    def get_metrics(self, reset: bool = False):
-        metrics = {}
-        return metrics
-
-    # def get_metrics(self, reset: bool = False):
-    #     metrics = self._metrics
-    #     metrics['total_' + self.name + '_loss'] = float(
-    #         self._total_loss / self._num_batches) if self._num_batches > 0 else 0.0
-    #     if reset:
-    #         self._metrics = {}
-    #         self._total_loss = 0.0
-    #         self._num_batches = 0
-    #         metrics.pop(self.name + '_loss', None)
-    #     else:
-    #         loss_metrics = self.loss_fn.get_metrics(reset=True)
-    #         metrics.update(loss_metrics)
-
-    #     return metrics
 
 
 @Sampler.register("infnet-nce-interpolate", constructor="from_partial_objects")

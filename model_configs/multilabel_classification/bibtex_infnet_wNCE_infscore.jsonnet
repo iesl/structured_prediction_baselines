@@ -50,6 +50,40 @@ local num_samples = std.parseJson(std.extVar('num_samples'));
   // Model
   model: {
     type: 'multi-label-classification',
+    evaluation_module: {
+      type: 'indexed-container',
+      log_key: 'evaluation',
+      constituent_samplers: [
+        {
+          type: 'gradient-based-inference',
+          log_key: 'distribution_gbi',
+          gradient_descent_loop: {
+            optimizer: {
+              lr: 0.1,  //0.1
+              weight_decay: 0,
+              type: 'sgd',
+            },
+          },
+          loss_fn: { type: 'multi-label-dvn-score', reduction: 'none', log_key: 'neg.dvn_score'},
+          stopping_criteria: 20,
+          sample_picker: { type: 'lastn' },  // {type: 'best'}
+        },
+        {
+          type: 'gradient-based-inference',
+          log_key: 'random_gbi',
+          gradient_descent_loop: {
+            optimizer: {
+              lr: 0.1,  //0.1
+              weight_decay: 0,
+              type: 'sgd',
+            },
+          },
+          loss_fn: { type: 'multi-label-dvn-score', reduction: 'none', log_key: 'neg.dvn_score'},
+          stopping_criteria: 20,
+          sample_picker: { type: 'lastn' },  // {type: 'best'}
+        },
+      ],
+    },
     sampler: {
       type: 'infnet-nce',
       optimizer: {
@@ -119,6 +153,7 @@ local num_samples = std.parseJson(std.extVar('num_samples'));
     loss_fn: { // for learning the score-NN
       type: 'multi-label-nce-ranking',
       reduction: 'mean',
+      log_key: 'nce-ranking-loss',
     },
     initializer: {
       regexes: [
@@ -150,7 +185,7 @@ local num_samples = std.parseJson(std.extVar('num_samples'));
       type: 'adam',
     },
     checkpointer: {
-      num_serialized_models_to_keep: 1,
+      keep_most_recent_by_count: 1,
     },
     callbacks: [
       'track_epoch_callback',
@@ -159,13 +194,6 @@ local num_samples = std.parseJson(std.extVar('num_samples'));
         loss_idx_list: [0],
         epoch_to_turn_on: [8],
       },
-      {
-        type: 'tensorboard-custom',
-        tensorboard_writer: {
-          should_log_learning_rate: true,
-        },
-        model_outputs_to_log: ['y_hat_extra'],
-      },
-    ] + (if use_wandb then ['log_metrics_to_wandb'] else []),
+    ] + (if use_wandb then ['wandb_allennlp'] else []),
   },
 }

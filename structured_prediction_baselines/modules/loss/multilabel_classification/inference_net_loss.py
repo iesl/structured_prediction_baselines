@@ -46,3 +46,22 @@ class MultiLabelInferenceScoreLoss(InferenceScoreLoss):
 class MultiLabelSGSpenLoss(SGSpenLoss):
     def normalize(self, y: torch.Tensor) -> torch.Tensor:
         return _normalize(y)
+
+@Loss.register("zero-task-nn-loss")
+class ZeroTaskNNLoss(InferenceScoreLoss):
+    def normalize(self, y: torch.Tensor) -> torch.Tensor:
+        return _normalize(y)
+        
+    def forward(
+        self,
+        x: Any,
+        labels: Optional[torch.Tensor],  # (batch, 1, ...)
+        y_hat: torch.Tensor,  # (batch, num_samples, ...)
+        y_hat_extra: Optional[torch.Tensor],  # (batch, num_samples)
+        buffer: Dict,
+        **kwargs: Any,
+    ) -> torch.Tensor:
+        return 0 * super().forward(
+                x, labels, y_hat, y_hat_extra, buffer, **kwargs
+                )
+
