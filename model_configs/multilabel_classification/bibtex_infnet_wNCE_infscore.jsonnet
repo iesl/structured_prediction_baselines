@@ -50,40 +50,40 @@ local num_samples = std.parseJson(std.extVar('num_samples'));
   // Model
   model: {
     type: 'multi-label-classification',
-    evaluation_module: {
-      type: 'indexed-container',
-      log_key: 'evaluation',
-      constituent_samplers: [
-        {
-          type: 'gradient-based-inference',
-          log_key: 'distribution_gbi',
-          gradient_descent_loop: {
-            optimizer: {
-              lr: 0.1,  //0.1
-              weight_decay: 0,
-              type: 'sgd',
-            },
-          },
-          loss_fn: { type: 'multi-label-dvn-score', reduction: 'none', log_key: 'neg.dvn_score'},
-          stopping_criteria: 20,
-          sample_picker: { type: 'lastn' },  // {type: 'best'}
-        },
-        {
-          type: 'gradient-based-inference',
-          log_key: 'random_gbi',
-          gradient_descent_loop: {
-            optimizer: {
-              lr: 0.1,  //0.1
-              weight_decay: 0,
-              type: 'sgd',
-            },
-          },
-          loss_fn: { type: 'multi-label-dvn-score', reduction: 'none', log_key: 'neg.dvn_score'},
-          stopping_criteria: 20,
-          sample_picker: { type: 'lastn' },  // {type: 'best'}
-        },
-      ],
-    },
+    // evaluation_module: {
+    //   type: 'indexed-container',
+    //   log_key: 'evaluation',
+    //   constituent_samplers: [
+    //     {
+    //       type: 'gradient-based-inference',
+    //       log_key: 'distribution_gbi',
+    //       gradient_descent_loop: {
+    //         optimizer: {
+    //           lr: 0.1,  //0.1
+    //           weight_decay: 0,
+    //           type: 'sgd',
+    //         },
+    //       },
+    //       loss_fn: { type: 'multi-label-dvn-score', reduction: 'none', log_key: 'neg.dvn_score'},
+    //       stopping_criteria: 20,
+    //       sample_picker: { type: 'lastn' },  // {type: 'best'}
+    //     },
+    //     {
+    //       type: 'gradient-based-inference',
+    //       log_key: 'random_gbi',
+    //       gradient_descent_loop: {
+    //         optimizer: {
+    //           lr: 0.1,  //0.1
+    //           weight_decay: 0,
+    //           type: 'sgd',
+    //         },
+    //       },
+    //       loss_fn: { type: 'multi-label-dvn-score', reduction: 'none', log_key: 'neg.dvn_score'},
+    //       stopping_criteria: 20,
+    //       sample_picker: { type: 'lastn' },  // {type: 'best'}
+    //     },
+    //   ],
+    // },
     sampler: {
       type: 'infnet-nce',
       optimizer: {
@@ -111,14 +111,17 @@ local num_samples = std.parseJson(std.extVar('num_samples'));
           {
             type: 'multi-label-inference-score',
             reduction: 'none',
+            log_key: 'infscore-loss',
           },  //This loss can be different from the main loss // change this
           {
             type: 'multi-label-bce',
             reduction: 'none',
+            log_key: 'sampler-bce-loss',
           },
         ],
         loss_weights: [inference_score_weight, cross_entorpy_loss_weight],
         reduction: 'mean',
+        log_key:'conmbination-loss',
       },
       num_samples: num_samples,
       stopping_criteria: 10,
