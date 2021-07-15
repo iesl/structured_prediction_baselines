@@ -110,5 +110,6 @@ class MultilabelClassification(ScoreBasedLearningModel):
         self.mrr(ranking_scores, ranking_labels)
 
         # call evaluation_module on distribution and random samples
-        self.evaluation_module(x, labels, buffer, distribution_samples)
-        # self.evaluation_module(x, labels, buffer, random_samples)
+        if self.evaluation_module:
+            self.evaluation_module(x, labels, buffer, init_samples=distribution_samples, index=0)
+            self.evaluation_module(x, labels, buffer, init_samples=random_samples, index=1)

@@ -406,3 +406,62 @@ class SamplerFromContainer(Sampler):
     @property
     def is_normalized(self) -> bool:
         return self.constituent_sampler.is_normalized
+
+
+@Sampler.register(
+    "indexed-container", constructor="from_partial_constituent_samplers"
+)
+class IndexedSamplerContainer(SamplerContainer):
+    """
+    On each call, picks the sampler using the given index and returns samples from that sampler.
+    """
+
+    def __init__(
+        self,
+        constituent_samplers: List[Sampler],
+        score_nn: Optional[ScoreNN] = None,
+        oracle_value_function: Optional[OracleValueFunction] = None,
+        **kwargs: Any,
+    ):
+        super().__init__(
+            constituent_samplers=constituent_samplers,
+            score_nn=score_nn,
+            oracle_value_function=oracle_value_function,
+            **kwargs,
+        )
+
+    @classmethod
+    def from_partial_constituent_samplers(
+        cls,
+        constituent_samplers: List[Lazy[Sampler]],
+        score_nn: Optional[ScoreNN] = None,
+        oracle_value_function: Optional[OracleValueFunction] = None,
+        **kwargs: Any,
+    ) -> Sampler:
+        constructed_samplers = [
+            sampler.construct(
+                score_nn=score_nn, oracle_value_function=oracle_value_function
+            )
+            for sampler in constituent_samplers
+        ]
+
+        return cls(
+            constructed_samplers,
+            score_nn=score_nn,
+            oracle_value_function=oracle_value_function,
+            **kwargs,
+        )
+
+    def forward(
+        self,
+        x: Any,
+        labels: Optional[torch.Tensor],
+        buffer: Dict,
+        index: int = 0,
+        **kwargs: Any,
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+        assert (
+            0 < index < len(self.constituent_samplers)
+        ), f"There is no constituent_sampler with index {index}"
+        sampler = self.constituent_samplers[index]
+        return sampler(x, labels, buffer, **kwargs)
