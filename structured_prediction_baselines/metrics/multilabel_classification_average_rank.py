@@ -25,6 +25,6 @@ class MultilabelClassificationAvgRank(Average):
         for single_example_labels, single_example_scores in zip(
             labels, scores
         ):
-            scores_rank = rankdata(single_example_scores, method='min')
+            scores_rank = rankdata(-single_example_scores, method='min')
             true_label_rank = np.sum(scores_rank * single_example_labels)
             super().__call__(true_label_rank)
