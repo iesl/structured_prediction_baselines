@@ -159,7 +159,16 @@ local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_w
     },
     callbacks: [
       'track_epoch_callback',
-    ] + (if use_wandb then ['wandb_allennlp'] else []),
+      'slurm',
+    ] + (
+      if use_wandb then [
+        {
+          type: 'wandb_allennlp',
+          sub_callbacks: [{ type: 'log_best_validation_metrics' }],
+        },
+      ]
+      else []
+    ),
     inner_mode: 'score_nn',
     num_steps: { task_nn: 1, score_nn: 1 },
   },
