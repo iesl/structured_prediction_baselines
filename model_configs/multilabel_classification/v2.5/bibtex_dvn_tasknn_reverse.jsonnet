@@ -164,7 +164,7 @@ local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_w
       if use_wandb then [
         {
           type: 'wandb_allennlp',
-          sub_callbacks: [{ type: 'log_best_validation_metrics' }],
+          sub_callbacks: [{ type: 'log_best_validation_metrics' , priority: 100}],
         },
       ]
       else []
