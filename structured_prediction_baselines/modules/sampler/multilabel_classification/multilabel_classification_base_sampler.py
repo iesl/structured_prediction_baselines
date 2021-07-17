@@ -65,6 +65,7 @@ class MultiLabelNormalized(InferenceNetSampler):
         ...
 
     def normalize(self, y: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
+
         if y is not None:
             return torch.sigmoid(y)
         else:
@@ -88,8 +89,8 @@ class MultiLabelNormalizedOrSampled(InferenceNetSampler):
         self, num_samples: int = 1, keep_probs: bool = True, **kwargs: Any
     ):
         super().__init__(**kwargs)
-        self.num_samples = num_samples
         self.keep_probs = keep_probs
+        self.num_samples = num_samples if not keep_probs else num_samples - 1
 
     @overload
     def normalize(self, y: None) -> None:
@@ -101,10 +102,10 @@ class MultiLabelNormalizedOrSampled(InferenceNetSampler):
 
     def normalize(self, y: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
         if y is not None:
-            if self.training:
+            if self._mode == "sample":
                 return self.generate_samples(y)
-            else:  # eval
-                return y
+            else:  # inference
+                return torch.sigmoid(y)
         else:
             return None
 
@@ -138,3 +139,45 @@ class MultiLabelNormalizedOrSampled(InferenceNetSampler):
     @property
     def is_normalized(self) -> bool:
         return True
+
+
+@Sampler.register("multi-label-inference-net-normalized-or-continuous-sampled")
+@InferenceNetSampler.register(
+    "multi-label-inference-net-normalized-or-continuous-sampled"
+)
+class MultiLabelNormalizedOrContinuousSampled(MultiLabelNormalizedOrSampled):
+    """
+    Samples during training and normalizes during evaluation.
+
+    The samples are themselves probability distributions instead of hard samples. We
+    do this by adding gaussian noise in the logit space (before taking sigmoid).
+    """
+
+    def __init__(self, std: float = 1.0, **kwargs: Any):
+        super().__init__(**kwargs)
+        self.std = std
+
+    def generate_samples(self, y: torch.Tensor) -> torch.Tensor:
+        assert (
+            y.dim() == 3
+        ), "Output of inference_net should be of shape (batch, 1, ...)"
+        assert (
+            y.shape[1] == 1
+        ), "Output of inference_net should be of shape (batch, 1, ...)"
+        # add gaussian noise
+        # y.shape == (batch, 1, num_labels)
+        samples = torch.sigmoid(
+            torch.normal(
+                y.expand(
+                    -1, self.num_samples, -1
+                ),  # (batch, num_samples, num_labels)
+                std=self.std,
+            )
+        )  # (batch, num_samples, num_labels)
+
+        if self.keep_probs:
+            samples = torch.cat(
+                (samples, torch.sigmoid(y)), dim=1
+            )  # (batch, num_samples+1, num_labels)
+
+        return samples

@@ -1,7 +1,19 @@
-from typing import List, Tuple, Union, Dict, Any, Optional, overload, Iterator
+from typing import (
+    List,
+    Tuple,
+    Union,
+    Dict,
+    Any,
+    Optional,
+    overload,
+    Iterator,
+    Literal,
+    Generator,
+)
 from allennlp.common.registrable import Registrable
 from allennlp.common.params import ConfigurationError
 import torch
+import contextlib
 from allennlp.common.lazy import Lazy
 from structured_prediction_baselines.common import ModelMode
 from structured_prediction_baselines.modules.score_nn import ScoreNN
@@ -58,12 +70,25 @@ class Sampler(LoggingMixin, torch.nn.Module, Registrable):
         self,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
+        mode: Literal["sample", "inference"] = "inference",
         **kwargs: Any,
     ):
         super().__init__(**kwargs)  # type: ignore
         self.score_nn = score_nn
         self.oracle_value_function = oracle_value_function
         self._different_training_and_eval = False
+        self._mode: Literal["sample", "inference"] = mode
+
+    @contextlib.contextmanager
+    def mode(
+        self, mode: Literal["sample", "inference"]
+    ) -> Generator[None, None, None]:
+        current_mode = self._mode
+        try:
+            self._mode = mode
+            yield
+        finally:
+            self._mode = current_mode
 
     @property
     def is_normalized(self) -> bool:
@@ -155,6 +180,28 @@ class SamplerContainer(Sampler):
                 s.is_normalized == is_normalized
             ), f"is_normalized for {s} does not match {self.constituent_samplers[0]}"
         self._is_normalized = is_normalized
+
+    @contextlib.contextmanager
+    def mode(
+        self, mode: Literal["sample", "inference"]
+    ) -> Generator[None, None, None]:
+        current_mode = self._mode
+        constituent_samplers_current_modes = [
+            s._mode for s in self.constituent_samplers
+        ]
+        try:
+            self._mode = mode
+
+            for s in self.constituent_samplers:
+                s._mode = mode
+            yield
+        finally:
+            self._mode = current_mode
+
+            for s, m in zip(
+                self.constituent_samplers, constituent_samplers_current_modes
+            ):
+                s._mode = m
 
     def append_sampler(self, sampler: Sampler) -> None:
         self.constituent_samplers.append(sampler)

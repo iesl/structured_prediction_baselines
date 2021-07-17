@@ -360,9 +360,10 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
 
         # generate samples
         with torch.no_grad():
-            y_hat, y_hat_extra, sampler_loss = self.sampler(
-                x, labels=labels, buffer=buffer
-            )
+            with self.sampler.mode("sample"):
+                y_hat, y_hat_extra, sampler_loss = self.sampler(
+                    x, labels=labels, buffer=buffer
+                )
         assert labels is not None
         loss = self.loss_fn(
             x, self.unsqueeze_labels(labels), y_hat, y_hat_extra, buffer
