@@ -44,7 +44,7 @@ class InfnetRankingNCE(Sampler):
     """
     def __init__(
         self,
-        optimizer: Optimizer, #loss_fn: Loss,  
+        optimizer: Optimizer, 
         inference_nn: TaskNN,
         score_nn: ScoreNN,
         loss_fn: Loss,
@@ -76,7 +76,8 @@ class InfnetRankingNCE(Sampler):
         # After this point: new variables for InfnetMultiSampleLearner
         self.keep_labels = keep_labels
         self.num_samples = num_samples
-
+        # self.logging_children.append(self.loss_fn)
+        
     ## copied from "InferenceNetSampler"
     @property
     def is_normalized(self) -> bool:
@@ -109,9 +110,11 @@ class InfnetRankingNCE(Sampler):
             trainable_parameters.update(
                 cost_augmented_layer.named_parameters()
             )
-        optimizer_ = optimizer.construct(
-            model_parameters=list(trainable_parameters.items())
-        )
+        optimizer_ = None
+        if optimizer is not None:
+            optimizer_ = optimizer.construct(
+                model_parameters=list(trainable_parameters.items())
+            )
 
         return cls(
             optimizer=optimizer_,
@@ -143,9 +146,6 @@ class InfnetRankingNCE(Sampler):
     @contextlib.contextmanager
     def only_inference_nn_grad_on(self) -> Generator[None, None, None]:
 
-        trainable_parameters = [
-            p for g in self.optimizer.param_groups for p in g["params"]
-        ]
         # switch off the gradients for score_nn but first cache their requires grad
         assert self.score_nn is not None
         score_nn_requires_grad_map = {
@@ -159,19 +159,22 @@ class InfnetRankingNCE(Sampler):
                 p.requires_grad_(False)
             # then switch on inf net params
 
-            for g in self.optimizer.param_groups:
-                for p in g["params"]:
-                    p.requires_grad_(True)
+            if self.optimizer:
+                for g in self.optimizer.param_groups:
+                    for p in g["params"]:
+                        p.requires_grad_(True)
             yield
+
         finally:
             # set the requires_grad back to false for inf net
 
             for n, p in self.score_nn.named_parameters():  # type: ignore
                 p.requires_grad_(score_nn_requires_grad_map[n])
 
-            for g in self.optimizer.param_groups:
-                for p in g["params"]:
-                    p.requires_grad_(False)
+            if self.optimizer:
+                for g in self.optimizer.param_groups:
+                    for p in g["params"]:
+                        p.requires_grad_(False)
 
     def draw_samples(self, y_inf):
         assert y_inf.dim() == 3
@@ -257,7 +260,9 @@ class InfnetRankingNCE(Sampler):
                 while not self.stopping_criteria(
                     step_number, float(loss_value)
                 ):
-                    self.optimizer.zero_grad(set_to_none=True)
+                    if self.optimizer:
+                        self.optimizer.zero_grad(set_to_none=True)
+
                     y_inf, y_cost_aug = self._get_values(x, labels, buffer) # 
                     samples = self.draw_samples(y_inf)
                     loss_value = self.update( # made self.update to be the same as Loss class forward()
@@ -300,8 +305,9 @@ class InfnetRankingNCE(Sampler):
                 y_cost_aug,
                 buffer,
             ) # (batch, 1, num_labels)
-        total_loss.backward()  # type:ignore
-        self.optimizer.step()
+        if self.optimizer:
+            total_loss.backward()  # type:ignore
+            self.optimizer.step()
 
         return total_loss
 
