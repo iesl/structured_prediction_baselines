@@ -18,7 +18,7 @@ local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
 local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
-
+local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'));
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
   evaluate_on_test: true,
@@ -81,7 +81,7 @@ local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_w
             log_key: 'bce',
           },
         ],
-        loss_weights: [1.0, cross_entropy_loss_weight],
+        loss_weights: [dvn_score_loss_weight, cross_entropy_loss_weight],
         reduction: 'mean',
       },
     },
