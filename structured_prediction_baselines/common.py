@@ -28,5 +28,9 @@ class ModelMode(Enum):
             return False
 
     @classmethod
-    def hasattr_model_mode(obj: Any) -> bool:
+    def hasattr_model_mode(cls, obj: Any) -> bool:
         return hasattr(obj, "model_mode")
+
+    @classmethod
+    def getattr_model_mode(cls, obj: Any) -> "ModelMode":
+        return getattr(obj, "model_mode")
