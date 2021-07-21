@@ -14,39 +14,6 @@ from structured_prediction_baselines.modules.multilabel_classification_task_nn i
 )
 
 
-@Sampler.register("multi-label-basic")
-class MultilabelClassificationSampler(Sampler):
-    def __init__(
-        self,
-        inference_nn: MultilabelTaskNN,
-        score_nn: Optional[ScoreNN] = None,
-        oracle_value_function: Optional[OracleValueFunction] = None,
-        **kwargs: Any,
-    ):
-        super().__init__(
-            score_nn,
-            oracle_value_function,
-        )
-        self.inference_nn = inference_nn
-
-    @property
-    def is_normalized(self) -> bool:
-        return False
-
-    def forward(
-        self,
-        x: torch.Tensor,
-        labels: Optional[torch.Tensor],
-        buffer: Dict,
-        **kwargs: Any,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
-        return (
-            self.inference_nn(x, buffer=buffer).unsqueeze(1),
-            None,
-            None,
-        )  # unormalized logits (batch, 1, ...)
-
-
 @Sampler.register("multi-label-inference-net-normalized")
 @InferenceNetSampler.register(
     "multi-label-inference-net-normalized",

@@ -320,9 +320,10 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
 
         if labels is not None:
             labels = self.convert_to_one_hot(labels)
-        y_pred, _, loss = self.inference_module(
-            x, labels=labels, buffer=buffer
-        )
+        with self.inference_module.mode("inference"):
+            y_pred, _, loss = self.inference_module(
+                x, labels=labels, buffer=buffer
+            )
         results["loss"] = loss
         results["y_pred"] = self.squeeze_y(y_pred)
 

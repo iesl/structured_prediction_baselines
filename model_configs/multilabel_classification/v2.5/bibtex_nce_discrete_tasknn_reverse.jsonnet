@@ -61,10 +61,8 @@ local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_w
       },
     },
     inference_module: {
-      type: 'multi-label-inference-net-normalized-or-sampled',
+      type: 'multi-label-inference-net-normalized',
       log_key: 'inference_module',
-      keep_probs: true,
-      num_samples: 20,
       loss_fn: {
         type: 'combination-loss',
         log_key: 'loss',
@@ -112,7 +110,12 @@ local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_w
         },
       },
     },
-    loss_fn: { type: 'multi-label-dvn-bce', log_key: 'dvn_bce' },
+    loss_fn: {
+      type: 'multi-label-nce-ranking-with-discrete-sampling',
+      log_key: 'nce',
+      num_samples: 10,
+      sign: '+',
+    },
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
@@ -172,6 +175,6 @@ local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_w
       else []
     ),
     inner_mode: 'score_nn',
-    num_steps: { task_nn: 1, score_nn: 5 },
+    num_steps: { task_nn: 1, score_nn: 1 },
   },
 }

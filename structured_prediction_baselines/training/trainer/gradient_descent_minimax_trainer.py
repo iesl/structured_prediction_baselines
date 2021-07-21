@@ -291,7 +291,7 @@ class GradientDescentMinimaxTrainer(Trainer):
         serialization_dir: Optional[str] = None,
         checkpointer: Checkpointer = None,
         cuda_device: Optional[Union[int, torch.device]] = None,
-        grad_norm: Optional[float] = None,
+        grad_norm: Optional[Dict[MODE_LITERALS_TYPE, Optional[float]]] = None,
         grad_clipping: Optional[float] = None,
         learning_rate_schedulers: Optional[
             Dict[
@@ -361,8 +361,10 @@ class GradientDescentMinimaxTrainer(Trainer):
 
         if checkpointer is None and serialization_dir is not None:
             self._checkpointer = Checkpointer(serialization_dir)
-
-        self._grad_norm = grad_norm
+        grad_norm = grad_norm or {}
+        self._grad_norm: Dict[
+            MODE_LITERALS_TYPE, Optional[float]
+        ] = defaultdict(lambda: None, **grad_norm)
         self._grad_clipping = grad_clipping
 
         self._learning_rate_schedulers = learning_rate_schedulers
@@ -462,9 +464,12 @@ class GradientDescentMinimaxTrainer(Trainer):
                 yield from self.model.parameters()
 
         parameters_to_clip = [p for p in param_iter() if p.grad is not None]
+        _grad_norm: Optional[float] = self._grad_norm[
+            mode.value if mode is not None else None
+        ]
 
-        if self._grad_norm:
-            return clip_grad_norm_(parameters_to_clip, self._grad_norm)
+        if _grad_norm is not None:
+            return clip_grad_norm_(parameters_to_clip, _grad_norm)
         else:
             return torch.norm(
                 torch.stack(
@@ -530,7 +535,7 @@ class GradientDescentMinimaxTrainer(Trainer):
                 batch, mode, batch_group_len, batch_group_outputs
             )
 
-        batch_grad_norm = self.rescale_gradients()
+        batch_grad_norm = self.rescale_gradients(mode)
 
         if self._learning_rate_schedulers:
             if mode.value in self._learning_rate_schedulers:
@@ -1248,7 +1253,7 @@ class GradientDescentMinimaxTrainer(Trainer):
         validation_metric: Union[str, List[str]] = "-loss",
         num_epochs: int = 20,
         cuda_device: Optional[Union[int, torch.device]] = None,
-        grad_norm: float = None,
+        grad_norm: Optional[Dict[MODE_LITERALS_TYPE, Optional[float]]] = None,
         grad_clipping: float = None,
         num_gradient_accumulation_steps: int = 1,
         no_grad: List[str] = None,
