@@ -1,0 +1,57 @@
+name: bibtex_NCE_s10
+program: allennlp
+method: random
+command:
+  - ${program}
+  - "train_with_wandb"
+  - "model_configs/multilabel_classification/bibtex_NCE_zerotasknn.jsonnet"
+  - "--include-package=structured_prediction_baselines"
+  - "--wandb_tags=task=mlc,scoreNN=NCE,taskNN=pre-trained-taskNN,loss=NCE,dataset=bibtex"
+  - ${args} 
+  - "--file-friendly-logging"
+description: "Train ScoreNN using NCE loss with fixed pre-trained task-NN."
+early_terminate:
+  min_iter: 20
+  type: hyperband
+metric:
+  name: best_validation_nce-ranking-loss
+  goal: minimize
+parameters:
+  # Environment variables.
+  # env.cross_entorpy_loss_weight:
+  #   max: 2
+  #   min: 0
+  #   distribution: uniform
+  # env.inference_score_weight:
+  #   values: [1]
+  # env.inference_score_weight:
+  #   max: 2
+  #   min: 0
+  #   distribution: uniform
+  # env.cross_entorpy_loss_weight:
+  #   values: [1]
+  env.ff_dropout:
+    values: [0.5]
+  env.ff_hidden:
+    values: [400]
+  env.ff_linear_layers:
+    values: [2]
+  env.global_score_hidden_dim:
+    values: [200]
+  env.num_samples:
+    values: [10]
+  # Direct config variables.
+  model.sampler.stopping_criteria:
+    values: [1]
+  # model.sampler.optimizer.lr:
+  #   distribution: log_uniform
+  #   max: -6
+  #   min: -12
+  trainer.optimizer.lr:
+    distribution: log_uniform
+    max: 0
+    min: -7
+  trainer.optimizer.weight_decay:
+    distribution: log_uniform
+    max: -2
+    min: -12

@@ -76,8 +76,7 @@ class InfnetRankingNCE(Sampler):
         # After this point: new variables for InfnetMultiSampleLearner
         self.keep_labels = keep_labels
         self.num_samples = num_samples
-        # self.logging_children.append(self.loss_fn)
-        
+
     ## copied from "InferenceNetSampler"
     @property
     def is_normalized(self) -> bool:
@@ -98,7 +97,7 @@ class InfnetRankingNCE(Sampler):
         oracle_value_function: Optional[OracleValueFunction] = None,
         stopping_criteria: Union[int, StoppingCriteria] = 1,
         **kwargs: Any,
-    ) -> "InfnetMultiSampleLearner":
+    ) -> "InfnetRankingNCE":
         loss_fn_ = loss_fn.construct(
             score_nn=score_nn, oracle_value_function=oracle_value_function
         )        

@@ -149,32 +149,41 @@ class IncreaseScoreLossSmooth(TrainerCallback):
         self.score_rate = self.score_rate*self.decay_rate
         trainer.model.sampler.loss_fn.loss_weights[self.score_loss_idx] = (1-self.score_rate)*self.initial_score_weight
 
-
-@TrainerCallback.register("nceloss-sample-weight")
-class ReduceNCESampleWeights(TrainerCallback):
+@TrainerCallback.register("decrease-xtropy-callback")
+class DecreaseXtropyLoss(IncreaseScoreLossSmooth):
     """
-    This callback sets provided loss index (losses in the loss_idx_list) 
-    to be turned on/off if `model.epoch`> self.epoch_to_turn_on which can be read inside `forward()`. 
-    This callback lets you pass to the `GradientDescentTrainer` to access the current epoch number in your model during training. 
-    The losses in loss_idx_list will be initially set to 0 and turned on after trainig few epochs (self.epoch_to_turn_on).
+    This callback changes weights for the provided loss index (losses in the loss_idx_list).
+    The losses in loss_idx_list will be initially set to 1 and become provided min_weight as training steps progress.
+    --> change this class & IncreaseScoreLossSmooth to inherit from Imitation Learning call back and reduce rewriting common parts.
     """
     def __init__(
         self,
         serialization_dir: str,
-        min_sample_weight: float = 0.25,
+        score_loss_idx: int = 0,
+        xtropy_loss_idx: int = 1,
+        xtropy_min_weight: float = 0.3,
         decay_rate: float = 0.95,
     ) -> None:
         super().__init__(
             serialization_dir=serialization_dir,
+            score_loss_idx=score_loss_idx,
+            decay_rate=decay_rate,
         )
-        self.min_sample_weight = min_sample_weight
-        self.decay_rate = decay_rate
+        # additional cross entropy (xtropy) related variables.
+        self.xtropy_loss_idx = xtropy_loss_idx
+        self.xtropy_min_weight = xtropy_min_weight
+        self.initial_xtropy_weight= 0.0
 
     def on_start(
         self, trainer: "GradientDescentTrainer", is_primary: bool = True, **kwargs
     ) -> None:
-        super().on_start(trainer, is_primary,**kwargs) # --> trainer.model.epoch = 0  # type: ignore[assignment]
-        trainer.model.loss_fn.sample_weight = 1.0
+        """
+        Gather provided weight for score loss and set it to 0 on beginnnig.
+        """
+        # self.initial_score_weight = trainer.model.sampler.loss_fn.loss_weights[self.score_loss_idx] 
+        self.initial_xtropy_weight = trainer.model.sampler.loss_fn.loss_weights[self.xtropy_loss_idx] 
+        # trainer.model.sampler.loss_fn.loss_weights[self.score_loss_idx] = 0.0
+        trainer.model.sampler.loss_fn.loss_weights[self.xtropy_loss_idx] = 1.0
 
     def on_batch(
         self,
@@ -189,11 +198,16 @@ class ReduceNCESampleWeights(TrainerCallback):
         batch_grad_norm: Optional[float] = None,
         **kwargs: Any,
     ) -> None:
-        # do everything as the parent does
-        trainer.model.loss_fn.sample_weight = max(
-                                            self.min_sample_weight, 
-                                            self.decay_rate*trainer.model.loss_fn.sample_weight
-                                            )
+        """
+        Overriding on_epoch to control the weights.
+        """
+        self.score_rate = self.score_rate*self.decay_rate
+        # trainer.model.sampler.loss_fn.loss_weights[self.score_loss_idx] = (1-self.score_rate)*self.initial_score_weight
+        trainer.model.sampler.loss_fn.loss_weights[self.xtropy_loss_idx] = (
+                                                                            max(self.xtropy_min_weight, self.score_rate)
+                                                                            * self.initial_xtropy_weight
+                                                                        )
+
 
 # @TrainerCallback.register("imitation-learning-callback")
 # class ImitationLearningLoss(IncreaseScoreLossSmooth):
@@ -211,8 +225,8 @@ class ReduceNCESampleWeights(TrainerCallback):
 #     ) -> None:
 #         super().__init__(
 #             serialization_dir=serialization_dir,
-#             score_loss_idx,
-#             decay_rate,
+#             score_loss_idx=score_loss_idx,
+#             decay_rate=decay_rate,
 #         )
 #         # additional cross entropy (xtropy) related variables.
 #         self.xtropy_loss_idx = xtropy_loss_idx
@@ -252,4 +266,46 @@ class ReduceNCESampleWeights(TrainerCallback):
 #                                                                             max(self.xtropy_min_weight, self.score_rate)
 #                                                                             * self.initial_xtropy_weight
 #                                                                         )
-# 
+
+
+# @TrainerCallback.register("nceloss-sample-weight")
+# class ReduceNCESampleWeights(TrainerCallback):
+#     """
+#     This controls the "sample_weight" in interporlated loss (NCERankingInterpolatedLoss in nce_loss.py).
+#     """
+#     def __init__(
+#         self,
+#         serialization_dir: str,
+#         min_sample_weight: float = 0.25,
+#         decay_rate: float = 0.95,
+#     ) -> None:
+#         super().__init__(
+#             serialization_dir=serialization_dir,
+#         )
+#         self.min_sample_weight = min_sample_weight
+#         self.decay_rate = decay_rate
+
+#     def on_start(
+#         self, trainer: "GradientDescentTrainer", is_primary: bool = True, **kwargs
+#     ) -> None:
+#         super().on_start(trainer, is_primary,**kwargs) # --> trainer.model.epoch = 0  # type: ignore[assignment]
+#         trainer.model.loss_fn.sample_weight = 1.0 
+
+#     def on_batch(
+#         self,
+#         trainer: "GradientDescentTrainer",
+#         batch_inputs: List[List[TensorDict]],
+#         batch_outputs: List[Dict[str, Any]],
+#         batch_metrics: Dict[str, Any],
+#         epoch: int,
+#         batch_number: int,
+#         is_training: bool,
+#         is_primary: bool = True,
+#         batch_grad_norm: Optional[float] = None,
+#         **kwargs: Any,
+#     ) -> None:
+#         # do everything as the parent does
+#         trainer.model.loss_fn.sample_weight = max(
+#                                             self.min_sample_weight, 
+#                                             self.decay_rate*trainer.model.loss_fn.sample_weight
+#                                             )
