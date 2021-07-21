@@ -65,7 +65,6 @@ local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_w
       log_key: 'inference_module',
       keep_probs: true,
       num_samples: 20,
-      std: 0.5,
       loss_fn: {
         type: 'combination-loss',
         log_key: 'loss',

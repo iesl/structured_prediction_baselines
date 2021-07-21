@@ -18,9 +18,11 @@ from typing import (
     Generator,
     Literal,
     Iterator,
+    cast,
 )
 import contextlib
 import torch
+from collections import defaultdict
 from torch.cuda import amp
 from torch.nn.parallel import DistributedDataParallel
 from torch.nn.utils import clip_grad_norm_
@@ -89,27 +91,60 @@ class MiniMaxOptimizer(Optimizer, MutableMapping):
         self,
         model_parameters: List[Tuple[str, torch.nn.Parameter]],
         optimizers: Dict[
-            Literal[ModelMode.UPDATE_TASK_NN, ModelMode.UPDATE_SCORE_NN],
+            MODE_LITERALS_TYPE,
             Lazy[Optimizer],
         ],
         parameter_groups: ParameterGroupsType = None,
     ):
-        # 1. Create Dict[Literal[ModelMode], Dict[str, torch.nn.Parameter]]
-        # 2. call make_parameter_groups for all the optimizers and their corresponding parameters.
-        # calculate parameter groups for each optimizer
-        # remove
+        # split the parameters and assign them to the correct optimizer
+        # Note: If a parameter does not have the model_mode attribute set,
+        # then that parameter will not be assigned to any optimizer
 
         if parameter_groups is not None:
             raise ConfigurationError("parameter_groups are not supported.")
-        self.optimizers = {
-            model_mode: lazy_optimizer.construct(
-                model_parameters=[
-                    (n, p)
-                    for n, p in model_parameters
-                    if ModelMode(model_mode).is_parameter_model_mode(p)
-                ]
+        unassigned_params = []
+        named_params_: Dict[
+            MODE_LITERALS_TYPE,
+            List[Tuple[str, torch.nn.Parameter]],
+        ] = defaultdict(list)
+
+        for n, p in model_parameters:
+            if not ModelMode.hasattr_model_mode(p):
+                unassigned_params.append(n)
+
+                continue
+            mode_name = ModelMode.getattr_model_mode(p).value
+
+            if mode_name not in optimizers:
+                unassigned_params.append(n)
+
+                continue
+            mode_name_: MODE_LITERALS_TYPE = cast(
+                MODE_LITERALS_TYPE, mode_name
+            )  # no runtime effect
+            named_params_[mode_name_].append((n, p))
+
+        logger.info("Optimizer assignements are as follows.")
+
+        for mode_name, params in named_params_.items():
+            logger.info(
+                f"Following parameters have been assigned to the {mode_name} optimizer"
             )
-            for model_mode, lazy_optimizer in optimizers.items()
+
+            for n, p in params:
+                logger.info(f"{n}")
+        logger.info(
+            "Following parameters have not been assigned to any optimizer, hence will not be updated"
+        )
+
+        for n in unassigned_params:
+            logger.info(f"{n}")
+
+        self.optimizers = {
+            mode_name: lazy_optimizer.construct(
+                model_parameters=named_params_[mode_name]
+            )
+            for mode_name, lazy_optimizer in optimizers.items()
         }
 
         super().__init__([v for k, v in model_parameters], {})
@@ -625,7 +660,8 @@ class GradientDescentMinimaxTrainer(Trainer):
                 self._total_batches_completed += 1
 
                 continue
-
+            # Extra/precautionary call to zero_grad
+            # The required calls are in the loops.
             self.optimizer.zero_grad()
 
             batch_group_inner_loss = 0.0
@@ -640,6 +676,10 @@ class GradientDescentMinimaxTrainer(Trainer):
             for outer_step in range(num_outer_steps):
 
                 for inner_step in range(num_inner_steps):
+                    # we need to zero_grad before each optimization step.
+                    self.optimizer.zero_grad(
+                        opt_key=self.inner_mode.value, set_to_none=True
+                    )
                     (
                         batch_group_inner_loss_,
                         batch_group_inner_outputs_,
@@ -649,9 +689,12 @@ class GradientDescentMinimaxTrainer(Trainer):
                     batch_group_inner_outputs += batch_group_inner_outputs_
                     batch_group_inner_loss += (
                         batch_group_inner_loss_ / num_inner_steps
-                    )
+                    )  # log avg inner loss
                     train_inner_loss += batch_group_inner_loss
                 # outer step
+                self.optimizer.zero_grad(
+                    opt_key=self.inner_mode.flip().value, set_to_none=True
+                )
                 (
                     batch_group_outer_loss_,
                     batch_group_outer_outputs_,
@@ -661,7 +704,7 @@ class GradientDescentMinimaxTrainer(Trainer):
                 batch_group_outer_outputs += batch_group_outer_outputs_
                 batch_group_outer_loss += (
                     batch_group_outer_loss_ / num_outer_steps
-                )
+                )  # log avg outer loss
                 train_outer_loss += batch_group_outer_loss
 
             # Update moving averages

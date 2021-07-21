@@ -112,7 +112,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
                 mode.mark_parameter_with_model_mode(param)
 
         for n, p in self.named_parameters():
-            if not ModelMode.hasattr_model_mode():
+            if not ModelMode.hasattr_model_mode(p):
                 logger.warning(f"{n} does not have ModelMode set.")
 
     @classmethod
