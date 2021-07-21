@@ -156,14 +156,14 @@ class InferenceNetSampler(Sampler):
         }
         try:
             # first switch off all.
-
             for p in self.score_nn.parameters():
                 p.requires_grad_(False)
-            # then switch on inf net params
 
+            # then switch on inf net params and set the grad values to None
             for g in self.optimizer.param_groups:
                 for p in g["params"]:
                     p.requires_grad_(True)
+                    p.grad = None
             yield
         finally:
             # set the requires_grad back to false for inf net
@@ -216,14 +216,13 @@ class InferenceNetSampler(Sampler):
                 while not self.stopping_criteria(
                     step_number, float(loss_value)
                 ):
-                    self.optimizer.zero_grad(set_to_none=True)
                     y_inf, y_cost_aug = self._get_values(x, labels, buffer)
                     loss_value = self.update(
                         y_inf, y_cost_aug, buffer, loss_fn
                     )
 
                     loss_values.append(float(loss_value))
-
+                    self.optimizer.zero_grad(set_to_none=True)
                     step_number += 1
             # once out of Sampler, y_inf and y_cost_aug should not get gradients
 
