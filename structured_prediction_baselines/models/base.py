@@ -40,7 +40,6 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         oracle_value_function: Optional[OracleValueFunction] = None,
         score_nn: Optional[ScoreNN] = None,
         inference_module: Optional[Sampler] = None,
-        run_eval: bool = True,
         evaluation_module: Optional[Sampler] = None,
         num_eval_samples: int = 10,
         regularizer: Optional[RegularizerApplicator] = None,
@@ -60,7 +59,6 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         else:
             self.inference_module = sampler
 
-        self.run_eval = run_eval
         self.evaluation_module = evaluation_module
         self.num_eval_samples = num_eval_samples
         # self.eval_only_metrics = {}
@@ -81,7 +79,6 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         inference_module: Optional[Lazy[Sampler]] = None,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
-        run_eval: bool = True,
         evaluation_module: Optional[Lazy[Sampler]] = None,
         regularizer: Optional[RegularizerApplicator] = None,
         initializer: Optional[InitializerApplicator] = None,
@@ -132,7 +129,6 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
             oracle_value_function=oracle_value_function,
             score_nn=score_nn,
             inference_module=inference_module_,
-            run_eval=run_eval,
             evaluation_module=evaluation_module_,
             regularizer=regularizer,
             initializer=initializer,
@@ -149,7 +145,6 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         task_nn: TaskNN,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
-        run_eval: bool = True,
         evaluation_module: Optional[Lazy[Sampler]] = None,
         regularizer: Optional[RegularizerApplicator] = None,
         initializer: Optional[InitializerApplicator] = None,
@@ -207,7 +202,6 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
             oracle_value_function=oracle_value_function,
             score_nn=score_nn,
             inference_module=inference_module_,
-            run_eval=run_eval,
             evaluation_module=evaluation_module_,
             regularizer=regularizer,
             initializer=initializer,

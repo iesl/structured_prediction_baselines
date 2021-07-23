@@ -14,7 +14,7 @@ from .multilabel_classification_average_rank import (
 from .multilabel_classification_mean_reciprocal_rank import (
     MultilabelClassificationMeanReciprocalRank
 )
-from .multilabel_classification_dcg import (
+from .multilabel_classification_ndcg import (
     MultilabelClassificationNormalizedDiscountedCumulativeGain
 )
 from .multilabel_classification_rbo import (

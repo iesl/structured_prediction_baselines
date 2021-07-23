@@ -115,7 +115,7 @@ class MultilabelClassification(ScoreBasedLearningModel):
             samples = torch.transpose(distribution.sample([num_samples]), 0, 1)  # (batch, num_samples, num_labels)
 
         # stack labels on top of samples
-        if labels:
+        if labels is not None:
             samples = torch.hstack([self.unsqueeze_labels(labels), samples])
 
         return samples

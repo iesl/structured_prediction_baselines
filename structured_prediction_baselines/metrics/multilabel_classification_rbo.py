@@ -16,12 +16,12 @@ class MultilabelClassificationRankBiasedOverlap(Average):
         super().__init__()
 
     def __call__(
-        self, predictions: torch.Tensor, gold_labels: torch.Tensor
+        self, predicted_scores: torch.Tensor, true_scores: torch.Tensor
     ) -> None:  # type: ignore
 
         true_scores, predicted_scores = [
             t.cpu().numpy()
-            for t in self.detach_tensors(gold_labels, predictions)
+            for t in self.detach_tensors(true_scores, predicted_scores)
         ]
         for single_example_true_scores, single_example_pred_scores in zip(
             true_scores, predicted_scores
