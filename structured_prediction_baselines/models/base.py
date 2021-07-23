@@ -216,6 +216,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
 
     def calculate_metrics(
         self,
+        x: torch.Tensor,
         labels: torch.Tensor,  # shape: (batch, ...)
         y_hat: torch.Tensor,  # shape: (batch, ...)
         buffer: Dict,
@@ -308,9 +309,6 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
             else:
                 y_pred = y_hat
 
-            if not self.training and self.run_eval:
-                self.on_epoch(x, labels, y_pred, buffer, self.num_eval_samples)
-
             # Loss needs one-hot labels of shape (batch, 1, ...)
             labels = self.unsqueeze_labels(labels)
             loss = self.loss_fn(
@@ -322,7 +320,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
             )
             results["loss"] = loss
             self.calculate_metrics(
-                self.squeeze_y(labels), self.squeeze_y(y_pred), buffer
+                x, self.squeeze_y(labels), self.squeeze_y(y_pred), buffer
             )
 
         else:
@@ -335,6 +333,3 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         results["y_pred"] = y_pred
 
         return results
-
-    def on_epoch(self, x: Any, labels: torch.Tensor, y_pred: torch.Tensor, buffer: Dict, num_samples: int, **kwargs: Any):
-        raise NotImplementedError
