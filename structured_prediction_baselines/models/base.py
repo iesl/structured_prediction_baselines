@@ -1,10 +1,22 @@
-from typing import List, Tuple, Union, Dict, Any, Optional
+from typing import (
+    List,
+    Tuple,
+    Union,
+    Dict,
+    Any,
+    Optional,
+    Iterator,
+    cast,
+    Generator,
+)
+import contextlib
 import torch
 from allennlp.models import Model
 from structured_prediction_baselines.modules.sampler import (
     Sampler,
     SamplerContainer,
 )
+from structured_prediction_baselines.common import ModelMode
 from structured_prediction_baselines.modules.sampler.inference_net import (
     InferenceNetSampler,
 )
@@ -24,6 +36,10 @@ from structured_prediction_baselines.modules.logging import (
     LoggedNPArrayNPArraySample,
 )
 from structured_prediction_baselines.modules.task_nn import TaskNN
+from enum import Enum
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @Model.register(
@@ -46,6 +62,26 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         initializer: Optional[InitializerApplicator] = None,
         **kwargs: Any,
     ) -> None:
+        """
+
+        The model will be used in two ways:
+
+            1. By calling `forward(x, labels)` the inference module is run to produce predictions (and loss if labels are present).
+                This will be used to produce predictions as well as to update the parameters of the Sampler.
+
+            2. By calling `update()` the scoreNN loss is computed by first calling sampler in eval model
+                (with no_grad) with logging turned off.
+
+            3. By calling `compute_score(x,y)` the score for (x,y) will be computed. This is useful for doing custom evaluations of ScoreNN.
+                In order for such evaluations to not interfere with the training of ScoreNN, we need to do these after the optimizer step
+                for ScoreNN. Hence, we will use on_batch or on_epoch callback for this.
+                All such evaluations should log values in their own attributes,
+                and it is their responsibility to add these values to `metrics` so that they can be logged to wandb and console.
+
+
+        Args:
+            loss_fn: Loss function for updating ScoreNN
+        """
         super().__init__(
             vocab=vocab, regularizer=regularizer, **kwargs
         )  # type:ignore
@@ -69,6 +105,22 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         self.logging_children.append(self.inference_module)
         if evaluation_module is not None:
             self.logging_children.append(self.evaluation_module)
+        mode = ModelMode.UPDATE_SCORE_NN
+
+        if self.score_nn is not None:
+            for param in self.score_nn.parameters():
+                mode.mark_parameter_with_model_mode(param)
+        mode = ModelMode.UPDATE_TASK_NN
+
+        if inference_module is not None:
+            for param in self.inference_module.parameters_with_model_mode(
+                mode
+            ):
+                mode.mark_parameter_with_model_mode(param)
+
+        for n, p in self.named_parameters():
+            if not ModelMode.hasattr_model_mode(p):
+                logger.warning(f"{n} does not have ModelMode set.")
 
     @classmethod
     def from_partial_objects(
@@ -134,6 +186,23 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
             initializer=initializer,
             **kwargs,
         )
+
+    def named_parameters_for_model_mode(
+        self, mode: ModelMode
+    ) -> Iterator[Tuple[str, torch.nn.Parameter]]:
+
+        for name, param in self.named_parameters():
+            param = cast(torch.nn.Parameter, param)
+
+            if mode.is_parameter_model_mode(param):
+                yield (name, param)
+
+    def parameters_for_model_mode(
+        self, mode: ModelMode
+    ) -> Iterator[torch.nn.Parameter]:
+        for param in self.parameters():
+            if mode.is_parameter_model_mode(param):
+                yield param
 
     @classmethod
     def from_partial_objects_with_shared_tasknn(
@@ -218,12 +287,6 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
     ) -> None:
         return None
 
-    def initialize_buffer(
-        self,
-        **kwargs: Any,
-    ) -> Dict:
-        return {}
-
     def convert_to_one_hot(self, labels: torch.Tensor) -> torch.Tensor:
         """Converts the labels to one-hot if not already"""
 
@@ -237,13 +300,26 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
     def squeeze_y(self, y: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
 
-    def construct_args_for_forward(self, **kwargs: Any) -> Dict:
-        kwargs["buffer"] = self.initialize_buffer(**kwargs)
+    def forward(
+        self,
+        x: Any,
+        labels: torch.Tensor,
+        mode: Optional[ModelMode] = ModelMode.UPDATE_TASK_NN,
+        **kwargs: Any,
+    ) -> Dict:
+        if mode == ModelMode.UPDATE_TASK_NN:
+            results = self.forward_on_tasknn(x, labels, buffer={}, **kwargs)
+        elif mode == ModelMode.UPDATE_SCORE_NN:
+            results = self.forward_on_scorenn(x, labels, buffer={}, **kwargs)
+        elif mode == ModelMode.COMPUTE_SCORE:
+            score = self.compute_score(x, labels, buffer={})
+            results = {"score": score}
+        elif mode is None:
+            results = self.forward_on_tasknn(x, labels, buffer={}, **kwargs)
+        else:
+            raise ValueError
 
-        return kwargs
-
-    def forward(self, **kwargs: Any) -> Dict:
-        return self._forward(**self.construct_args_for_forward(**kwargs))
+        return results
 
     def get_true_metrics(self, reset: bool = False) -> Dict[str, float]:
         return {}
@@ -256,7 +332,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
 
         return {**metrics, **non_metrics}
 
-    def _forward(  # type: ignore
+    def forward_on_tasknn(  # type: ignore
         self,
         x: Any,
         labels: Optional[torch.Tensor],
@@ -272,58 +348,57 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
 
         if labels is not None:
             labels = self.convert_to_one_hot(labels)
-            y_hat, y_hat_extra = self.sampler(x, labels, buffer=buffer)
-            # (batch, num_samples or 1, ...), (batch, num_samples or 1)
-            # y_hat_extra could be y_cost_augmented, or probabilities for MRT type model, etc.
-            results["y_hat"] = y_hat
-            results["y_hat_extra"] = y_hat_extra
+        with self.inference_module.mode("inference"):
+            y_pred, _, loss = self.inference_module(
+                x, labels=labels, buffer=buffer
+            )
+        results["loss"] = loss
+        results["y_pred"] = self.squeeze_y(y_pred)
 
-            # prepare for calculating metrics
-            # y_pred is predictions for metric calculations
-            # y_hat are for loss computation
-            # For some models this two can be different
+        if labels is not None:
+            self.calculate_metrics(
+                x, self.squeeze_y(labels), results["y_pred"], buffer
+            )
 
-            if (
-                (self.sampler != self.inference_module)
-                or self.inference_module.different_training_and_eval
-                or (y_hat is None)
-            ):
-                # we have different sampler for training and inference
-                # or the sampler behaves differently
-                # so we need to run it again.
-                # Note: It is vital to set the module in the eval mode
-                # ie with .training = False because the implementation
-                # checks this
-                state = self.inference_module.training
-                self.inference_module.eval()
-                y_pred, _ = self.inference_module(
+        return results
+
+    def compute_score(
+        self,
+        x: Any,
+        y: torch.Tensor,  # (batch, num_samples or 1, ...)
+        buffer: Dict,
+        **kwargs: Any,
+    ) -> torch.Tensor:
+        assert self.score_nn is not None
+
+        return self.score_nn(
+            x, y, buffer, **kwargs
+        )  # (batch, num_samples or 1)
+
+    def forward_on_scorenn(
+        self,
+        x: Any,
+        labels: Optional[torch.Tensor],
+        buffer: Dict,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        results: Dict[str, Any] = {}
+
+        if labels is not None:
+            labels = self.convert_to_one_hot(labels)
+
+        # generate samples
+        with torch.no_grad():
+            with self.sampler.mode("sample"):
+                y_hat, y_hat_extra, sampler_loss = self.sampler(
                     x, labels=labels, buffer=buffer
                 )
-                self.inference_module.train(state)
-            else:
-                y_pred = y_hat
-
-            # Loss needs one-hot labels of shape (batch, 1, ...)
-            labels = self.unsqueeze_labels(labels)
-            loss = self.loss_fn(
-                x,
-                labels,
-                y_hat,
-                y_hat_extra,
-                buffer,
-            )
-            results["loss"] = loss
-            self.calculate_metrics(
-                x, self.squeeze_y(labels), self.squeeze_y(y_pred), buffer
-            )
-
-        else:
-            # labels not present. Just predict.
-            model_state = self.training
-            self.inference_module.eval()
-            y_pred, _ = self.inference_module(x, labels=None, buffer=buffer)
-            self.inference_module.train(model_state)
-
-        results["y_pred"] = y_pred
+        assert labels is not None
+        loss = self.loss_fn(
+            x, self.unsqueeze_labels(labels), y_hat, y_hat_extra, buffer
+        )
+        results["y_hat"] = y_hat
+        results["y_hat_extra"] = y_hat_extra
+        results["loss"] = loss
 
         return results

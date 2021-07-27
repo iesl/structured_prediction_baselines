@@ -1,7 +1,10 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
-from structured_prediction_baselines.modules.loss import DVNLossCostAugNet, DVNLoss, Loss
+from structured_prediction_baselines.modules.loss import (
+    DVNLossCostAugNet,
+    DVNLoss,
+    Loss,
+)
 import torch
-
 
 
 @Loss.register("multi-label-dvn-bce")
@@ -43,13 +46,15 @@ class MultiLabelDVNCostAugCrossEntropyLoss(DVNLossCostAugNet):
             reduction=self.reduction,
         )
 
+
 @Loss.register("zero-dvn-loss")
 class ZeroLoss(MultiLabelDVNCrossEntropyLoss):
     """
     Loss function to give zero signal to DVN
     """
+
     def __init__(self, **kwargs: Any):
-        super().__init__(**kwargs)        
+        super().__init__(**kwargs)
 
     def forward(
         self,
@@ -61,5 +66,5 @@ class ZeroLoss(MultiLabelDVNCrossEntropyLoss):
         **kwargs: Any,
     ) -> torch.Tensor:
         return 0 * super().forward(
-                x, labels, y_hat, y_hat_extra, buffer, **kwargs
-                )
+            x, labels, y_hat, y_hat_extra, buffer, **kwargs
+        )
