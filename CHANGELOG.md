@@ -4,6 +4,10 @@
 
 [Full Changelog](https://github.com/dhruvdcoder/structured_prediction_baselines/compare/v0.1.0...HEAD)
 
+### 💥 Breaking Changes:
+
+- Reverse the order of param updates and various other breaking changes. [\#22](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/22) ([dhruvdcoder](https://github.com/dhruvdcoder))
+
 ### 👷 Build and CI
 
 - Labeler and automatic changelog generation. [\#24](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/24) ([dhruvdcoder](https://github.com/dhruvdcoder))
