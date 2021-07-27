@@ -1,0 +1,43 @@
+name: bibtex_dvn_tasknn_reverse
+description: "Train tasknn using cross-entropy and dvn score loss (v(f(x),y)). We will have only one sampler--tasknn continuous--to train scoreNN. The network parameters are from structure_prediction_baselines/7tvr5xhg"
+program: allennlp
+command:
+- ${program}
+- train_with_wandb
+- model_configs/multilabel_classification/v2.5/bibtex_dvn_tasknn_reverse.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb_tags="task=mlc,model=dvn,sampler=inference_net,dataset=bibtex,inference_module=inference_net,inference_module=tasknn,sampler=tasknn,ref=7tvr5xhg"
+- ${args}
+- --file-friendly-logging
+method: bayes
+metric:
+  goal: maximize
+  name: "validation/best_fixed_f1"
+
+early_terminate:
+  type: hyperband
+  min_iter: 20
+
+parameters:
+  env.cross_entropy_loss_weight:
+    value: 0.87
+  env.ff_dropout:
+    value: 0.5
+  env.ff_hidden:
+    value: 200
+  env.ff_linear_layers:
+    value: 2
+  env.ff_weight_decay:
+    value: 0.00001
+  env.global_score_hidden_dim:
+    value: 200
+  trainer.optimizer.optimizers.task_nn.lr:
+    distribution: log_uniform
+    min: -11.5
+    max: -4.5 
+  trainer.optimizer.optimizers.score_nn.lr:
+    distribution: log_uniform
+    min: -11.5
+    max: -4.5
+  trainer.num_steps.score_nn:
+    values: [1, 3, 9]

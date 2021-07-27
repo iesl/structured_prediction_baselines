@@ -27,6 +27,13 @@ logger = logging.getLogger(__name__)
 @Model.register(
     "multi-label-classification", constructor="from_partial_objects"
 )
+@ScoreBasedLearningModel.register(
+    "multi-label-classification-with-infnet",
+    constructor="from_partial_objects_with_shared_tasknn",
+)
+@ScoreBasedLearningModel.register(
+    "multi-label-classification", constructor="from_partial_objects"
+)
 class MultilabelClassification(ScoreBasedLearningModel):
     def __init__(
         self,
