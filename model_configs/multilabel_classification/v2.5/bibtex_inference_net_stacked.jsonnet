@@ -9,18 +9,18 @@ local num_labels = dataset_metadata.num_labels;
 local num_input_features = dataset_metadata.input_features;
 
 // model variables
-local ff_hidden = 200; //std.parseJson(std.extVar('ff_hidden'));
+local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
 local label_space_dim = ff_hidden;
-local ff_dropout = 0.5; //std.parseJson(std.extVar('ff_dropout'));
+local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
 //local ff_activation = std.parseJson(std.extVar('ff_activation'));
 local ff_activation = 'softplus';
-local ff_linear_layers = 2; //std.parseJson(std.extVar('ff_linear_layers'));
-local ff_weight_decay = 0.01; //std.parseJson(std.extVar('ff_weight_decay'));
+local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
+local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
 //local global_score_hidden_dim = 150;
-local global_score_hidden_dim = 200; //std.parseJson(std.extVar('global_score_hidden_dim'));
-local cross_entropy_loss_weight = 1; //std.parseJson(std.extVar('cross_entropy_loss_weight'));
-local inference_score_weight = 1; //std.parseJson(std.extVar('inference_score_weight'));
-local oracle_cost_weight = 1; //std.parseJson(std.extVar('oracle_cost_weight'));
+local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
+local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
+local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
+local oracle_cost_weight = std.parseJson(std.extVar('oracle_cost_weight'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 
 {
@@ -53,11 +53,6 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
     inference_module: {
       type: 'inference-network-unnormalized',
       log_key: "inference_module",
-//      optimizer: {
-//        lr: 0.0002,
-//        weight_decay: ff_weight_decay,
-//        type: 'adam',
-//      },
       cost_augmented_layer: {
         type: 'multi-label-stacked',
         feedforward: {
@@ -89,7 +84,6 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
         loss_weights: [1.0, cross_entropy_loss_weight],
         reduction: 'mean',
       },
-//      stopping_criteria: 1,
     },
     task_nn: {
         type: 'multi-label-classification',
