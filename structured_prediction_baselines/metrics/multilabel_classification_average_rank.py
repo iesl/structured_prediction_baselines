@@ -9,7 +9,10 @@ import numpy as np
 @Metric.register("multilabel-average-rank")
 class MultilabelClassificationAvgRank(Average):
 
-    """Computes average rank for the true label, given the energy scores for the samples and the true label"""
+    """
+    Computes average rank for the true label, given the energy scores for the samples and the true label
+    Assumes, higher the score, better the rank.
+    """
 
     def __init__(self) -> None:
         super().__init__()

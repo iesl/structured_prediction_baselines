@@ -9,22 +9,20 @@ from typing import (
     Optional,
     Callable,
     Generator,
+    overload,
+    Iterator,
 )
 
 import numpy as np
 import torch
 from allennlp.common.lazy import Lazy
 from allennlp.training.optimizers import Optimizer
-
+from structured_prediction_baselines.common import ModelMode
 from structured_prediction_baselines.modules.loss import Loss
 from structured_prediction_baselines.modules.oracle_value_function import (
     OracleValueFunction,
 )
 from structured_prediction_baselines.modules.sampler import Sampler
-from structured_prediction_baselines.modules.stopping_criteria import (
-    StoppingCriteria,
-    StopAfterNumberOfSteps,
-)
 from structured_prediction_baselines.modules.score_nn import ScoreNN
 from structured_prediction_baselines.modules.task_nn import (
     TaskNN,
@@ -32,17 +30,26 @@ from structured_prediction_baselines.modules.task_nn import (
 )
 
 
-@Sampler.register("inference-network", constructor="from_partial_objects")
+@Sampler.register("inference-network")
 class InferenceNetSampler(Sampler):
+    def mark_parameters_with_model_mode(self) -> None:
+        mode = ModelMode.UPDATE_TASK_NN
+
+        for param in self.inference_nn.parameters():
+            mode.mark_parameter_with_model_mode(param)
+
+    def parameters_with_model_mode(
+        self, mode: ModelMode
+    ) -> Iterator[torch.nn.Parameter]:
+        yield from self.inference_nn.parameters()
+
     def __init__(
         self,
-        optimizer: Optimizer,
         loss_fn: Loss,
         inference_nn: TaskNN,
         score_nn: ScoreNN,
         cost_augmented_layer: Optional[CostAugmentedLayer] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
-        stopping_criteria: Union[int, StoppingCriteria] = 1,
         **kwargs: Any,
     ):
         assert ScoreNN is not None
@@ -54,14 +61,6 @@ class InferenceNetSampler(Sampler):
         self.inference_nn = inference_nn
         self.cost_augmented_layer = cost_augmented_layer
         self.loss_fn = loss_fn
-        self.optimizer = optimizer
-
-        if isinstance(stopping_criteria, int):
-            self.stopping_criteria: StoppingCriteria = StopAfterNumberOfSteps(
-                stopping_criteria
-            )
-        else:
-            self.stopping_criteria = stopping_criteria
 
         self.logging_children.append(self.loss_fn)
 
@@ -71,109 +70,16 @@ class InferenceNetSampler(Sampler):
 
         return False
 
-    @classmethod
-    def from_partial_objects(
-        cls,
-        optimizer: Lazy[Optimizer],
-        loss_fn: Lazy[Loss],  #: This loss can be different from the main loss
-        inference_nn: TaskNN,  #: inference_nn cannot be None for this sampler
-        score_nn: ScoreNN,
-        cost_augmented_layer: Optional[CostAugmentedLayer] = None,
-        oracle_value_function: Optional[OracleValueFunction] = None,
-        stopping_criteria: Union[int, StoppingCriteria] = 1,
-        **kwargs: Any,
-    ) -> "InferenceNetSampler":
-        loss_fn_ = loss_fn.construct(
-            score_nn=score_nn,
-            oracle_value_function=oracle_value_function,
-            **kwargs,
-        )
-        trainable_parameters: Dict[str, torch.Tensor] = {}
+    @overload
+    def normalize(self, y: None) -> None:
+        ...
 
-        trainable_parameters.update(inference_nn.named_parameters())
+    @overload
+    def normalize(self, y: torch.Tensor) -> torch.Tensor:
+        ...
 
-        if cost_augmented_layer is not None:
-            trainable_parameters.update(
-                cost_augmented_layer.named_parameters()
-            )
-        optimizer_ = optimizer.construct(
-            model_parameters=list(trainable_parameters.items())
-        )
-
-        return cls(
-            optimizer=optimizer_,
-            loss_fn=loss_fn_,
-            inference_nn=inference_nn,
-            score_nn=score_nn,
-            cost_augmented_layer=cost_augmented_layer,
-            oracle_value_function=oracle_value_function,
-            stopping_criteria=stopping_criteria,
-            **kwargs,
-        )
-
-    def get_loss_fn(
-        self, x: Any, labels: torch.Tensor
-    ) -> Callable[[torch.Tensor, torch.Tensor, Dict], torch.Tensor]:
-
-        if self.training and (labels is None):
-            warnings.warn("Labels should not be None in training mode!")
-
-        def loss_fn(
-            y_hat: torch.Tensor, y_cost_aug: torch.Tensor, buffer: Dict
-        ) -> torch.Tensor:
-            return self.loss_fn(
-                x,
-                labels,
-                y_hat,
-                y_cost_aug,
-                buffer,
-            )
-
-        return loss_fn
-
-    def get_dtype_device(self) -> Tuple[torch.dtype, torch.device]:
-        for param in self.loss_fn.parameters():
-            dtype = param.dtype
-            device = param.device
-
-            break
-
-        return dtype, device
-
-    def get_batch_size(self, x: Any) -> int:
-        if isinstance(x, torch.Tensor):
-            return x.shape[0]
-        else:
-            raise NotImplementedError
-
-    @contextlib.contextmanager
-    def only_inference_nn_grad_on(self) -> Generator[None, None, None]:
-        # switch off the gradients for score_nn but first cache their requires grad
-        assert self.score_nn is not None
-        score_nn_requires_grad_map = {
-            name: param.requires_grad
-            for name, param in self.score_nn.named_parameters()
-        }
-        try:
-            # first switch off all.
-
-            for p in self.score_nn.parameters():
-                p.requires_grad_(False)
-            # then switch on inf net params
-
-            for g in self.optimizer.param_groups:
-                for p in g["params"]:
-                    p.requires_grad_(True)
-            yield
-        finally:
-            # set the requires_grad back to false for inf net
-
-            for n, p in self.score_nn.named_parameters():  # type: ignore
-                p.requires_grad_(score_nn_requires_grad_map[n])
-
-            for g in self.optimizer.param_groups:
-                for p in g["params"]:
-                    p.requires_grad_(False)
+    def normalize(self, y: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
+        return y
 
     def forward(
         self,
@@ -183,74 +89,25 @@ class InferenceNetSampler(Sampler):
         ],  #: If given will have shape (batch, ...)
         buffer: Dict,
         **kwargs: Any,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
 
-        if not self.training or labels is None:
-            y_hat, y_cost_aug = self._get_values(
-                x, labels, buffer
-            )  # (batch_size, 1, ...)
+        y_hat, y_cost_aug = self._get_values(
+            x, labels, buffer
+        )  # (batch_size, 1, ...) Unnormalized
 
-            if labels is not None:
-                # compute loss for logging.
-                self.loss_fn(
-                    x,
-                    labels.unsqueeze(1),
-                    y_hat,
-                    y_cost_aug,
-                    buffer,
-                )
-
-            return y_hat, y_cost_aug
-        else:
-            # switch on gradients on the parameters of inference network using context manager
-            with self.only_inference_nn_grad_on():
-                labels = labels.unsqueeze(1)
-                loss_fn = self.get_loss_fn(
-                    x, labels
-                )  #: Loss function will expect labels in form (batch, num_samples or 1, ...)
-
-                loss_values: List[float] = []
-                step_number = 0
-                loss_value: Union[torch.Tensor, float] = float("inf")
-
-                while not self.stopping_criteria(
-                    step_number, float(loss_value)
-                ):
-                    self.optimizer.zero_grad(set_to_none=True)
-                    y_inf, y_cost_aug = self._get_values(x, labels, buffer)
-                    loss_value = self.update(
-                        y_inf, y_cost_aug, buffer, loss_fn
-                    )
-
-                    loss_values.append(float(loss_value))
-
-                    step_number += 1
-            # once out of Sampler, y_inf and y_cost_aug should not get gradients
-
-            return (
-                y_inf.detach().clone(),
-                y_cost_aug.detach().clone()
-                if y_cost_aug is not None
-                else None,
+        if labels is not None:
+            # compute loss for logging.
+            loss = self.loss_fn(
+                x,
+                labels.unsqueeze(1),  # (batch, num_samples or 1, ...)
+                y_hat,
+                y_cost_aug,
+                buffer,
             )
+        else:
+            loss = None
 
-    def update(
-        self,
-        y_hat: torch.Tensor,
-        y_cost_aug: torch.Tensor,
-        buffer: Dict,
-        loss_fn: Callable[[torch.Tensor, torch.Tensor, Dict], torch.Tensor],
-    ) -> torch.Tensor:
-        """
-        Returns:
-            loss: loss value at the previous point (unreduced)
-        """
-        loss = loss_fn(y_hat, y_cost_aug, buffer)
-
-        loss.backward()  # type:ignore
-        self.optimizer.step()
-
-        return loss
+        return self.normalize(y_hat), self.normalize(y_cost_aug), loss
 
     def _get_values(
         self,
@@ -285,4 +142,6 @@ class InferenceNetSampler(Sampler):
         return y_inf, y_cost_aug
 
 
-InferenceNetSampler.register("inference-network-unnormalized", constructor="from_partial_objects")(InferenceNetSampler)
+InferenceNetSampler.register("inference-network-unnormalized")(
+    InferenceNetSampler
+)
