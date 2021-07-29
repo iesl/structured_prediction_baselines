@@ -86,7 +86,7 @@ local oracle_cost_weight = std.parseJson(std.extVar('oracle_cost_weight'));
         reduction: 'mean',
       },
     },
-    oracle_value_function: { type: 'per-instance-f1', differentiable: true },
+    oracle_value_function: { type: 'per-instance-f1', differentiable: false },
     score_nn: {
       type: 'multi-label-classification',
       task_nn: {
