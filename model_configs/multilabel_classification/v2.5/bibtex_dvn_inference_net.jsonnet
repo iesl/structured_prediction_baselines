@@ -53,26 +53,15 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
     inference_module: {
       type: 'inference-network-unnormalized',
       log_key: "inference_module",
-      cost_augmented_layer: {
-        type: 'multi-label-stacked',
-        feedforward: {
-          input_dim: 2 * num_labels,
-          num_layers: 2,
-          activations: [ff_activation, 'linear'],
-          hidden_dims: num_labels,
-        },
-        normalize_y: true,
-      },
       loss_fn: {
         type: 'combination-loss',
         log_key: 'loss',
         constituent_losses: [
           {
-            type: 'multi-label-dvn-plus-ca-loss',
+            type: "multi-label-dvn-score",
             log_key: 'neg.dvn_score',
-            inference_score_weight: inference_score_weight,
-            oracle_cost_weight: oracle_cost_weight,
-            reduction: 'none',
+            reduction: "none",
+            normalize_y: true,
           },
           {
             type: 'multi-label-bce',
