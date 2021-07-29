@@ -23,7 +23,7 @@ local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'
 local oracle_cost_weight = 1; #std.parseJson(std.extVar('oracle_cost_weight'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local sc_temp = std.parseJson(std.extVar('stopping_criteria'));
-local stopping_criteria = (if sc_temp == '0' then 1 else sc_temp);
+local stopping_criteria = (if sc_temp == 0 then 1 else sc_temp);
 
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
@@ -68,6 +68,7 @@ local stopping_criteria = (if sc_temp == '0' then 1 else sc_temp);
             type: 'multi-label-score-loss',
             log_key: 'infscore-loss',
             reduction: 'none',
+            normalize_y: true,
           },  //This loss can be different from the main loss // change this
           {
             type: 'multi-label-bce',
@@ -129,8 +130,8 @@ local stopping_criteria = (if sc_temp == '0' then 1 else sc_temp);
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
-        // [@'score_nn.*', { type: 'pretrained', weights_file_path: '/mnt/nfs/scratch1/jaylee/repository/structured_prediction/pretrained_models/revNCE50/revNCE50.th' }],
-        [@'score_nn.*', { type: 'pretrained', weights_file_path: '/mnt/nfs/scratch1/jaylee/repository/structured_prediction/pretrained_models/revNCE_infnet/2gi3vkh6/revNCE_infnet_best.th' }],
+        [@'score_nn.*', { type: 'pretrained', weights_file_path: '/mnt/nfs/scratch1/jaylee/repository/structured_prediction/pretrained_models/NCE50/NCE50.th' }],
+        // [@'score_nn.*', { type: 'pretrained', weights_file_path: '/mnt/nfs/scratch1/jaylee/repository/structured_prediction/pretrained_models/NCE_infnet/f36ws3h4/NCE_infnet_best.th' }],
         [@'.*feedforward._linear_layers.*weight', (if std.member(['tanh', 'sigmoid'], ff_activation) then { type: 'xavier_uniform', gain: gain } else { type: 'kaiming_uniform', nonlinearity: 'relu' })],
         [@'.*linear_layers.*bias', { type: 'zero' }],
       ],

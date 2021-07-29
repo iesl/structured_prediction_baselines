@@ -23,7 +23,7 @@ local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'
 local oracle_cost_weight = 1; #std.parseJson(std.extVar('oracle_cost_weight'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local sc_temp = std.parseJson(std.extVar('stopping_criteria'));
-local stopping_criteria = (if sc_temp == 0 then 1 else sc_temp);
+local stopping_criteria = (if std.toString(sc_temp) == '0' then 1 else sc_temp);
 
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
@@ -55,11 +55,6 @@ local stopping_criteria = (if sc_temp == 0 then 1 else sc_temp);
     inference_module: {
       type: 'inference-network-unnormalized',
       log_key: "tasknn",
-      optimizer: {
-        lr: 0.0002,
-        weight_decay: ff_weight_decay,
-        type: 'adam',
-      },
       loss_fn: {
         type: 'combination-loss',
         log_key: 'loss',
@@ -68,6 +63,7 @@ local stopping_criteria = (if sc_temp == 0 then 1 else sc_temp);
             type: 'multi-label-score-loss',
             log_key: 'infscore-loss',
             reduction: 'none',
+            normalize_y: true,
           },  //This loss can be different from the main loss // change this
           {
             type: 'multi-label-bce',
@@ -78,22 +74,21 @@ local stopping_criteria = (if sc_temp == 0 then 1 else sc_temp);
         loss_weights: [inference_score_weight, cross_entropy_loss_weight],
         reduction: 'mean',
       },
-      stopping_criteria: stopping_criteria,
     },
     task_nn: {
-        type: 'multi-label-classification',
-        feature_network: {
-          input_dim: num_input_features,
-          num_layers: ff_linear_layers,
-          activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + [ff_activation]),
-          hidden_dims: ff_hidden,
-          dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
-        },
-        label_embeddings: {
-          embedding_dim: ff_hidden,
-          vocab_namespace: 'labels',
-        },
+      type: 'multi-label-classification',
+      feature_network: {
+        input_dim: num_input_features,
+        num_layers: ff_linear_layers,
+        activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + [ff_activation]),
+        hidden_dims: ff_hidden,
+        dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
       },
+      label_embeddings: {
+        embedding_dim: ff_hidden,
+        vocab_namespace: 'labels',
+      },
+    },
     oracle_value_function: { type: 'per-instance-f1', differentiable: false },
     score_nn: {
       type: 'multi-label-classification',
@@ -141,22 +136,34 @@ local stopping_criteria = (if sc_temp == 0 then 1 else sc_temp);
     batch_size: 32,
   },
   trainer: {
+    type: 'gradient_descent_minimax',
     num_epochs: if test == '1' then 150 else 300,
     //grad_norm: 10.0,
     patience: 20,
     validation_metric: '+fixed_f1',
     cuda_device: std.parseInt(cuda_device),
     learning_rate_scheduler: {
-      type: 'reduce_on_plateau',
-      factor: 0.5,
-      mode: 'max',
-      patience: 5,
-      verbose: true,
+      task_nn: {
+        type: 'reduce_on_plateau',
+        factor: 0.5,
+        mode: 'max',
+        patience: 5,
+        verbose: true,
+      },
     },
-    optimizer: {
-      lr: 0.0, #0.0036,
-      weight_decay: 0.0, #7.0563993657317645e-06,
-      type: 'adam',
+    optimizer:{
+      optimizers:{
+        task_nn:{
+          lr: 0.0002,
+          weight_decay: ff_weight_decay,
+          type: 'adamw',
+        },
+        score_nn: {
+          lr: 0.0, #0.0036,
+          weight_decay: 0.0, #7.0563993657317645e-06,
+          type: 'adamw',
+        },
+      },
     },
     checkpointer: {
       keep_most_recent_by_count: 1,
@@ -164,6 +171,16 @@ local stopping_criteria = (if sc_temp == 0 then 1 else sc_temp);
     callbacks: [
       'track_epoch_callback',
       'decrease-xtropy-callback',
-    ] + (if use_wandb then ['wandb_allennlp'] else []),
+    ] + (
+      if use_wandb then [
+        {
+          type: 'wandb_allennlp',
+          sub_callbacks: [{ type: 'log_best_validation_metrics', priority: 100 }],
+        },
+      ]
+      else []
+    ),
+    inner_mode: 'task_nn',
+    num_steps: { task_nn: stopping_criteria, score_nn: 1 },
   },
 }

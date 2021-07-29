@@ -37,7 +37,7 @@ parameters:
   env.stopping_criteria:
     distribution: q_uniform
     q: 5 # 1, 5, 10, 15 --> manual handling in the jsonnet.
-    min: 5
+    min: 0
     max: 15
   model.inference_module.optimizer.lr:
     distribution: log_uniform

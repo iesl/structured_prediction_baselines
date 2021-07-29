@@ -19,6 +19,11 @@ class MultiLabelDVNScoreLoss(DVNScoreLoss):
       
 @Loss.register("multi-label-score-loss")
 class MultiLabelScoreLoss(DVNScoreLoss):
+    """
+    Non-DVN setup where score is not bounded in [0,1], 
+    however the only thing we need is score from scoreNN, 
+    so it's better to share with DVNScoreLoss.
+    """
     def normalize(self, y: torch.Tensor) -> torch.Tensor:
         return _normalize(y)
         
