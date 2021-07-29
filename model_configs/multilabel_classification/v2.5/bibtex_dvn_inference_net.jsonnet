@@ -20,6 +20,7 @@ local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
 local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
 local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
 local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
+local dvn_score_weight = std.parseJson(std.extVar('dvn_score_weight'));
 local oracle_cost_weight = std.parseJson(std.extVar('oracle_cost_weight'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 
@@ -69,7 +70,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
             reduction: 'none',
           },
         ],
-        loss_weights: [1.0, cross_entropy_loss_weight],
+        loss_weights: [dvn_score_weight, cross_entropy_loss_weight],
         reduction: 'mean',
       },
     },
