@@ -9,6 +9,7 @@ class OutputSpace(Registrable):
         num_samples: Union[Tuple[int, ...], int],  #: includes the batch dim
         dtype: torch.dtype,
         device: torch.device,
+        probabilities: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         raise NotImplementedError
 
@@ -19,6 +20,7 @@ class OutputSpace(Registrable):
         reference: torch.Tensor,
         proportion_of_random_entries: float = 0.5,
         device: Optional[torch.device] = None,
+        probabilities: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         raise NotImplementedError
 

@@ -1,15 +1,36 @@
-from typing import List, Tuple, Union, Dict, Any, Optional
+from typing import (
+    List,
+    Tuple,
+    Union,
+    Dict,
+    Any,
+    Optional,
+    overload,
+    Iterator,
+    Literal,
+    Generator,
+)
 from allennlp.common.registrable import Registrable
+from allennlp.common.params import ConfigurationError
 import torch
+import contextlib
 from allennlp.common.lazy import Lazy
+from structured_prediction_baselines.common import ModelMode
 from structured_prediction_baselines.modules.score_nn import ScoreNN
 from structured_prediction_baselines.modules.oracle_value_function import (
     OracleValueFunction,
 )
+from structured_prediction_baselines.modules.logging import (
+    LoggingMixin,
+    LoggedValue,
+    LoggedScalarScalar,
+    LoggedScalarScalarSample,
+    LoggedNPArrayNPArraySample,
+)
 import numpy as np
 
 
-class Sampler(torch.nn.Module, Registrable):
+class Sampler(LoggingMixin, torch.nn.Module, Registrable):
     """
     Given input x, returns samples of shape `(batch, num_samples or 1,...)`
     and optionally their corresponding probabilities of shape `(batch, num_samples)`.
@@ -29,25 +50,60 @@ class Sampler(torch.nn.Module, Registrable):
         6. In the case of vanilla feedforward model, one can just return the logits with shape `(batch, 1, ... )`
     """
 
+    def mark_parameters_with_model_mode(self) -> None:
+        """
+        Use this to mark parameters that need to get gradients in a particular mode.
+        If a parameter is not marked, then it will not get gradient in any mode.
+
+        A parameter can be marked by adding and attribute "model_mode=MODEL_MODE" on the Parameter.
+        Call this method after creating all the parameters of the class.
+        """
+
+        return None
+
+    def parameters_with_model_mode(
+        self, mode: ModelMode
+    ) -> Iterator[torch.nn.Parameter]:
+        yield from []
+
     def __init__(
         self,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
-        name: str = 'sampler',
+        mode: Literal["sample", "inference"] = "inference",
         **kwargs: Any,
     ):
-        super().__init__()  # type: ignore
+        super().__init__(**kwargs)  # type: ignore
         self.score_nn = score_nn
         self.oracle_value_function = oracle_value_function
         self._different_training_and_eval = False
-        self._metrics = {}
-        self._total_loss = 0.0
-        self._num_batches = 0
-        self.name = name
+        self._mode: Literal["sample", "inference"] = mode
+
+    @contextlib.contextmanager
+    def mode(
+        self, mode: Literal["sample", "inference"]
+    ) -> Generator[None, None, None]:
+        current_mode = self._mode
+        try:
+            self._mode = mode
+            yield
+        finally:
+            self._mode = current_mode
 
     @property
     def is_normalized(self) -> bool:
         """Whether the sampler produces normalized or unnormalized samples"""
+        raise NotImplementedError
+
+    @overload
+    def normalize(self, y: None) -> None:
+        ...
+
+    @overload
+    def normalize(self, y: torch.Tensor) -> torch.Tensor:
+        ...
+
+    def normalize(self, y: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
         raise NotImplementedError
 
     def forward(
@@ -56,11 +112,12 @@ class Sampler(torch.nn.Module, Registrable):
         labels: Optional[torch.Tensor],
         buffer: Dict,
         **kwargs: Any,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
         """
         Returns:
             samples: Tensor of shape (batch, num_samples, ...)
             probabilities: None or tensor of shape (batch, num_samples)
+            loss: None or tensor (scalar) loss.
         """
         raise NotImplementedError
 
@@ -68,14 +125,110 @@ class Sampler(torch.nn.Module, Registrable):
     def different_training_and_eval(self) -> bool:
         return self._different_training_and_eval
 
-    def get_metrics(self, reset: bool = False) -> dict:
+
+class SamplerModifier(torch.nn.Module, Registrable):
+    """Takes in samples and modifies them to produce
+    samples again. Example use cases include:
+
+        1. Sampling from a distribution.
+        2. Normalizing unnormalized samples.
+    """
+
+    def forward(
+        self, samples: torch.Tensor, samples_extra: torch.Tensor
+    ) -> torch.Tensor:
+        raise NotImplementedError
+
+    @property
+    def is_normalized(self) -> bool:
+        raise NotImplementedError
+
+    @property
+    def different_training_and_eval(self) -> bool:
         raise NotImplementedError
 
 
+class SamplerContainer(Sampler):
+    """
+    Abstract base class for sampler that uses constituent samplers.
+    """
+
+    def __init__(
+        self,
+        constituent_samplers: List[Sampler],
+        score_nn: Optional[ScoreNN] = None,
+        oracle_value_function: Optional[OracleValueFunction] = None,
+        **kwargs: Any,
+    ):
+        super().__init__(
+            score_nn=score_nn,
+            oracle_value_function=oracle_value_function,
+            **kwargs,
+        )
+        self.constituent_samplers = torch.nn.ModuleList(constituent_samplers)
+
+        if len(self.constituent_samplers) > 0:
+            is_normalized = self.constituent_samplers[0].is_normalized
+        else:
+            is_normalized = None
+
+        for s in self.constituent_samplers:
+            self.logging_children.append(s)
+
+        for s in self.constituent_samplers[1:]:
+            assert (
+                s.is_normalized == is_normalized
+            ), f"is_normalized for {s} does not match {self.constituent_samplers[0]}"
+        self._is_normalized = is_normalized
+
+    @contextlib.contextmanager
+    def mode(
+        self, mode: Literal["sample", "inference"]
+    ) -> Generator[None, None, None]:
+        current_mode = self._mode
+        constituent_samplers_current_modes = [
+            s._mode for s in self.constituent_samplers
+        ]
+        try:
+            self._mode = mode
+
+            for s in self.constituent_samplers:
+                s._mode = mode
+            yield
+        finally:
+            self._mode = current_mode
+
+            for s, m in zip(
+                self.constituent_samplers, constituent_samplers_current_modes
+            ):
+                s._mode = m
+
+    def append_sampler(self, sampler: Sampler) -> None:
+        self.constituent_samplers.append(sampler)
+        self.logging_children.append(sampler)
+
+        if self._is_normalized is not None:
+            assert (
+                self._is_normalized == sampler.is_normalized
+            ), f"is_normalized for the sampler being appended ({sampler}) is not same as that of other constituent samplers"
+        else:
+            self._is_normalized = sampler.is_normalized
+
+    @property
+    def is_normalized(self) -> bool:
+        if self._is_normalized is not None:
+            return self._is_normalized
+        else:
+            raise RuntimeError("Cannot determine the value.")
+
+
+@SamplerContainer.register(
+    "appending-container", constructor="from_partial_constituent_samplers"
+)
 @Sampler.register(
     "appending-container", constructor="from_partial_constituent_samplers"
 )
-class AppendingSamplerContainer(Sampler):
+class AppendingSamplerContainer(SamplerContainer):
     """
     Appends the samples generated by different samplers into one single set of samples.
 
@@ -88,9 +241,14 @@ class AppendingSamplerContainer(Sampler):
         constituent_samplers: List[Sampler],
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
+        **kwargs: Any,
     ):
-        super().__init__(score_nn, oracle_value_function)
-        self.constituent_samplers = torch.nn.ModuleList(constituent_samplers)
+        super().__init__(
+            constituent_samplers=constituent_samplers,
+            score_nn=score_nn,
+            oracle_value_function=oracle_value_function,
+            **kwargs,
+        )
 
     @classmethod
     def from_partial_constituent_samplers(
@@ -98,6 +256,7 @@ class AppendingSamplerContainer(Sampler):
         constituent_samplers: List[Lazy[Sampler]],
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
+        **kwargs: Any,
     ) -> Sampler:
         constructed_samplers = [
             sampler.construct(
@@ -110,6 +269,7 @@ class AppendingSamplerContainer(Sampler):
             constructed_samplers,
             score_nn=score_nn,
             oracle_value_function=oracle_value_function,
+            **kwargs,
         )
 
     def forward(
@@ -118,8 +278,8 @@ class AppendingSamplerContainer(Sampler):
         labels: Optional[torch.Tensor],
         buffer: Dict,
         **kwargs: Any,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
-        samples, probs = list(
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
+        samples, probs, loss = list(
             zip(
                 *[
                     sampler(x, labels, buffer, **kwargs)
@@ -132,21 +292,18 @@ class AppendingSamplerContainer(Sampler):
         # DP: Currently we will not support combining probs
         # We can do it later if we need.
         all_samples = torch.cat(samples, dim=1)
+        loss_ = torch.zeros_like(loss[0])
 
-        return all_samples, None
+        for l_ in loss:
+            loss_ = loss_ + l_
 
-    def get_metrics(self, reset: bool = False):
-        metrics = {}
-        for sampler in self.constituent_samplers:
-            metrics.update(sampler.get_metrics(reset))
-
-        return metrics
+        return (all_samples, None, loss_)
 
 
 @Sampler.register(
     "random-picking-container", constructor="from_partial_constituent_samplers"
 )
-class RandomPickingSamplerContainer(Sampler):
+class RandomPickingSamplerContainer(SamplerContainer):
     """
     On each call, picks one sampler randomly and returns samples from that sampler.
 
@@ -160,9 +317,14 @@ class RandomPickingSamplerContainer(Sampler):
         probabilities: Optional[List[float]] = None,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
+        **kwargs: Any,
     ):
-        super().__init__(score_nn, oracle_value_function)
-        self.constituent_samplers = torch.nn.ModuleList(constituent_samplers)
+        super().__init__(
+            constituent_samplers=constituent_samplers,
+            score_nn=score_nn,
+            oracle_value_function=oracle_value_function,
+            **kwargs,
+        )
 
         if probabilities is not None:
             assert len(probabilities) == len(self.constituent_samplers)
@@ -180,6 +342,7 @@ class RandomPickingSamplerContainer(Sampler):
         probabilities: Optional[List[float]] = None,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
+        **kwargs: Any,
     ) -> Sampler:
         constructed_samplers = [
             sampler.construct(
@@ -193,6 +356,7 @@ class RandomPickingSamplerContainer(Sampler):
             probabilities=probabilities,
             score_nn=score_nn,
             oracle_value_function=oracle_value_function,
+            **kwargs,
         )
 
     def forward(
@@ -209,9 +373,116 @@ class RandomPickingSamplerContainer(Sampler):
 
         return sampler(x, labels, buffer, **kwargs)
 
-    def get_metrics(self, reset: bool = False):
-        metrics = {}
-        for sampler in self.constituent_samplers:
-            metrics.update(sampler.get_metrics(reset))
 
-        return metrics
+class SamplerWrapper(Sampler):
+    """
+    Just a wrapper that holds and calls a sampler.
+    """
+
+    def __init__(
+        self,
+        constituent_sampler: Sampler,
+        score_nn: Optional[ScoreNN] = None,
+        oracle_value_function: Optional[OracleValueFunction] = None,
+        **kwargs: Any,
+    ):
+        super().__init__(score_nn, oracle_value_function, **kwargs)
+        self.constituent_sampler = constituent_sampler
+
+
+@Sampler.register("with-modifier")
+class SamplerWithModifier(Sampler):
+    """
+    Use this sampler to modify samples produced by another sampler.
+    """
+
+    def __init__(
+        self,
+        main_sampler: Sampler,
+        sampler_modifier: SamplerModifier,
+        score_nn: Optional[ScoreNN] = None,
+        oracle_value_function: Optional[OracleValueFunction] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            score_nn=score_nn,
+            oracle_value_function=oracle_value_function,
+            **kwargs,
+        )
+
+        self.constituent_sampler = main_sampler
+        self.sampler_modifier = sampler_modifier
+
+    @property
+    def different_training_and_eval(self) -> bool:
+        return (
+            self.constituent_sampler.different_training_and_eval
+            or self.sampler_modifier.different_training_and_eval
+        )
+
+    @property
+    def is_normalized(self) -> bool:
+        if self.sampler_modifier:
+            return self.sampler_modifier.is_normalized
+        else:
+            return self.constituent_sampler.is_normalized
+
+    def forward(
+        self,
+        x: Any,
+        labels: Optional[torch.Tensor],
+        buffer: Dict,
+        **kwargs: Any,
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+        y, y_extra = self.constituent_sampler(x, labels, buffer, **kwargs)
+
+        if self.sampler_modifier:
+            return self.sampler_modifier(y, y_extra), y_extra
+
+        return y, y_extra
+
+
+@Sampler.register("from-container")
+class SamplerFromContainer(Sampler):
+    """
+    This class is designed to be used as an `inference_module`.
+    It will pick one of the constituent samplers in the main `sampler`.
+    """
+
+    def __init__(
+        self,
+        main_sampler: SamplerContainer,
+        index: int = -1,
+        score_nn: Optional[ScoreNN] = None,
+        oracle_value_function: Optional[OracleValueFunction] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            score_nn=score_nn,
+            oracle_value_function=oracle_value_function,
+            **kwargs,
+        )
+
+        assert isinstance(
+            main_sampler, SamplerContainer
+        ), "main_sampler has to be of type SamplerContainer"
+        try:
+            constituent_sampler = main_sampler.constituent_samplers[index]
+        except IndexError as e:
+            raise ConfigurationError(
+                f"There is not constituent_sampler with index {index}"
+            )
+        self.constituent_sampler = constituent_sampler
+
+    def forward(
+        self,
+        x: Any,
+        labels: Optional[torch.Tensor],
+        buffer: Dict,
+        **kwargs: Any,
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+        return self.constituent_sampler(x, labels, buffer, **kwargs)
+
+    @property
+    def is_normalized(self) -> bool:
+        return self.constituent_sampler.is_normalized

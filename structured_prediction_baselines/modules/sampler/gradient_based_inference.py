@@ -249,13 +249,12 @@ class GradientBasedInferenceSampler(Sampler):
         sample_picker: SamplePicker = None,
         number_init_samples: int = 1,
         random_mixing_in_init: float = 0.5,
-        name: str = 'gbi',
         **kwargs: Any,
     ):
         super().__init__(
-            score_nn,
-            oracle_value_function,
-            name
+            score_nn=score_nn,
+            oracle_value_function=oracle_value_function,
+            **kwargs,
         )
         self.loss_fn = loss_fn
         assert self.loss_fn.reduction == "none", "We do reduction or our own"
@@ -266,6 +265,7 @@ class GradientBasedInferenceSampler(Sampler):
         self.number_init_samples = number_init_samples
         self.random_mixing_in_init = random_mixing_in_init
         self._different_training_and_eval = True
+        self.logging_children.append(self.loss_fn)
 
     @classmethod
     def from_partial_objects(
@@ -279,7 +279,7 @@ class GradientBasedInferenceSampler(Sampler):
         sample_picker: SamplePicker = None,
         number_init_samples: int = 1,
         random_mixing_in_init: float = 0.5,
-        name: str = 'gbi',
+        **kwargs: Any,
     ) -> "GradientBasedInferenceSampler":
         loss_fn_ = loss_fn.construct(
             score_nn=score_nn, oracle_value_function=oracle_value_function
@@ -295,7 +295,7 @@ class GradientBasedInferenceSampler(Sampler):
             sample_picker=sample_picker,
             number_init_samples=number_init_samples,
             random_mixing_in_init=random_mixing_in_init,
-            name=name
+            **kwargs,
         )
 
     def get_loss_fn(
@@ -351,6 +351,7 @@ class GradientBasedInferenceSampler(Sampler):
         else:
             samples = self.output_space.get_mixed_samples(
                 self.number_init_samples,
+                proportion_of_random_entries=self.random_mixing_in_init,
                 dtype=dtype,
                 reference=labels,
                 device=device,
@@ -460,11 +461,6 @@ class GradientBasedInferenceSampler(Sampler):
                 self.output_space.projection_function_,
             )
 
-        # print(f"\nloss_values:\n{loss_values}")
-        self._metrics[self.name + '_loss'] = np.mean(loss_values)
-        self._total_loss += np.mean(loss_values)
-        self._num_batches += 1
-
         return (
             self.get_samples_from_trajectory(
                 trajectory, loss_values_tensors, loss_values
@@ -472,13 +468,27 @@ class GradientBasedInferenceSampler(Sampler):
             torch.tensor(loss_values),
         )
 
-    def get_metrics(self, reset: bool = False) -> dict:
-        metrics = self._metrics
-        metrics['total_' + self.name + '_loss'] = float(
-            self._total_loss / self._num_batches) if self._num_batches > 0 else 0.0
-        if reset:
-            self._metrics = {}
-            self._total_loss = 0.0
-            self._num_batches = 0
-            metrics.pop(self.name + '_loss', None)
-        return metrics
+
+@Sampler.register(
+    "gradient-based-inference-dynamic-init", constructor="from_partial_objects"
+)
+class GradientBasedInferenceSamplerWithDynamicInit(
+    GradientBasedInferenceSampler
+):
+    def forward(
+        self,
+        x: Any,
+        labels: Optional[
+            torch.Tensor
+        ],  #: If given will have shape (batch, ...)
+        buffer: Dict,
+        **kwargs: Any,
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+        if "init" not in kwargs:
+            raise ValueError(
+                "Expect 'init: torch.Tensor' to be passed for this sampler."
+            )
+        init_ = kwargs.pop("init")
+        init = self.get_initial_output(x, labels)
+
+        pass

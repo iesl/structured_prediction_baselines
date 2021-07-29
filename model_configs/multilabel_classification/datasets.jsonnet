@@ -1,6 +1,6 @@
 {
   // Bibtex data set in 10 stratified folds
-  bibtex: {
+  bibtex_strat: {
     num_labels: 159,
     input_features: 1836,
     dir_name: 'bibtex_stratified10folds_meka',

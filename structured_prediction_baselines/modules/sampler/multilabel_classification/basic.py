@@ -1,5 +1,9 @@
-from typing import List, Tuple, Union, Dict, Any, Optional
-from structured_prediction_baselines.modules.sampler import Sampler
+from typing import List, Tuple, Union, Dict, Any, Optional, overload
+from structured_prediction_baselines.modules.sampler import (
+    Sampler,
+    SamplerModifier,
+    InferenceNetSampler,
+)
 import torch
 from structured_prediction_baselines.modules.score_nn import ScoreNN
 from structured_prediction_baselines.modules.oracle_value_function import (
@@ -35,11 +39,9 @@ class MultilabelClassificationSampler(Sampler):
         labels: Optional[torch.Tensor],
         buffer: Dict,
         **kwargs: Any,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
         return (
             self.inference_nn(x, buffer=buffer).unsqueeze(1),
             None,
+            None,
         )  # unormalized logits (batch, 1, ...)
-
-    def get_metrics(self, reset: bool = False) -> dict:
-        pass
