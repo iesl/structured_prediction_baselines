@@ -35,7 +35,7 @@ from allennlp.data.instance import Instance
 from allennlp.data.token_indexers import TokenIndexer
 from allennlp.data.tokenizers import Tokenizer
 from allennlp.data.tokenizers import Token
-from .common import JSONTransform
+
 import glob
 
 logger = logging.getLogger(__name__)
