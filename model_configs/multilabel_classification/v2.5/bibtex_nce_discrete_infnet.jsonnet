@@ -19,6 +19,7 @@ local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_di
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
 local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
+local oracle_cost_weight = std.parseJson(std.extVar('oracle_cost_weight'));
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
   evaluate_on_test: true,
