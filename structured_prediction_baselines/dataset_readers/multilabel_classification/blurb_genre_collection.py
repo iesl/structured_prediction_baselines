@@ -36,7 +36,7 @@ from allennlp.data.instance import Instance
 from allennlp.data.token_indexers import TokenIndexer
 from allennlp.data.tokenizers import Tokenizer
 from allennlp.data.tokenizers import Token
-from .common import JSONTransform
+
 import allennlp
 
 allennlp_major_version = int(allennlp.__version__.split(".")[0])
@@ -51,371 +51,168 @@ class InstanceFields(TypedDict):
     labels: MultiLabelField  #: types
 
 
-if allennlp_major_version < 2:
 
-    @DatasetReader.register("blurb-genre-classification")
-    class BlurbGenreReader(DatasetReader):
+
+
+@DatasetReader.register("blurb-genre-classification")
+class BlurbGenreReader(DatasetReader):
+    """
+    Multi-label classification `dataset <https://www.inf.uni-hamburg.de/en/inst/ab/lt/resources/data/blurb-genre-collection.html>`_.
+
+    The output of this DatasetReader follows :class:`MultiInstanceEntityTyping`.
+    """
+
+    def __init__(
+        self,
+        tokenizer: Tokenizer,
+        token_indexers: Dict[str, TokenIndexer],
+        use_transitive_closure: bool = False,
+        **kwargs: Any,
+    ) -> None:
         """
-        Multi-label classification `dataset <https://www.inf.uni-hamburg.de/en/inst/ab/lt/resources/data/blurb-genre-collection.html>`_.
+        Arguments:
+            tokenizer: The tokenizer to be used.
+            token_indexers: The token_indexers to be used--one per embedder. Will usually be only one.
+            use_transitive_closure: use types_extra
+            **kwargs: Parent class args.
+                `Reference <https://github.com/allenai/allennlp/blob/master/allennlp/data/dataset_readers/dataset_reader.py>`_
 
-        The output of this DatasetReader follows :class:`MultiInstanceEntityTyping`.
+        """
+        super().__init__(
+            manual_distributed_sharding=True,
+            manual_multiprocess_sharding=True,
+            **kwargs,
+        )
+        self._tokenizer = tokenizer
+        self._token_indexers = token_indexers
+        self._use_transitive_closure = use_transitive_closure
+
+    def example_to_fields(
+        self,
+        title: str,
+        body: str,
+        topics: Dict[str, List[str]],
+        idx: str,
+        meta: Dict = None,
+        **kwargs: Any,
+    ) -> InstanceFields:
+        """Converts a dictionary containing an example datapoint to fields that can be used
+        to create an :class:`Instance`. If a meta dictionary is passed, then it also adds raw data in
+        the meta dict.
+
+        Args:
+            title: Title of the book
+            body: Blurb
+            topics: Labels/Genres
+            idx: unique id
+            meta: None
+            **kwargs: TODO
+
+        Returns:
+            Dictionary of fields with the following entries:
+                sentence: contains the body.
+                mention: contains the title.
+
         """
 
-        def __init__(
-            self,
-            tokenizer: Tokenizer,
-            token_indexers: Dict[str, TokenIndexer],
-            use_transitive_closure: bool = False,
-            **kwargs: Any,
-        ) -> None:
-            """
-            Arguments:
-                tokenizer: The tokenizer to be used.
-                token_indexers: The token_indexers to be used--one per embedder. Will usually be only one.
-                use_transitive_closure: use types_extra
-                **kwargs: Parent class args.
-                    `Reference <https://github.com/allenai/allennlp/blob/master/allennlp/data/dataset_readers/dataset_reader.py>`_
+        if meta is None:
+            meta = {}
 
-            """
-            super().__init__(**kwargs)
-            self._tokenizer = tokenizer
-            self._token_indexers = token_indexers
-            self._use_transitive_closure = use_transitive_closure
+        meta["title"] = title
+        meta["body"] = body
+        meta["topics"] = topics
+        meta["idx"] = idx
+        meta["using_tc"] = False
 
-        def example_to_fields(
-            self,
-            title: str,
-            body: str,
-            topics: Dict[str, List[str]],
-            idx: str,
-            meta: Dict = None,
-            **kwargs: Any,
-        ) -> InstanceFields:
-            """Converts a dictionary containing an example datapoint to fields that can be used
-            to create an :class:`Instance`. If a meta dictionary is passed, then it also adds raw data in
-            the meta dict.
-
-            Args:
-                title: Title of the book
-                body: Blurb
-                topics: Labels/Genres
-                idx: unique id
-                meta: None
-                **kwargs: TODO
-
-            Returns:
-                Dictionary of fields with the following entries:
-                    sentence: contains the body.
-                    mention: contains the title.
-
-            """
-
-            if meta is None:
-                meta = {}
-
-            meta["title"] = title
-            meta["body"] = body
-            meta["topics"] = topics
-            meta["idx"] = idx
-            meta["using_tc"] = False
-
-            sentence_fields = ListField(
-                [
-                    TextField(
-                        self._tokenizer.tokenize(body),
-                        token_indexers=self._token_indexers,
-                    )
-                ]
-            )
-            mention_fields = ListField(
-                [
-                    TextField(
-                        self._tokenizer.tokenize(title),
-                        token_indexers=self._token_indexers,
-                    )
-                ]
-            )
-
-            # if self._use_transitive_closure:
-            #   types += types_extra
-            #    meta["using_tc"] = True
-
-            labels_: List[str] = []
-
-            for value in topics.values():
-                labels_ += (
-                    [value]  # type:ignore
-                    if not isinstance(value, list)
-                    else value
+        sentence_fields = ListField(
+            [
+                TextField(
+                    self._tokenizer.tokenize(body),
                 )
-            labels = MultiLabelField(labels_)
+            ]
+        )
+        mention_fields = ListField(
+            [
+                TextField(
+                    self._tokenizer.tokenize(title),
+                )
+            ]
+        )
 
-            return {
-                "sentences": sentence_fields,
-                "mentions": mention_fields,
-                "labels": labels,
-            }
+        # if self._use_transitive_closure:
+        #   types += types_extra
+        #    meta["using_tc"] = True
 
-        def text_to_instance(  # type:ignore
-            self,
-            title: str,
-            body: str,
-            topics: Dict[str, List[str]],
-            idx: str,
-            **kwargs: Any,
-        ) -> Instance:
-            """Converts contents of a single raw example to :class:`Instance`.
+        labels_: List[str] = []
 
-            Args:
-                title: Title of the book
-                body: Blurb Text
-                topics: Labels/Genres of the book
-                idx: Identification number
-                **kwargs: unused
-
-            Returns:
-                 :class:`Instance` of data
-
-            """
-            meta_dict: Dict = {}
-            main_fields = self.example_to_fields(
-                title, body, topics, idx, meta=meta_dict
+        for value in topics.values():
+            labels_ += (
+                [value]  # type:ignore
+                if not isinstance(value, list)
+                else value
             )
+        labels = MultiLabelField(labels_)
 
-            return Instance(
-                {**cast(dict, main_fields), "meta": MetadataField(meta_dict)}
-            )
+        return {
+            "sentences": sentence_fields,
+            "mentions": mention_fields,
+            "labels": labels,
+        }
 
-        def _read(self, file_path: str) -> Iterator[Instance]:
-            """Reads a datafile to produce instances
+    def text_to_instance(  # type:ignore
+        self,
+        title: str,
+        body: str,
+        topics: Dict[str, List[str]],
+        idx: str,
+        **kwargs: Any,
+    ) -> Instance:
+        """Converts contents of a single raw example to :class:`Instance`.
 
-            Args:
-                file_path: TODO
+        Args:
+            title: Title of the book
+            body: Blurb Text
+            topics: Labels/Genres of the book
+            idx: Identification number
+            **kwargs: unused
 
-            Yields:
-                data instances
+        Returns:
+             :class:`Instance` of data
 
-            """
-            with open(file_path) as f:
-                data = json.load(f)
+        """
+        meta_dict: Dict = {}
+        main_fields = self.example_to_fields(
+            title, body, topics, idx, meta=meta_dict
+        )
 
-            for example in data:
-                instance = self.text_to_instance(**example)
+        return Instance(
+            {**cast(dict, main_fields), "meta": MetadataField(meta_dict)}
+        )
 
-                yield instance
+    def _read(self, file_path: str) -> Iterator[Instance]:
+        """Reads a datafile to produce instances
 
-        def _instances_from_cache_file(
-            self, cache_filename: str
-        ) -> Iterable[Instance]:
-            logger.info(f"Reading instances from cache at {cache_filename}")
-            with open(cache_filename, "rb") as cache_file:
-                instances = dill.load(cache_file)
+        Args:
+            file_path: TODO
 
-                for instance in instances:
+        Yields:
+            data instances
+
+        """
+
+        for file_ in glob.glob(file_path, flags=glob.EXTGLOB):
+            # logger.info(f"Reading {file_}")
+            with open(file_) as f:
+                for line in self.shard_iterable(f):
+                    example = json.loads(line)
+                    instance = self.text_to_instance(**example)
                     yield instance
 
-        def _instances_to_cache_file(
-            self, cache_filename: str, instances: Iterable[Instance]
-        ) -> None:
-            logger.info(f"Writing instances to cache at {cache_filename}")
-            with open(cache_filename, "wb") as cache_file:
-                dill.dump(instances, cache_file)
+    def apply_token_indexers(self, instance: Instance) -> None:
+        for sentence, mention in zip(
+            instance["sentences"].field_list,
+            instance["mentions"].field_list,
+        ):
+            sentence.token_indexers = self._token_indexers
+            mention.token_indexers = self._token_indexers
 
-    @JSONTransform.register("from-blurb-genre")
-    class FromBlurbGenre(JSONTransform):
-        def __call__(self, inp: Dict) -> Dict:
-            labels_: List[str] = []
-
-            for value in inp["topics"].values():
-                labels_ += (
-                    [value]  # type:ignore
-                    if not isinstance(value, list)
-                    else value
-                )
-            inp["labels"] = labels_
-
-            return inp
-
-
-elif allennlp_major_version >= 2:
-
-    @DatasetReader.register("blurb-genre-classification")
-    class BlurbGenreReader(DatasetReader):
-        """
-        Multi-label classification `dataset <https://www.inf.uni-hamburg.de/en/inst/ab/lt/resources/data/blurb-genre-collection.html>`_.
-
-        The output of this DatasetReader follows :class:`MultiInstanceEntityTyping`.
-        """
-
-        def __init__(
-            self,
-            tokenizer: Tokenizer,
-            token_indexers: Dict[str, TokenIndexer],
-            use_transitive_closure: bool = False,
-            **kwargs: Any,
-        ) -> None:
-            """
-            Arguments:
-                tokenizer: The tokenizer to be used.
-                token_indexers: The token_indexers to be used--one per embedder. Will usually be only one.
-                use_transitive_closure: use types_extra
-                **kwargs: Parent class args.
-                    `Reference <https://github.com/allenai/allennlp/blob/master/allennlp/data/dataset_readers/dataset_reader.py>`_
-
-            """
-            super().__init__(
-                manual_distributed_sharding=True,
-                manual_multiprocess_sharding=True,
-                **kwargs,
-            )
-            self._tokenizer = tokenizer
-            self._token_indexers = token_indexers
-            self._use_transitive_closure = use_transitive_closure
-
-        def example_to_fields(
-            self,
-            title: str,
-            body: str,
-            topics: Dict[str, List[str]],
-            idx: str,
-            meta: Dict = None,
-            **kwargs: Any,
-        ) -> InstanceFields:
-            """Converts a dictionary containing an example datapoint to fields that can be used
-            to create an :class:`Instance`. If a meta dictionary is passed, then it also adds raw data in
-            the meta dict.
-
-            Args:
-                title: Title of the book
-                body: Blurb
-                topics: Labels/Genres
-                idx: unique id
-                meta: None
-                **kwargs: TODO
-
-            Returns:
-                Dictionary of fields with the following entries:
-                    sentence: contains the body.
-                    mention: contains the title.
-
-            """
-
-            if meta is None:
-                meta = {}
-
-            meta["title"] = title
-            meta["body"] = body
-            meta["topics"] = topics
-            meta["idx"] = idx
-            meta["using_tc"] = False
-
-            sentence_fields = ListField(
-                [
-                    TextField(
-                        self._tokenizer.tokenize(body),
-                    )
-                ]
-            )
-            mention_fields = ListField(
-                [
-                    TextField(
-                        self._tokenizer.tokenize(title),
-                    )
-                ]
-            )
-
-            # if self._use_transitive_closure:
-            #   types += types_extra
-            #    meta["using_tc"] = True
-
-            labels_: List[str] = []
-
-            for value in topics.values():
-                labels_ += (
-                    [value]  # type:ignore
-                    if not isinstance(value, list)
-                    else value
-                )
-            labels = MultiLabelField(labels_)
-
-            return {
-                "sentences": sentence_fields,
-                "mentions": mention_fields,
-                "labels": labels,
-            }
-
-        def text_to_instance(  # type:ignore
-            self,
-            title: str,
-            body: str,
-            topics: Dict[str, List[str]],
-            idx: str,
-            **kwargs: Any,
-        ) -> Instance:
-            """Converts contents of a single raw example to :class:`Instance`.
-
-            Args:
-                title: Title of the book
-                body: Blurb Text
-                topics: Labels/Genres of the book
-                idx: Identification number
-                **kwargs: unused
-
-            Returns:
-                 :class:`Instance` of data
-
-            """
-            meta_dict: Dict = {}
-            main_fields = self.example_to_fields(
-                title, body, topics, idx, meta=meta_dict
-            )
-
-            return Instance(
-                {**cast(dict, main_fields), "meta": MetadataField(meta_dict)}
-            )
-
-        def _read(self, file_path: str) -> Iterator[Instance]:
-            """Reads a datafile to produce instances
-
-            Args:
-                file_path: TODO
-
-            Yields:
-                data instances
-
-            """
-
-
-
-            
-
-            for file_ in glob.glob(file_path, flags=glob.EXTGLOB):
-                # logger.info(f"Reading {file_}")
-                with open(file_) as f:
-                    for line in self.shard_iterable(f):
-                        example = json.loads(line)
-                        instance = self.text_to_instance(**example)
-                        yield instance
-
-        def apply_token_indexers(self, instance: Instance) -> None:
-            for sentence, mention in zip(
-                instance["sentences"].field_list,
-                instance["mentions"].field_list,
-            ):
-                sentence.token_indexers = self._token_indexers
-                mention.token_indexers = self._token_indexers
-
-    @JSONTransform.register("from-blurb-genre")
-    class FromBlurbGenre(JSONTransform):
-        def __call__(self, inp: Dict) -> Dict:
-            labels_: List[str] = []
-
-            for value in inp["topics"].values():
-                labels_ += (
-                    [value]  # type:ignore
-                    if not isinstance(value, list)
-                    else value
-                )
-            inp["labels"] = labels_
-
-            return inp
