@@ -279,6 +279,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         mode: Optional[ModelMode] = ModelMode.UPDATE_TASK_NN,
         **kwargs: Any,
     ) -> Dict:
+
         if mode == ModelMode.UPDATE_TASK_NN:
             results = self.forward_on_tasknn(x, labels, buffer={}, **kwargs)
         elif mode == ModelMode.UPDATE_SCORE_NN:
