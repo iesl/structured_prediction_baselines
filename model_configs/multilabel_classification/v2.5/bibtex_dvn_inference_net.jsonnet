@@ -87,7 +87,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
           vocab_namespace: 'labels',
         },
       },
-    oracle_value_function: { type: 'per-instance-f1', differentiable: true },
+    oracle_value_function: { type: 'per-instance-f1', differentiable: false },
     score_nn: {
       type: 'multi-label-classification',
       task_nn: {
