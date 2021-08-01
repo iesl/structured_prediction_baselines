@@ -27,9 +27,9 @@ parameters:
     max: 2.3
   env.ff_dropout_10x:
     distribution: q_uniform
-    max: 70
+    max: 7
     min: 0
-    q: 10
+    q: 1
   env.ff_hidden:
     distribution: q_uniform
     max: 400
