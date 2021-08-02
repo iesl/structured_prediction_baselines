@@ -8,6 +8,10 @@
 
 - Reverse the order of param updates and various other breaking changes. [\#22](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/22) ([dhruvdcoder](https://github.com/dhruvdcoder))
 
+### ✨ Features and Enhancements:
+
+- sweep and model configs for dvn, nce reverse order [\#29](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/29) ([dhruvdcoder](https://github.com/dhruvdcoder))
+
 ### 👷 Build and CI
 
 - Automatic generation of changelog [\#23](https://github.com/dhruvdcoder/structured_prediction_baselines/issues/23)
