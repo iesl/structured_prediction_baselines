@@ -1,17 +1,17 @@
-name: bibtex_infnet_pretrainedDVN+jointTrain
+name: bibtex_infnet_pretrainedNCE+jointTrain
 program: allennlp
 method: bayes
 command:
   - ${program}
   - "train_with_wandb"
-  - "model_configs/multilabel_classification/v2.5/bibtex_jointTrain_pretrained_DVN_v2.jsonnet"
+  - "model_configs/multilabel_classification/v2.5/bibtex_nce_discrete_tasknn_reverse_loadNCE.jsonnet"
   - "--include-package=structured_prediction_baselines"
   - "--wandb_project=structured_prediction_baselines"
   - "--wandb_entity=score-based-learning"
-  - "--wandb_tags=task=mlc,scoreNN=DVNpretrained,taskNN=inference_net,dataset=bibtex"
+  - "--wandb_tags=task=mlc,scoreNN=NCEpretrained,taskNN=inference_net,dataset=bibtex"
   - ${args}
   - "--file-friendly-logging"  
-parameters: "Jointly train TaskNN & ScoreNN starting with pretrained ScoreNN (DVN)"
+parameters: "Jointly train TaskNN & ScoreNN starting with pretrained ScoreNN (NCE)"
 metric:
   name: best_validation_fixed_f1
   goal: maximize

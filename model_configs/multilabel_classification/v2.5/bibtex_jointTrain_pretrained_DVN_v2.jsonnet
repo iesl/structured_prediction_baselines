@@ -181,7 +181,7 @@ local stopping_criteria = (if std.toString(sc_temp) == '0' then 1 else sc_temp);
       ]
       else []
     ),
-    inner_mode: 'task_nn',
+    inner_mode: 'score_nn',
     num_steps: { task_nn: stopping_criteria, score_nn: 1 },
   },
 }

@@ -1,4 +1,4 @@
-name: bibtex_strat_nce_cont_minus_tasknn_reverse
+name: genbase_strat_nce_cont_minus_tasknn_reverse
 description: "Train tasknn using cross-entropy and  score loss (v(f(x),y)). The score-nn will be trained using NCE with a - sign (score+ln Pn). The samples are taken as continuous samples by adding gaussian noise to the tasknn output logits"
 program: allennlp
 command:
@@ -6,7 +6,7 @@ command:
 - train_with_wandb
 - model_configs/multilabel_classification/v2.5/bibtex_strat_nce_cont_tasknn_reverse.jsonnet
 - --include-package=structured_prediction_baselines
-- --wandb_tags="task=mlc,score_nn_loss=nce,sampler=inference_net_continuous_samples,dataset=bibtex_strat,inference_module=inference_net,inference_module=tasknn,inference_module_loss=bce+score,sampler=tasknn_contiuous_samples,ref=7tvr5xhg"
+- --wandb_tags="task=mlc,score_nn_loss=nce,sampler=inference_net_continuous_samples,dataset=genbase_strat,inference_module=inference_net,inference_module=tasknn,inference_module_loss=bce+score,sampler=tasknn_contiuous_samples,ref=7tvr5xhg"
 - ${args}
 - --file-friendly-logging
 method: bayes
@@ -20,7 +20,7 @@ early_terminate:
 
 parameters:
   env.dataset_name:
-    value: 'bibtex_strat'
+    value: 'genbase'
   env.cross_entropy_loss_weight:
     value: 1.0
   env.dvn_score_loss_weight:
@@ -49,6 +49,11 @@ parameters:
     distribution: q_uniform
     min: 3
     max: 11
+    q: 3
+  trainer.num_steps.task_nn:
+    distribution: q_uniform
+    min: 1
+    max: 10
     q: 3
   model.loss_fn.num_samples:
     distribution: q_uniform

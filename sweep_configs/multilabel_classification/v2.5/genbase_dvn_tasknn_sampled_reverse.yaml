@@ -6,7 +6,7 @@ command:
 - train_with_wandb
 - model_configs/multilabel_classification/v2.5/bibtex_dvn_tasknn_samples_reverse.jsonnet
 - --include-package=structured_prediction_baselines
-- --wandb_tags="task=mlc,model=dvn,sampler=inference_net_continuous_samples,dataset=bibtex,inference_module=inference_net,inference_module=tasknn,sampler=tasknn_contiuous_samples,ref=7tvr5xhg"
+- --wandb_tags="task=mlc,model=dvn,sampler=inference_net_continuous_samples,dataset=genbase,inference_module=inference_net,inference_module=tasknn,sampler=tasknn_contiuous_samples,ref=7tvr5xhg"
 - ${args}
 - --file-friendly-logging
 method: bayes
@@ -20,7 +20,7 @@ early_terminate:
 
 parameters:
   env.dataset_name:
-    value: 'bibtex_original'
+    value: 'genbase'
   env.cross_entropy_loss_weight:
     value: 1.0
   env.dvn_score_loss_weight:
@@ -46,7 +46,15 @@ parameters:
     min: -11.5
     max: -4.5
   trainer.num_steps.score_nn:
-    values: [1, 3, 9]
+    distribution: q_uniform
+    min: 3
+    max: 11
+    q: 3
+  trainer.num_steps.task_nn:
+    distribution: q_uniform
+    min: 1
+    max: 10
+    q: 3
   model.inference_module.num_samples:
     distribution: q_log_uniform
     q: 5 # 1, 5, 10, 15, ..., 50
