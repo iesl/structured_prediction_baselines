@@ -15,6 +15,7 @@
 ### 👷 Build and CI
 
 - Automatic generation of changelog [\#23](https://github.com/dhruvdcoder/structured_prediction_baselines/issues/23)
+- Add new labels and update changelog generator [\#34](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/34) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Tests workflow, end2end pytest for training. \(closes 25\) [\#26](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/26) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Labeler and automatic changelog generation. [\#24](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/24) ([dhruvdcoder](https://github.com/dhruvdcoder))
 
