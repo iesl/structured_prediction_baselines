@@ -18,7 +18,7 @@ class MultiLabelDVNScoreLoss(DVNScoreLoss):
         return -torch.sigmoid(predicted_score)
 
 @Loss.register("multi-label-score-loss")
-class MultiLabelDVNScoreLoss(DVNScoreLoss):
+class MultiLabelScoreLoss(DVNScoreLoss):
     def normalize(self, y: torch.Tensor) -> torch.Tensor:
         return _normalize(y)
         
