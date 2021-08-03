@@ -8,8 +8,14 @@
 
 - Reverse the order of param updates and various other breaking changes. [\#22](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/22) ([dhruvdcoder](https://github.com/dhruvdcoder))
 
+### ✨ Features and Enhancements:
+
+- sweep and model configs for dvn, nce reverse order [\#29](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/29) ([dhruvdcoder](https://github.com/dhruvdcoder))
+
 ### 👷 Build and CI
 
+- Automatic generation of changelog [\#23](https://github.com/dhruvdcoder/structured_prediction_baselines/issues/23)
+- Tests workflow, end2end pytest for training. \(closes 25\) [\#26](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/26) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Labeler and automatic changelog generation. [\#24](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/24) ([dhruvdcoder](https://github.com/dhruvdcoder))
 
 ## [v0.1.0](https://github.com/dhruvdcoder/structured_prediction_baselines/tree/v0.1.0) (2021-07-08)
