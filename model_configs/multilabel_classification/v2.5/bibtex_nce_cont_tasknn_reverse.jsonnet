@@ -1,4 +1,5 @@
-local test = std.extVar('TEST');  // a test run with small dataset local data_dir = std.extVar('DATA_DIR');
+local test = std.extVar('TEST');  // a test run with small dataset 
+local data_dir = std.extVar('DATA_DIR');
 local cuda_device = std.extVar('CUDA_DEVICE');
 local use_wandb = (if test == '1' then false else true);
 
