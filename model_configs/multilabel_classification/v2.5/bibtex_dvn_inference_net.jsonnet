@@ -190,13 +190,13 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       optimizers: {
         task_nn:
           {
-            lr: 0.001,
+            lr: 0.00010100283813039452,
             weight_decay: ff_weight_decay,
             type: 'adamw',
           },
         score_nn: {
-          lr: 0.005,
-          weight_decay: ff_weight_decay,
+          lr: 0.00548240430900663,
+          weight_decay: 8.351259762338245e-06,
           type: 'adamw',
         },
       },

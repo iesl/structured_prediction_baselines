@@ -43,8 +43,8 @@ parameters:
     distribution: log_uniform
     min: -11.5
     max: -4.5
-  trainer.num_steps.score_nn:
-    values: [1, 3, 9]
+  trainer.num_steps.task_nn:
+    values: [1, 3, 5, 10]
   model.inference_module.num_samples:
     distribution: q_log_uniform
     q: 5 # 1, 5, 10, 15, ..., 50

@@ -1,5 +1,5 @@
 name: bibtex_strat_dvn_tasknn_reverse
-description: "Train tasknn using cross-entropy and dvn score loss (v(f(x),y)). We will have only one sampler--tasknn continuous--to train scoreNN. The network parameters are from structure_prediction_baselines/7tvr5xhg"
+description: "Train tasknn using cross-entropy and dvn score loss (v(f(x),y)). We will have only one sampler--tasknn continuous--to train scoreNN. The network parameters are from structure_prediction_baselines/7tvr5xhg. Multiple tasn-n steps, single score-nn step."
 program: allennlp
 command:
 - ${program}
@@ -53,7 +53,7 @@ parameters:
     distribution: log_uniform
     min: -11.5
     max: -4.5
-  trainer.num_steps.score_nn:
+  trainer.num_steps.task_nn:
     distribution: int_uniform
     min: 1
     max: 10

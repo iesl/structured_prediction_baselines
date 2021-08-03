@@ -13,7 +13,7 @@ local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
 local label_space_dim = ff_hidden;
 local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
 //local ff_activation = std.parseJson(std.extVar('ff_activation'));
-local ff_activation = 'softplus';
+local ff_activation = 'tanh';
 local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
 local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
 //local global_score_hidden_dim = 150;
@@ -95,10 +95,10 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
         type: 'multi-label-classification',
         feature_network: {
           input_dim: num_input_features,
-          num_layers: ff_linear_layers,
+          num_layers: 3,
           activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + [ff_activation]),
-          hidden_dims: ff_hidden,
-          dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
+          hidden_dims: 150,
+          dropout: ([0.3 for i in std.range(0, ff_linear_layers - 2)] + [0]),
         },
         label_embeddings: {
           embedding_dim: ff_hidden,
@@ -191,13 +191,13 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       optimizers: {
         task_nn:
           {
-            lr: 0.001,
+            lr: 0.00010149764624066736,
             weight_decay: ff_weight_decay,
             type: 'adamw',
           },
         score_nn: {
-          lr: 0.005,
-          weight_decay: ff_weight_decay,
+          lr: 0.09900321012907116,
+          weight_decay: 1.1513179688573033e-05,
           type: 'adamw',
         },
       },

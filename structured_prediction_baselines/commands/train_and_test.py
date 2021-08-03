@@ -10,9 +10,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-@TrainModel.register(
-    "train_test_log_to_wandb", constructor="from_partial_objects"
-)  # same construction pipeline as parent
+# @TrainModel.register(
+  #   "train_test_log_to_wandb", constructor="from_partial_objects"
+# )  # same construction pipeline as parent
 class TrainTestAndLogToWandb(TrainModel):
     """Does the same thing as `allennlp.commands.train.TrainModel` but
     logs final metrics to `wandb` summary.

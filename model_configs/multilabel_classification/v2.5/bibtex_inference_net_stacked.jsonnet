@@ -99,7 +99,7 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
           vocab_namespace: 'labels',
         },
       },
-    oracle_value_function: { type: 'per-instance-f1', differentiable: false },
+    oracle_value_function: { type: 'per-instance-f1', differentiable: true },
     score_nn: {
       type: 'multi-label-classification',
       task_nn: {
@@ -201,13 +201,13 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       optimizers: {
         task_nn:
           {
-            lr: 0.001,
-            weight_decay: ff_weight_decay,
+            lr: 0.0002210807669659456,
+            weight_decay: 0.0001,
             type: 'adamw',
           },
         score_nn: {
-          lr: 0.005,
-          weight_decay: ff_weight_decay,
+          lr: 0.0036014477279410913,
+          weight_decay: 7.0563993657317645e-06,
           type: 'adamw',
         },
       },
@@ -228,6 +228,6 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       else []
     ),
     inner_mode: 'task_nn',
-    num_steps: { task_nn: 10, score_nn: 1 },
+    num_steps: { task_nn: 1, score_nn: 1 },
   },
 }
