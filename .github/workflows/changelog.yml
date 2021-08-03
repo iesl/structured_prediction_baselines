@@ -1,8 +1,8 @@
 name: Changelog Generator
 
 on:
-  push:
-    branches: [ main ]
+  pull_request:
+    branches: [ main, dev/main ]
 
 jobs:
   generate_changelog_file:
@@ -54,6 +54,14 @@ jobs:
                         "ci":{
                                 "prefix":"### 👷 Build and CI",
                                 "labels":["ci", "build"]
+                        },
+                        "configs":{
+                                "prefix":"### ⚙️  Model and sweep configs",
+                                "labels":["configs", "config"]
+                        },
+                        "utils":{
+                                "prefix":"### 🧪 Peripheral utilities",
+                                "labels":["utils", "utilities"]
                         }
                 }
         # See: emojipedia.org for emoji codes
