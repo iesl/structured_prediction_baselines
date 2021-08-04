@@ -10,6 +10,8 @@
 
 ### ✨ Features and Enhancements:
 
+- Add unnormalized score loss for training tasknn [\#30](https://github.com/dhruvdcoder/structured_prediction_baselines/issues/30)
+- Added 'multi-label-score-loss' and changes in relevant configs \(bibtex\_strat\_nce\) [\#31](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/31) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - sweep and model configs for dvn, nce reverse order [\#29](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/29) ([dhruvdcoder](https://github.com/dhruvdcoder))
 
 ### 👷 Build and CI
