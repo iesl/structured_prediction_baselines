@@ -10,3 +10,5 @@ jsonlines
 jupyter
 seaborn
 ipywidgets
+gdown
+
