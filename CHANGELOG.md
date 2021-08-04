@@ -21,6 +21,10 @@
 - Tests workflow, end2end pytest for training. \(closes 25\) [\#26](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/26) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Labeler and automatic changelog generation. [\#24](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/24) ([dhruvdcoder](https://github.com/dhruvdcoder))
 
+### ⚙️  Model and sweep configs
+
+- Added 6 more feature based datasets and blurb and nyt [\#19](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/19) ([dhruvdcoder](https://github.com/dhruvdcoder))
+
 ## [v0.1.0](https://github.com/dhruvdcoder/structured_prediction_baselines/tree/v0.1.0) (2021-07-08)
 
 [Full Changelog](https://github.com/dhruvdcoder/structured_prediction_baselines/compare/ef23891a32a0dcc7b9ca02a8c11e008cbe412dbb...v0.1.0)
