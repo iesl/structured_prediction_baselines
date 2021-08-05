@@ -1,5 +1,5 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
-from .task_nn import TaskNN, CostAugmentedLayer
+from .task_nn import TaskNN, CostAugmentedLayer, TextEncoder
 from allennlp.modules.feedforward import FeedForward
 from allennlp.data.vocabulary import Vocabulary
 from allennlp.modules.token_embedders.embedding import Embedding
@@ -17,11 +17,11 @@ class MultilabelTaskNN(TaskNN):
         label_embeddings: Embedding,
     ):
         super().__init__()  # type:ignore
-        self.feature_network = feature_network
+        self.feature_network: Union[FeedForward, TextEncoder] = feature_network
         self.label_embeddings = label_embeddings
         assert (
             self.label_embeddings.weight.shape[1]
-            == self.feature_network.get_output_dim()
+            == self.feature_network.get_output_dim()  # type: ignore
         ), (
             f"label_embeddings dim ({self.label_embeddings.weight.shape[1]}) "
             f"and hidden_dim of feature_network"
@@ -38,6 +38,27 @@ class MultilabelTaskNN(TaskNN):
         logits = torch.matmul(features, self.label_embeddings.weight.T)
 
         return logits  # unormalized logit of shape (batch, num_labels)
+
+
+@TaskNN.register("multi-label-text-classification")
+class MultilabelTextTaskNN(MultilabelTaskNN):
+    def __init__(
+        self,
+        vocab: Vocabulary,
+        feature_network: TextEncoder,
+        label_embeddings: Embedding,
+    ):
+        super().__init__()  # type:ignore
+        self.feature_network = feature_network
+        self.label_embeddings = label_embeddings
+        assert (
+            self.label_embeddings.weight.shape[1]
+            == self.feature_network.get_output_dim()
+        ), (
+            f"label_embeddings dim ({self.label_embeddings.weight.shape[1]}) "
+            f"and hidden_dim of feature_network"
+            f" ({self.feature_network.get_output_dim()}) do not match."
+        )
 
 
 @CostAugmentedLayer.register("multi-label-stacked")

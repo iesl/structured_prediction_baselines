@@ -22,7 +22,6 @@ else:
 
 import logging
 import json
-import dill
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 from allennlp.data.fields import (
     TextField,
@@ -39,19 +38,14 @@ from allennlp.data.tokenizers import Token
 
 import allennlp
 
-allennlp_major_version = int(allennlp.__version__.split(".")[0])
 logger = logging.getLogger(__name__)
 
 
 class InstanceFields(TypedDict):
     """Contents which form an instance"""
 
-    sentences: ListField  #: it is actually ListField[TextField], one TextField instance per sentence
-    mentions: ListField  #: again ListField[TextField]
+    x: TextField  #:
     labels: MultiLabelField  #: types
-
-
-
 
 
 @DatasetReader.register("blurb-genre-classification")
@@ -124,24 +118,9 @@ class BlurbGenreReader(DatasetReader):
         meta["idx"] = idx
         meta["using_tc"] = False
 
-        sentence_fields = ListField(
-            [
-                TextField(
-                    self._tokenizer.tokenize(body),
-                )
-            ]
+        x = TextField(
+            self._tokenizer.tokenize(body),
         )
-        mention_fields = ListField(
-            [
-                TextField(
-                    self._tokenizer.tokenize(title),
-                )
-            ]
-        )
-
-        # if self._use_transitive_closure:
-        #   types += types_extra
-        #    meta["using_tc"] = True
 
         labels_: List[str] = []
 
@@ -154,8 +133,7 @@ class BlurbGenreReader(DatasetReader):
         labels = MultiLabelField(labels_)
 
         return {
-            "sentences": sentence_fields,
-            "mentions": mention_fields,
+            "x": x,
             "labels": labels,
         }
 
@@ -209,10 +187,5 @@ class BlurbGenreReader(DatasetReader):
                     yield instance
 
     def apply_token_indexers(self, instance: Instance) -> None:
-        for sentence, mention in zip(
-            instance["sentences"].field_list,
-            instance["mentions"].field_list,
-        ):
-            sentence.token_indexers = self._token_indexers
-            mention.token_indexers = self._token_indexers
-
+        text_field = cast(TextField, instance.fields["x"])  # no runtime effect
+        text_field._token_indexers = self._token_indexers
