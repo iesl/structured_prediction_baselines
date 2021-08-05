@@ -12,6 +12,69 @@ wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1FkDQ
 wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1sWhjC02Tf0qWFeMKAOYPsjYY63V0J96N' -O data/bibtex_original/test.arff
 wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1pEAPKR4IYr8oP6jY32P_bM6gp262hX4b' -O data/bibtex_original/train+val.arff
 
+# required installation from below.
+pip install gdown
+
+#NYT
+mkdir -p data/nyt
+cd data/nyt
+gdown "https://drive.google.com/uc?id=1ZI4GkHejbW1aSG7bRyNknSiLpBdiIZRD"
+tar -xzvf nyt.tar.gz
+rm nyt.tar.gz
+cd ../..
+
+#Blurb Genre Collection
+mkdir -p data/bgc
+cd data/bgc
+gdown "https://drive.google.com/uc?id=1AuB1qHWhqcD1LL3lV-2KmAdLJHnl14Dh"
+tar -xzvf bgc.tar.gz
+rm bgc.tar.gz
+cd ../..
+
+mkdir -p data/cal500-stratified10folds-meka
+cd data/cal500-stratified10folds-meka
+gdown https://drive.google.com/uc?id=1m3lKsN3KRI9UOwgRnmd_erVVzYV9vzSH
+tar -xzvf cal500-stratified10folds-meka.tar.gz
+rm cal500-stratified10folds-meka.tar.gz
+cd ../..
+
+mkdir -p data/corel5k-stratified10folds-meka
+cd data/corel5k-stratified10folds-meka
+gdown https://drive.google.com/uc?id=1_29bDv6Hir5LMqxOOHJ1bpEmZoMlw0Pr
+tar -xzvf corel5k-stratified10folds-meka.tar.gz
+rm corel5k-stratified10folds-meka.tar.gz
+cd ../..
+
+mkdir -p data/delicious-stratified10folds-meka
+cd data/delicious-stratified10folds-meka
+gdown https://drive.google.com/uc?id=1ks93YBs7MkHW8uBPmG5fSbtk3-ejZmaA
+tar -xzvf delicious-stratified10folds-meka.tar.gz
+rm delicious-stratified10folds-meka.tar.gz
+cd ../..
+
+
+mkdir -p data/eurlex-ev-stratified10folds-meka
+cd data/eurlex-ev-stratified10folds-meka
+gdown https://drive.google.com/uc?id=1Ncubmp4yiixL2Twcf-LiXqz-LfHEaCqG
+tar -xzvf eurlex-ev-stratified10folds-meka.tar.gz
+rm eurlex-ev-stratified10folds-meka.tar.gz
+cd ../..
+
+
+mkdir -p data/genbase-stratified10folds-meka
+cd data/genbase-stratified10folds-meka
+gdown https://drive.google.com/uc?id=1ubdLXR5FvWz0pw8XZu5IWgiAF0D1yohW
+tar -xzvf genbase-stratified10folds-meka.tar.gz
+rm genbase-stratified10folds-meka.tar.gz
+cd ../..
+
+
+mkdir -p data/mediamill-stratified10folds-meka
+cd data/mediamill-stratified10folds-meka
+gdown https://drive.google.com/uc?id=1ZbQcyriJNXbvpTbSW2ZUF4-UDGetKR5x
+tar -xzvf mediamill-stratified10folds-meka.tar.gz
+rm mediamill-stratified10folds-meka.tar.gz
+cd ../..
 
 # Bibtex better stratified splits.
 mkdir -p data/bibtex_stratified10folds_meka
@@ -25,3 +88,4 @@ wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=15stG
 wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1AepSJKrQ_PA0yCUVsbU5gmlW6GRLDtCd' -O data/bibtex_stratified10folds_meka/Bibtex-fold8.arff
 wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1ATz5E7GkZ0Kh5i6_uBCqAp7bdMEGg7an' -O data/bibtex_stratified10folds_meka/Bibtex-fold9.arff
 wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1rvmycPjHD4Juvnf6DjwEBFhhNquheivy' -O data/bibtex_stratified10folds_meka/Bibtex-fold10.arff
+

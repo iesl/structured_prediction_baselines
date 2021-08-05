@@ -69,7 +69,7 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
         constituent_losses: [
           {
             type: 'multi-label-score-loss',
-            log_key: 'neg.dvn_score',
+            log_key: 'neg.score',
             normalize_y: true,
             reduction: 'none',
           },  //This loss can be different from the main loss // change this

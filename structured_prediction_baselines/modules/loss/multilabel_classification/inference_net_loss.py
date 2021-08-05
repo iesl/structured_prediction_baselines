@@ -7,7 +7,6 @@ from torch.nn.functional import relu
 import torch.nn.functional as F
 
 from structured_prediction_baselines.modules.loss import Loss
-from structured_prediction_baselines.modules.loss.sg_spen_loss import SGSpenLoss
 from structured_prediction_baselines.modules.oracle_value_function import (
     OracleValueFunction,
 )
@@ -16,7 +15,6 @@ from structured_prediction_baselines.modules.score_nn import ScoreNN
 from structured_prediction_baselines.modules.loss.inference_net_loss import (
     MarginBasedLoss,
     InferenceLoss,
-    InferenceScoreLoss,
 )
 
 
@@ -32,17 +30,5 @@ class MultiLabelMarginBasedLoss(MarginBasedLoss):
 
 @Loss.register("multi-label-inference")
 class MultiLabelInferenceLoss(InferenceLoss):
-    def normalize(self, y: torch.Tensor) -> torch.Tensor:
-        return _normalize(y)
-
-
-@Loss.register("multi-label-inference-score")
-class MultiLabelInferenceScoreLoss(InferenceScoreLoss):
-    def normalize(self, y: torch.Tensor) -> torch.Tensor:
-        return _normalize(y)
-
-
-@Loss.register("multi-label-sg-spen")
-class MultiLabelSGSpenLoss(SGSpenLoss):
     def normalize(self, y: torch.Tensor) -> torch.Tensor:
         return _normalize(y)

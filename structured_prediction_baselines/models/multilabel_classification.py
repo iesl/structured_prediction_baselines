@@ -44,10 +44,6 @@ class MultilabelClassification(ScoreBasedLearningModel):
         self.map = MultilabelClassificationMeanAvgPrecision()
         self.micro_map = MultilabelClassificationMicroAvgPrecision()
         self.relaxed_f1 = MultilabelClassificationRelaxedF1()
-        self.average_rank = MultilabelClassificationAvgRank()
-        self.mrr = MultilabelClassificationMeanReciprocalRank()
-        self.ndcg = MultilabelClassificationNormalizedDiscountedCumulativeGain()
-        self.rbo = MultilabelClassificationRankBiasedOverlap()
 
     def unsqueeze_labels(self, labels: torch.Tensor) -> torch.Tensor:
         """Unsqueeze and turn the labels into one-hot if required"""
@@ -58,6 +54,61 @@ class MultilabelClassification(ScoreBasedLearningModel):
 
     def squeeze_y(self, y: torch.Tensor) -> torch.Tensor:
         return y.squeeze(1)
+
+    @torch.no_grad()
+    def calculate_metrics(  # type: ignore
+        self,
+        x: Any,
+        labels: torch.Tensor,
+        y_hat: torch.Tensor,
+        buffer: Dict,
+    ) -> None:
+
+        self.map(y_hat, labels)
+        self.micro_map(y_hat, labels)
+
+        if not self.inference_module.is_normalized:
+            y_hat_n = torch.sigmoid(y_hat)
+        else:
+            y_hat_n = y_hat
+
+        self.relaxed_f1(y_hat_n, labels)
+        self.f1(y_hat_n, labels)
+
+    def get_true_metrics(self, reset: bool = False) -> Dict[str, float]:
+        metrics = {
+            "MAP": self.map.get_metric(reset),
+            "fixed_f1": self.f1.get_metric(reset),
+            "micro_map": self.micro_map.get_metric(reset),
+            "relaxed_f1": self.relaxed_f1.get_metric(reset),
+        }
+
+        return metrics
+
+
+@Model.register(
+    "multi-label-classification-with-scorenn-evaluation",
+    constructor="from_partial_objects",
+)
+@Model.register(
+    "multi-label-classification-with-infnet-and-scorenn-evaluation",
+    constructor="from_partial_objects_with_shared_tasknn",
+)
+class MultilabelClassificationWithScoreNNEvaluation(MultilabelClassification):
+    def __init__(
+        self,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        if self.evaluation_module is None:
+            raise ValueError("Evaluation Module can not be none for this sampler")
+
+        self.average_rank = MultilabelClassificationAvgRank()
+        self.mrr = MultilabelClassificationMeanReciprocalRank()
+        self.ndcg = MultilabelClassificationNormalizedDiscountedCumulativeGain()
+        self.rbo = MultilabelClassificationRankBiasedOverlap()
+        self.eval_on_distribution_samples_f1 = MultilabelClassificationF1()
+        self.eval_on_random_samples_f1 = MultilabelClassificationF1()
 
     @torch.no_grad()
     def calculate_metrics(  # type: ignore
@@ -92,23 +143,24 @@ class MultilabelClassification(ScoreBasedLearningModel):
         self.rbo(sample_scores, true_scores)
 
         # call evaluation_module on distribution and random samples
-        if self.evaluation_module:
-            random_samples = self.get_samples(y_hat_n, random=True)
-            self.evaluation_module(x, labels, buffer, init_samples=distribution_samples, index=0)
-            self.evaluation_module(x, labels, buffer, init_samples=random_samples, index=1)
+        random_samples = self.get_samples(y_hat_n, random=True)
+        distribution_gbi = self.evaluation_module(x, labels, buffer, init_samples=distribution_samples, index=0)
+        self.eval_on_distribution_samples_f1(distribution_gbi, labels)
+        random_gbi = self.evaluation_module(x, labels, buffer, init_samples=random_samples, index=1)
+        self.eval_on_random_samples_f1(random_gbi, labels)
 
     def get_true_metrics(self, reset: bool = False) -> Dict[str, float]:
-        metrics = {
-            "MAP": self.map.get_metric(reset),
-            "fixed_f1": self.f1.get_metric(reset),
-            "micro_map": self.micro_map.get_metric(reset),
-            "relaxed_f1": self.relaxed_f1.get_metric(reset),
+        metrics = super().get_true_metrics(reset=reset)
+        eval_metrics = {
+            "eval_on_distribution_f1": self.eval_on_distribution_samples_f1.get_metric(reset),
+            "eval_on_random_f1": self.eval_on_random_samples_f1.get_metric(reset),
             "average_rank": self.average_rank.get_metric(reset),
             "MRR": self.mrr.get_metric(reset),
             "NDCG": self.ndcg.get_metric(reset),
             "RBO": self.rbo.get_metric(reset)
         }
 
+        metrics.update(eval_metrics)
         return metrics
 
     def get_samples(self, p, random=False, labels=None):
