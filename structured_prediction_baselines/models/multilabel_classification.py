@@ -107,8 +107,8 @@ class MultilabelClassificationWithScoreNNEvaluation(MultilabelClassification):
         self.mrr = MultilabelClassificationMeanReciprocalRank()
         self.ndcg = MultilabelClassificationNormalizedDiscountedCumulativeGain()
         self.rbo = MultilabelClassificationRankBiasedOverlap()
-        self.eval_on_distribution_samples_f1 = MultilabelClassificationF1()
-        self.eval_on_random_samples_f1 = MultilabelClassificationF1()
+        self.distribution_samples_f1 = MultilabelClassificationF1()
+        self.random_samples_f1 = MultilabelClassificationF1()
 
     @torch.no_grad()
     def calculate_metrics(  # type: ignore
@@ -144,16 +144,16 @@ class MultilabelClassificationWithScoreNNEvaluation(MultilabelClassification):
 
         # call evaluation_module on distribution and random samples
         random_samples = self.get_samples(y_hat_n, random=True)
-        distribution_gbi = self.evaluation_module(x, labels, buffer, init_samples=distribution_samples, index=0)
-        self.eval_on_distribution_samples_f1(distribution_gbi, labels)
-        random_gbi = self.evaluation_module(x, labels, buffer, init_samples=random_samples, index=1)
-        self.eval_on_random_samples_f1(random_gbi, labels)
+        distribution_gbi_samples, _ = self.evaluation_module(x, labels, buffer, init_samples=distribution_samples, index=0)
+        self.distribution_samples_f1(distribution_gbi_samples, labels)
+        random_gbi_samples, _ = self.evaluation_module(x, labels, buffer, init_samples=random_samples, index=1)
+        self.random_samples_f1(random_gbi_samples, labels)
 
     def get_true_metrics(self, reset: bool = False) -> Dict[str, float]:
         metrics = super().get_true_metrics(reset=reset)
         eval_metrics = {
-            "eval_on_distribution_f1": self.eval_on_distribution_samples_f1.get_metric(reset),
-            "eval_on_random_f1": self.eval_on_random_samples_f1.get_metric(reset),
+            "eval_on_distribution_f1": self.distribution_samples_f1.get_metric(reset),
+            "eval_on_random_f1": self.random_samples_f1.get_metric(reset),
             "average_rank": self.average_rank.get_metric(reset),
             "MRR": self.mrr.get_metric(reset),
             "NDCG": self.ndcg.get_metric(reset),
