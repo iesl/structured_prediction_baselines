@@ -31,6 +31,8 @@ class TextEncoder(torch.nn.Module, Registrable):
     See `BasicClassifier <https://github.com/allenai/allennlp/blob/v2.5.0/allennlp/models/basic_classifier.py>`_ for reference.
     """
 
+    default_implementation = "text-encoder"
+
     def __init__(
         self,
         vocab: Vocabulary,
@@ -78,9 +80,7 @@ class TextEncoder(torch.nn.Module, Registrable):
     def get_output_dim(self) -> int:
         return self._output_dim
 
-    def forward(
-        self, x: TextFieldTensors, buffer: Dict, **kwargs: Any
-    ) -> torch.Tensor:
+    def forward(self, x: TextFieldTensors) -> torch.Tensor:
         """
         Encodes the text input into a feature vector.
         """
@@ -99,3 +99,7 @@ class TextEncoder(torch.nn.Module, Registrable):
             embedded_text = self.feedforward(embedded_text)
 
         return embedded_text
+
+
+# register itself as a concrete class
+TextEncoder.register("text-encoder")(TextEncoder)

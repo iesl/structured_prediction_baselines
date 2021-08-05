@@ -1,47 +1,41 @@
 from typing import List, Tuple, Union, Dict, Any, Optional, overload
 from structured_prediction_baselines.modules.sampler import (
     Sampler,
-    SamplerModifier,
-    InferenceNetSampler,
+    BasicSampler,
 )
 import torch
 from structured_prediction_baselines.modules.score_nn import ScoreNN
 from structured_prediction_baselines.modules.oracle_value_function import (
     OracleValueFunction,
 )
+from structured_prediction_baselines.modules.loss import Loss
+
 from structured_prediction_baselines.modules.multilabel_classification_task_nn import (
     MultilabelTaskNN,
 )
 
 
 @Sampler.register("multi-label-basic")
-class MultilabelClassificationSampler(Sampler):
-    def __init__(
-        self,
-        inference_nn: MultilabelTaskNN,
-        score_nn: Optional[ScoreNN] = None,
-        oracle_value_function: Optional[OracleValueFunction] = None,
-        **kwargs: Any,
-    ):
-        super().__init__(
-            score_nn,
-            oracle_value_function,
-        )
-        self.inference_nn = inference_nn
-
+class MultilabelClassificationBasicSampler(BasicSampler):
     @property
     def is_normalized(self) -> bool:
-        return False
+        return True
 
-    def forward(
-        self,
-        x: torch.Tensor,
-        labels: Optional[torch.Tensor],
-        buffer: Dict,
-        **kwargs: Any,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
-        return (
-            self.inference_nn(x, buffer=buffer).unsqueeze(1),
-            None,
-            None,
-        )  # unormalized logits (batch, 1, ...)
+    @overload
+    def normalize(self, y: None) -> None:
+        ...
+
+    @overload
+    def normalize(self, y: torch.Tensor) -> torch.Tensor:
+        ...
+
+    def normalize(self, y: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
+
+        if y is not None:
+            return torch.sigmoid(y)
+        else:
+            return None
+
+    @property
+    def different_training_and_eval(self) -> bool:
+        return False

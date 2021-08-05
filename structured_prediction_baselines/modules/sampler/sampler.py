@@ -20,6 +20,8 @@ from structured_prediction_baselines.modules.score_nn import ScoreNN
 from structured_prediction_baselines.modules.oracle_value_function import (
     OracleValueFunction,
 )
+from structured_prediction_baselines.modules.task_nn import TaskNN
+from structured_prediction_baselines.modules.loss import Loss
 from structured_prediction_baselines.modules.logging import (
     LoggingMixin,
     LoggedValue,
@@ -49,17 +51,6 @@ class Sampler(LoggingMixin, torch.nn.Module, Registrable):
         5. In the case of MRT style training, it can be beam search.
         6. In the case of vanilla feedforward model, one can just return the logits with shape `(batch, 1, ... )`
     """
-
-    def mark_parameters_with_model_mode(self) -> None:
-        """
-        Use this to mark parameters that need to get gradients in a particular mode.
-        If a parameter is not marked, then it will not get gradient in any mode.
-
-        A parameter can be marked by adding and attribute "model_mode=MODEL_MODE" on the Parameter.
-        Call this method after creating all the parameters of the class.
-        """
-
-        return None
 
     def parameters_with_model_mode(
         self, mode: ModelMode
@@ -146,6 +137,64 @@ class SamplerModifier(torch.nn.Module, Registrable):
     @property
     def different_training_and_eval(self) -> bool:
         raise NotImplementedError
+
+
+class BasicSampler(Sampler):
+    """
+    Just as task_nn sampler.
+    """
+
+    def __init__(
+        self,
+        inference_nn: TaskNN,
+        loss_fn: Loss,
+        **kwargs: Any,
+    ):
+        super().__init__(**kwargs)
+        self.inference_nn = inference_nn
+        self.loss_fn = loss_fn
+
+    def parameters_with_model_mode(
+        self, mode: ModelMode
+    ) -> Iterator[torch.nn.Parameter]:
+        yield from self.inference_nn.parameters()
+
+    @overload
+    def normalize(self, y: None) -> None:
+        ...
+
+    @overload
+    def normalize(self, y: torch.Tensor) -> torch.Tensor:
+        ...
+
+    def normalize(self, y: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
+        return y
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        labels: Optional[torch.Tensor],
+        buffer: Dict,
+        **kwargs: Any,
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
+
+        logits = self.inference_nn(x).unsqueeze(
+            1
+        )  # unormalized logits (batch, 1, ...)
+
+        if labels is not None:
+            # compute loss for logging.
+            loss = self.loss_fn(
+                x,
+                labels.unsqueeze(1),  # (batch, num_samples or 1, ...)
+                logits,
+                logits,
+                buffer,
+            )
+        else:
+            loss = None
+
+        return self.normalize(logits), self.normalize(logits), loss
 
 
 class SamplerContainer(Sampler):

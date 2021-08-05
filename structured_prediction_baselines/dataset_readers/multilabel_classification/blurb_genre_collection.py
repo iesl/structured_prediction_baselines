@@ -48,7 +48,7 @@ class InstanceFields(TypedDict):
     labels: MultiLabelField  #: types
 
 
-@DatasetReader.register("blurb-genre-classification")
+@DatasetReader.register("bgc")
 class BlurbGenreReader(DatasetReader):
     """
     Multi-label classification `dataset <https://www.inf.uni-hamburg.de/en/inst/ab/lt/resources/data/blurb-genre-collection.html>`_.

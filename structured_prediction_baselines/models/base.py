@@ -193,7 +193,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         vocab: Vocabulary,
         sampler: Lazy[SamplerContainer],
         loss_fn: Lazy[Loss],
-        inference_module: Lazy[InferenceNetSampler],
+        inference_module: Lazy[Sampler],
         task_nn: TaskNN,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
