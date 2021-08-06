@@ -18,7 +18,7 @@ local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
 local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
-local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'));
+local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
   evaluate_on_test: true,
@@ -60,21 +60,30 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
         vocab_namespace: 'labels',
       },
     },
+
     inference_module: {
-      type: 'multi-label-inference-net-normalized-or-continuous-sampled',
+      type: 'multi-label-inference-net-normalized',
       log_key: 'inference_module',
-      keep_probs: true,
-      num_samples: 20,
-      std: 0.5,
+      cost_augmented_layer: {
+        type: 'multi-label-stacked',
+        feedforward: {
+          input_dim: 2 * num_labels,
+          num_layers: 2,
+          activations: [ff_activation, 'linear'],
+          hidden_dims: num_labels,
+        },
+        normalize_y: true,
+      },
       loss_fn: {
         type: 'combination-loss',
         log_key: 'loss',
         constituent_losses: [
           {
-            type: 'multi-label-dvn-score',
-            log_key: 'neg.dvn_score',
+            type: 'multi-label-inference',
+            log_key: 'neg_inference',
             normalize_y: true,
             reduction: 'none',
+            inference_score_weight: inference_score_weight,
           },  //This loss can be different from the main loss // change this
           {
             type: 'multi-label-bce',
@@ -82,11 +91,14 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
             log_key: 'bce',
           },
         ],
-        loss_weights: [dvn_score_loss_weight, cross_entropy_loss_weight],
+        loss_weights: [1.0, cross_entropy_loss_weight],
         reduction: 'mean',
       },
     },
-    oracle_value_function: { type: 'per-instance-f1', differentiable: false },
+    oracle_value_function: {
+      type: 'manhattan',
+      differentiable: true,
+    },
     score_nn: {
       type: 'multi-label-classification',
       task_nn: {
@@ -113,7 +125,13 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
         },
       },
     },
-    loss_fn: { type: 'multi-label-dvn-bce', log_key: 'dvn_bce' },
+    loss_fn: {
+      type: 'multi-label-margin-based',
+      oracle_cost_weight: 1.0,
+      perceptron_loss_weight: inference_score_weight,
+      reduction: 'mean',
+      log_key: 'margin_loss',
+    },
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
@@ -129,7 +147,7 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
   trainer: {
     type: 'gradient_descent_minimax',
     num_epochs: if test == '1' then 10 else 300,
-    grad_norm: {"task_nn": 10.0},
+    grad_norm: { task_nn: 10.0 },
     patience: 20,
     validation_metric: '+fixed_f1',
     cuda_device: std.parseInt(cuda_device),
@@ -173,6 +191,6 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
       else []
     ),
     inner_mode: 'score_nn',
-    num_steps: { task_nn: 1, score_nn: 5 },
+    num_steps: { task_nn: 1, score_nn: 1 },
   },
 }

@@ -239,36 +239,3 @@ class InferenceLoss(MarginBasedLoss):
         )  # the minus sign turns this into argmin objective
 
         return loss_unreduced
-
-
-class InferenceScoreLoss(MarginBasedLoss):
-    """
-    The class exclusively outputs score value (loss) for the given "y_hat" to train the paramters of the
-    task-nn in the inference net.
-    """
-
-    def __init__(self, inference_score_weight: float = 1.0, **kwargs: Any):
-        super().__init__(**kwargs)
-        self.inference_score_weight = inference_score_weight
-
-    def _forward(
-        self,
-        x: Any,
-        labels: Optional[torch.Tensor],  # (batch, 1, ...)
-        y_hat: torch.Tensor,  # (batch, num_samples, ...) might be unnormalized
-        y_hat_extra: Optional[
-            torch.Tensor
-        ],  # (batch, num_samples, ...), might be unnormalized
-        buffer: Dict,
-        **kwargs: Any,
-    ) -> torch.Tensor:
-        assert buffer is not None
-
-        if self.normalize_y:
-            y_hat = self.normalize(y_hat)
-        loss_unreduced = -self.inference_score_weight * self.score_nn(
-            x, y_hat, buffer
-        )
-        # the minus sign turns this into argmin objective
-
-        return loss_unreduced

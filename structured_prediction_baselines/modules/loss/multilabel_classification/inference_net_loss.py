@@ -15,7 +15,6 @@ from structured_prediction_baselines.modules.score_nn import ScoreNN
 from structured_prediction_baselines.modules.loss.inference_net_loss import (
     MarginBasedLoss,
     InferenceLoss,
-    InferenceScoreLoss,
 )
 
 
@@ -31,11 +30,5 @@ class MultiLabelMarginBasedLoss(MarginBasedLoss):
 
 @Loss.register("multi-label-inference")
 class MultiLabelInferenceLoss(InferenceLoss):
-    def normalize(self, y: torch.Tensor) -> torch.Tensor:
-        return _normalize(y)
-
-
-@Loss.register("multi-label-inference-score")
-class MultiLabelInferenceScoreLoss(InferenceScoreLoss):
     def normalize(self, y: torch.Tensor) -> torch.Tensor:
         return _normalize(y)

@@ -3,7 +3,7 @@ local data_dir = std.extVar('DATA_DIR');
 local cuda_device = std.extVar('CUDA_DEVICE');
 local use_wandb = (if test == '1' then false else true);
 
-local dataset_name = 'bibtex_original';
+local dataset_name = 'bibtex_strat';
 local dataset_metadata = (import '../datasets.jsonnet')[dataset_name];
 local num_labels = dataset_metadata.num_labels;
 local num_input_features = dataset_metadata.input_features;
@@ -15,18 +15,10 @@ local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
 local ff_activation = 'softplus';
 local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
 local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
-//local global_score_hidden_dim = 150;
 local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
-local inf_lr = std.parseJson(std.extVar('inf_lr'));
-local tasknn_stopping_criteria = std.parseJson(std.extVar('tasknn_stopping_criteria'));
-local tasknn_lr = std.parseJson(std.extVar('tasknn_lr'));
-//local inf_optim = std.parseJson(std.extVar('inf_optim'));
-local inf_optim = 'sgd';
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
-//local sample_picker = std.parseJson(std.extVar('sample_picker'));
-local sample_picker = 'best';
 local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
-
+local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
   evaluate_on_test: true,
@@ -52,53 +44,7 @@ local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_w
     sampler: {
       type: 'appending-container',
       log_key: 'sampler',
-      constituent_samplers: [
-        //GBI
-        {
-          type: 'gradient-based-inference',
-          log_key: 'gbi',
-          gradient_descent_loop: {
-            optimizer: {
-              lr: inf_lr,  //0.1
-              weight_decay: 0,
-              type: inf_optim,
-            },
-          },
-          loss_fn: { type: 'multi-label-dvn-score', reduction: 'none', log_key: 'neg.dvn_score' },  //This loss can be different from the main loss // change this
-          output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
-          stopping_criteria: 20,
-          sample_picker: { type: sample_picker },
-          number_init_samples: 1,
-          random_mixing_in_init: 1.0,
-        },
-        // Adversarial
-        {
-          type: 'gradient-based-inference',
-          log_key: 'adv',
-          gradient_descent_loop: {
-            optimizer: {
-              lr: inf_lr,  //0.1
-              weight_decay: 0,
-              type: inf_optim,
-            },
-          },
-          loss_fn: {
-            type: 'negative',
-            log_key: 'neg',
-            constituent_loss: { type: 'multi-label-dvn-bce', reduction: 'none', log_key: 'dvn_bce' },
-            reduction: 'none',
-          },
-          output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
-          stopping_criteria: 20,
-          sample_picker: { type: sample_picker },
-          number_init_samples: 1,
-          random_mixing_in_init: 1.0,
-        },
-        // Ground Truth
-        { type: 'ground-truth' },
-        // Inference Net/ TaskNN is taken from the inference_module
-
-      ],
+      constituent_samplers: [],
     },
     task_nn: {
       type: 'multi-label-classification',
@@ -114,23 +60,30 @@ local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_w
         vocab_namespace: 'labels',
       },
     },
+
     inference_module: {
       type: 'multi-label-inference-net-normalized',
-      log_key: 'tasknn',
-      optimizer: {
-        lr: tasknn_lr,
-        weight_decay: ff_weight_decay,
-        type: 'adamw',
+      log_key: 'inference_module',
+      cost_augmented_layer: {
+        type: 'multi-label-stacked',
+        feedforward: {
+          input_dim: 2 * num_labels,
+          num_layers: 2,
+          activations: [ff_activation, 'linear'],
+          hidden_dims: num_labels,
+        },
+        normalize_y: true,
       },
       loss_fn: {
         type: 'combination-loss',
         log_key: 'loss',
         constituent_losses: [
           {
-            type: 'multi-label-dvn-score',
-            log_key: 'neg.dvn_score',
+            type: 'multi-label-inference',
+            log_key: 'neg_inference',
             normalize_y: true,
             reduction: 'none',
+            inference_score_weight: inference_score_weight,
           },  //This loss can be different from the main loss // change this
           {
             type: 'multi-label-bce',
@@ -141,9 +94,11 @@ local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_w
         loss_weights: [1.0, cross_entropy_loss_weight],
         reduction: 'mean',
       },
-      stopping_criteria: tasknn_stopping_criteria,
     },
-    oracle_value_function: { type: 'per-instance-f1', differentiable: false },
+    oracle_value_function: {
+      type: 'manhattan',
+      differentiable: true,
+    },
     score_nn: {
       type: 'multi-label-classification',
       task_nn: {
@@ -170,7 +125,13 @@ local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_w
         },
       },
     },
-    loss_fn: { type: 'multi-label-dvn-bce', log_key: 'dvn_bce' },
+    loss_fn: {
+      type: 'multi-label-margin-based',
+      oracle_cost_weight: 1.0,
+      perceptron_loss_weight: inference_score_weight,
+      reduction: 'mean',
+      log_key: 'margin_loss',
+    },
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
@@ -184,28 +145,52 @@ local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_w
     batch_size: 32,
   },
   trainer: {
+    type: 'gradient_descent_minimax',
     num_epochs: if test == '1' then 10 else 300,
-    grad_norm: 10.0,
+    grad_norm: { task_nn: 10.0 },
     patience: 20,
     validation_metric: '+fixed_f1',
     cuda_device: std.parseInt(cuda_device),
-    learning_rate_scheduler: {
-      type: 'reduce_on_plateau',
-      factor: 0.5,
-      mode: 'max',
-      patience: 5,
-      verbose: true,
+    learning_rate_schedulers: {
+      task_nn: {
+        type: 'reduce_on_plateau',
+        factor: 0.5,
+        mode: 'max',
+        patience: 5,
+        verbose: true,
+      },
     },
     optimizer: {
-      lr: 0.005,
-      weight_decay: ff_weight_decay,
-      type: 'adamw',
+      optimizers: {
+        task_nn:
+          {
+            lr: 0.001,
+            weight_decay: ff_weight_decay,
+            type: 'adamw',
+          },
+        score_nn: {
+          lr: 0.005,
+          weight_decay: ff_weight_decay,
+          type: 'adamw',
+        },
+      },
     },
     checkpointer: {
       keep_most_recent_by_count: 1,
     },
     callbacks: [
       'track_epoch_callback',
-    ] + (if use_wandb then ['wandb_allennlp'] else []),
+      'slurm',
+    ] + (
+      if use_wandb then [
+        {
+          type: 'wandb_allennlp',
+          sub_callbacks: [{ type: 'log_best_validation_metrics', priority: 100 }],
+        },
+      ]
+      else []
+    ),
+    inner_mode: 'task_nn',
+    num_steps: { task_nn: 1, score_nn: 1 },
   },
 }

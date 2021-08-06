@@ -64,3 +64,9 @@
 - name: wontfix
   description: This will not be worked on
   color: ffffff
+- name: configs
+  description: Updates to configs--models and/or sweep.
+  color: ffa500
+- name: utils
+  description: Updates to utilities and scripts which are not central to the project.
+  color: fae105
