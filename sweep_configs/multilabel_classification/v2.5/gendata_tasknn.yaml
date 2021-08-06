@@ -1,0 +1,58 @@
+name: [data_name]_tasknn
+description: "Train tasknn using cross-entropy only"
+program: allennlp
+command:
+- ${program}
+- train_with_wandb
+- model_configs/multilabel_classification/v2.5/gendata_tasknn.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb_tags="task=mlc,model=tasknn,sampler=none,dataset=[data_name],inference_module=tasknn,sampler=none,ref=7tvr5xhg"
+- ${args}
+- --file-friendly-logging
+method: bayes
+metric:
+  goal: maximize
+  name: "validation/best_fixed_f1"
+
+early_terminate:
+  type: hyperband
+  min_iter: 20
+
+parameters:
+  env.dataset_name:
+    value: '[data_name]'
+  env.cross_entropy_loss_weight:
+    value: 1.0
+  env.dvn_score_loss_weight:
+    value: 0.0
+  env.ff_dropout_10x:
+    distribution: q_uniform
+    min: 0.5 # 1
+    max: 5.49 # 5
+    # value: 0.5 # bibtex
+  env.ff_hidden:
+    distribution: q_uniform
+    min: 50 # 100
+    max: 549 # 500
+    q: 100  
+    # value: 400 # bibtex
+  env.ff_linear_layers:
+    distribution: q_uniform
+    min: 0.5  # 1
+    max: 5.49 # 5
+    q: 1  
+    # value: 2 # bibtex
+  env.ff_weight_decay:
+    value: 0.00001
+  env.global_score_hidden_dim:
+    distribution: q_uniform
+    min: 50  #100
+    max: 449 #400
+    q: 100
+    # value: 200 # bibtex
+  trainer.optimizer.optimizers.task_nn.lr:
+    distribution: log_uniform
+    min: -12.5
+    max: -4.5 
+  trainer.optimizer.optimizers.score_nn.lr:
+    value: 0.001
