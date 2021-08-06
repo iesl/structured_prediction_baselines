@@ -3,7 +3,7 @@ local data_dir = std.extVar('DATA_DIR');
 local cuda_device = std.extVar('CUDA_DEVICE');
 local use_wandb = (if test == '1' then false else true);
 
-local dataset_name = std.parseJson(std.extVar('dataset_name'));
+local dataset_name = 'bibtex_strat';
 local dataset_metadata = (import '../datasets.jsonnet')[dataset_name];
 local num_labels = dataset_metadata.num_labels;
 local num_input_features = dataset_metadata.input_features;
@@ -11,7 +11,7 @@ local num_input_features = dataset_metadata.input_features;
 // model variables
 local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
 local label_space_dim = ff_hidden;
-local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
+local ff_dropout = std.parseJson(std.extVar('ff_dropout_10x')) / 10.0;
 local ff_activation = 'softplus';
 local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
 local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
@@ -68,8 +68,8 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
         log_key: 'loss',
         constituent_losses: [
           {
-            type: 'multi-label-score-loss',
-            log_key: 'neg.score',
+            type: 'multi-label-dvn-score',
+            log_key: 'neg.dvn_score',
             normalize_y: true,
             reduction: 'none',
           },  //This loss can be different from the main loss // change this
@@ -79,7 +79,7 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
             log_key: 'bce',
           },
         ],
-        loss_weights: [dvn_score_loss_weight, cross_entropy_loss_weight],
+        loss_weights: [0, cross_entropy_loss_weight],
         reduction: 'mean',
       },
     },
@@ -110,13 +110,7 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
         },
       },
     },
-    loss_fn: {
-      type: 'multi-label-nce-ranking-with-cont-sampling',
-      log_key: 'nce',
-      num_samples: 10,
-      sign: '+',
-      std: 10.0,
-    },
+    loss_fn: { type: 'multi-label-dvn-bce', log_key: 'dvn_bce' },
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],

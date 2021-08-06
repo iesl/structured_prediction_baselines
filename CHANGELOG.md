@@ -10,6 +10,10 @@
 
 ### ✨ Features and Enhancements:
 
+- Add original infnet setup \(Tu, Gimpel\) in the reverse order  [\#32](https://github.com/dhruvdcoder/structured_prediction_baselines/issues/32)
+- Add unnormalized score loss for training tasknn [\#30](https://github.com/dhruvdcoder/structured_prediction_baselines/issues/30)
+- Original inference\_net setup as in Tu & Gimpel [\#33](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/33) ([dhruvdcoder](https://github.com/dhruvdcoder))
+- Added 'multi-label-score-loss' and changes in relevant configs \(bibtex\_strat\_nce\) [\#31](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/31) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - sweep and model configs for dvn, nce reverse order [\#29](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/29) ([dhruvdcoder](https://github.com/dhruvdcoder))
 
 ### 👷 Build and CI
@@ -18,6 +22,11 @@
 - Add new labels and update changelog generator [\#34](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/34) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Tests workflow, end2end pytest for training. \(closes 25\) [\#26](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/26) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Labeler and automatic changelog generation. [\#24](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/24) ([dhruvdcoder](https://github.com/dhruvdcoder))
+
+### ⚙️  Model and sweep configs
+
+- Original infnet remaining configs [\#36](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/36) ([dhruvdcoder](https://github.com/dhruvdcoder))
+- Added 6 more feature based datasets and blurb and nyt [\#19](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/19) ([dhruvdcoder](https://github.com/dhruvdcoder))
 
 ## [v0.1.0](https://github.com/dhruvdcoder/structured_prediction_baselines/tree/v0.1.0) (2021-07-08)
 

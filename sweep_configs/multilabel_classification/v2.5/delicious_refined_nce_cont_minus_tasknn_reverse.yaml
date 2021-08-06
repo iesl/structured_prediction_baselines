@@ -1,12 +1,12 @@
-name: genbase_dvn_tasknn_reverse
-description: "Train tasknn using cross-entropy and dvn score loss (v(f(x),y)). We will have only one sampler--tasknn continuous--to train scoreNN. The network parameters are from structure_prediction_baselines/7tvr5xhg"
+name: delicious_nce_cont_minus_tasknn_reverse
+description: "Train tasknn using cross-entropy and  score loss (v(f(x),y)). The score-nn will be trained using NCE with a - sign (score+ln Pn). The samples are taken as continuous samples by adding gaussian noise to the tasknn output logits"
 program: allennlp
 command:
 - ${program}
 - train_with_wandb
-- model_configs/multilabel_classification/v2.5/gendata_dvn_tasknn_reverse.jsonnet
+- model_configs/multilabel_classification/v2.5/gendata_nce_cont_tasknn_reverse.jsonnet
 - --include-package=structured_prediction_baselines
-- --wandb_tags="task=mlc,model=dvn,sampler=inference_net,dataset=genbase,inference_module=inference_net,inference_module=tasknn,sampler=tasknn,ref=7tvr5xhg"
+- --wandb_tags="task=mlc,score_nn_loss=nce,sampler=inference_net_continuous_samples,dataset=delicious,inference_module=inference_net,inference_module=tasknn,inference_module_loss=bce+score,sampler=tasknn_contiuous_samples,ref=7tvr5xhg"
 - ${args}
 - --file-friendly-logging
 method: bayes
@@ -20,7 +20,7 @@ early_terminate:
 
 parameters:
   env.dataset_name:
-    value: 'genbase'
+    value: 'delicious'
   env.cross_entropy_loss_weight:
     value: 1.0
   env.dvn_score_loss_weight:
@@ -29,32 +29,31 @@ parameters:
     max: 2.3
   env.ff_dropout_10x:
     distribution: q_uniform
-    min: 0.5 # 1
-    max: 5.49 # 5
-    # value: 0.5 # bibtex
+    min: 1.5
+    max: 5.49
+    # value: 0.5
   env.ff_hidden:
     distribution: q_uniform
-    min: 50 # 100
-    max: 549 # 500
+    min: 200
+    max: 500
     q: 100  
-    # value: 400 # bibtex
+    # value: 400
   env.ff_linear_layers:
     distribution: q_uniform
-    min: 0.5  # 1
-    max: 5.49 # 5
-    q: 1  
-    # value: 2 # bibtex
+    min: 1.5
+    max: 3.49
+    q: 1
   env.ff_weight_decay:
     value: 0.00001
   env.global_score_hidden_dim:
     distribution: q_uniform
-    min: 50  #100
-    max: 449 #400
+    min: 100
+    max: 400
     q: 100
-    # value: 200 # bibtex  
+    # value: 200
   trainer.optimizer.optimizers.task_nn.lr:
     distribution: log_uniform
-    min: -12.5
+    min: -11.5
     max: -4.5 
   trainer.optimizer.optimizers.score_nn.lr:
     distribution: log_uniform
@@ -71,4 +70,14 @@ parameters:
     # q: 5 # 1, 5, 10 --> manual handling in the jsonnet.
     # min: 0
     # max: 10
-
+  model.loss_fn.num_samples:
+    distribution: q_uniform
+    q: 20 # 10, 25, ..., 50
+    min: 20 # ln(10)
+    max: 100 # ln(50)
+  model.loss_fn.sign:
+    value: "-"
+  model.loss_fn.std:
+    distribution: log_uniform 
+    min: -6.9 # ln(0.001)
+    max: 1.6  # ln(5)

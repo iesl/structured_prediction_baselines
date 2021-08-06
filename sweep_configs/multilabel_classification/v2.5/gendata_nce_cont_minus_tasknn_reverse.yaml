@@ -29,47 +29,44 @@ parameters:
     max: 2.3
   env.ff_dropout_10x:
     distribution: q_uniform
-    min: 1
-    max: 5
-    # value: 0.5
+    min: 0.5 # 1
+    max: 5.49 # 5
+    # value: 0.5 # bibtex
   env.ff_hidden:
     distribution: q_uniform
-    min: 200
-    max: 500
+    min: 50 # 100
+    max: 549 # 500
     q: 100  
-    # value: 400
+    # value: 400 # bibtex
   env.ff_linear_layers:
     distribution: q_uniform
-    min: 0.5
-    max: 5.49
+    min: 0.5  # 1
+    max: 5.49 # 5
     q: 1  
+    # value: 2 # bibtex
   env.ff_weight_decay:
     value: 0.00001
   env.global_score_hidden_dim:
     distribution: q_uniform
-    min: 100
-    max: 400
+    min: 50  #100
+    max: 449 #400
     q: 100
-    # value: 200
+    # value: 200 # bibtex
   trainer.optimizer.optimizers.task_nn.lr:
     distribution: log_uniform
-    min: -11.5
+    min: -12.5
     max: -4.5 
   trainer.optimizer.optimizers.score_nn.lr:
     distribution: log_uniform
     min: -11.5
     max: -4.5
-  trainer.num_steps.score_nn:
+  env.score_nn_steps:
     distribution: q_uniform
-    min: 3
-    max: 11
+    min: 0
+    max: 11.99
     q: 3
-  env.stopping_criteria: # instead of trainer.num_steps.task_nn
+  env.task_nn_steps: # instead of trainer.num_steps.task_nn
     value: 1
-    # distribution: q_uniform
-    # q: 5 # 1, 5, 10 --> manual handling in the jsonnet.
-    # min: 0
-    # max: 10
   model.loss_fn.num_samples:
     distribution: q_uniform
     q: 20 # 10, 25, ..., 50

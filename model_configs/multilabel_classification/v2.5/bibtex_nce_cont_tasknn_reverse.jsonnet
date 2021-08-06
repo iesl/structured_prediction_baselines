@@ -1,4 +1,4 @@
-local test = std.extVar('TEST');  // a test run with small dataset
+local test = std.extVar('TEST');  // a test run with small dataset 
 local data_dir = std.extVar('DATA_DIR');
 local cuda_device = std.extVar('CUDA_DEVICE');
 local use_wandb = (if test == '1' then false else true);
@@ -68,8 +68,8 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
         log_key: 'loss',
         constituent_losses: [
           {
-            type: 'multi-label-dvn-score',
-            log_key: 'neg.dvn_score',
+            type: 'multi-label-score-score',
+            log_key: 'neg.score',
             normalize_y: true,
             reduction: 'none',
           },  //This loss can be different from the main loss // change this
