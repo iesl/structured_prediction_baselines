@@ -25,6 +25,9 @@
 
 ### ⚙️  Model and sweep configs
 
+- Feat/general data configs [\#39](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/39) ([leejayyoon](https://github.com/leejayyoon))
+- Pushing general sweep configs & corresponding jsonnet. + Sweep configs for 'delicious' dataset. [\#38](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/38) ([leejayyoon](https://github.com/leejayyoon))
+- Original infnet remaining configs [\#36](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/36) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Added 6 more feature based datasets and blurb and nyt [\#19](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/19) ([dhruvdcoder](https://github.com/dhruvdcoder))
 
 ## [v0.1.0](https://github.com/dhruvdcoder/structured_prediction_baselines/tree/v0.1.0) (2021-07-08)
