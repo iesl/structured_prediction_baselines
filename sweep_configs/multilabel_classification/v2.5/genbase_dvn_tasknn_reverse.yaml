@@ -1,12 +1,12 @@
-name: bibtex_strat_nce_discrete_minus_tasknn_reverse
-description: "Train tasknn using cross-entropy and  (unnormalized) score loss (v(f(x),y)). The score-nn will be trained using NCE with a - sign (score-ln Pn). The samples are taken as discrete samples from the tasknn output."
+name: genbase_dvn_tasknn_reverse
+description: "Train tasknn using cross-entropy and dvn score loss (v(f(x),y)). We will have only one sampler--tasknn continuous--to train scoreNN. The network parameters are from structure_prediction_baselines/7tvr5xhg"
 program: allennlp
 command:
 - ${program}
 - train_with_wandb
-- model_configs/multilabel_classification/v2.5/bibtex_strat_nce_discrete_tasknn_reverse.jsonnet
+- model_configs/multilabel_classification/v2.5/bibtex_dvn_tasknn_reverse.jsonnet
 - --include-package=structured_prediction_baselines
-- --wandb_tags="task=mlc,score_nn_loss=nce,task_nn_loss=bce+score,sampler=inference_net_continuous_samples,dataset=bibtex_strat,inference_module=inference_net,inference_module=tasknn,sampler=tasknn_contiuous_samples"
+- --wandb_tags="task=mlc,model=dvn,sampler=inference_net,dataset=genbase,inference_module=inference_net,inference_module=tasknn,sampler=tasknn,ref=7tvr5xhg"
 - ${args}
 - --file-friendly-logging
 method: bayes
@@ -20,7 +20,7 @@ early_terminate:
 
 parameters:
   env.dataset_name:
-    value: 'bibtex_strat'
+    value: 'genbase'
   env.cross_entropy_loss_weight:
     value: 1.0
   env.dvn_score_loss_weight:
@@ -30,7 +30,7 @@ parameters:
   env.ff_dropout:
     value: 0.5
   env.ff_hidden:
-    value: 400
+    value: 200
   env.ff_linear_layers:
     value: 2
   env.ff_weight_decay:
@@ -39,7 +39,7 @@ parameters:
     value: 200
   trainer.optimizer.optimizers.task_nn.lr:
     distribution: log_uniform
-    min: -11.5
+    min: -12
     max: -4.5 
   trainer.optimizer.optimizers.score_nn.lr:
     distribution: log_uniform
@@ -50,14 +50,13 @@ parameters:
     min: 3
     max: 11
     q: 3
-  model.loss_fn.num_samples:
+  trainer.num_steps.task_nn:
     distribution: q_uniform
-    q: 20 # 10, 25, ..., 50
-    min: 20 # ln(10)
-    max: 80 # ln(50)
-  model.loss_fn.sign:
-    value: "-"
-  #model.loss_fn.std:
-  #  distribution: log_uniform 
-  #  min: -6.9 # ln(0.001)
-  #  max: 1.6  # ln(5)
+    min: 1
+    max: 10
+    q: 3
+  model.inference_module.std:
+    distribution: log_uniform 
+    min: -6.9 # ln(0.001)
+    max: 1.6  # ln(5)
+
