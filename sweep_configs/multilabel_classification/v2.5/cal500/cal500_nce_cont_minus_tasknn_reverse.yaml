@@ -1,4 +1,4 @@
-name: [data_name]_nce_cont_minus_tasknn_reverse
+name: cal500_nce_cont_minus_tasknn_reverse
 description: "Train tasknn using cross-entropy and  score loss (v(f(x),y)). The score-nn will be trained using NCE with a - sign (score+ln Pn). The samples are taken as continuous samples by adding gaussian noise to the tasknn output logits"
 program: allennlp
 command:
@@ -6,7 +6,7 @@ command:
 - train_with_wandb
 - model_configs/multilabel_classification/v2.5/gendata_nce_cont_tasknn_reverse.jsonnet
 - --include-package=structured_prediction_baselines
-- --wandb_tags="task=mlc,score_nn_loss=nce,sampler=inference_net_continuous_samples,dataset=[data_name],inference_module=inference_net,inference_module=tasknn,inference_module_loss=bce+score,sampler=tasknn_contiuous_samples,ref=7tvr5xhg"
+- --wandb_tags="task=mlc,score_nn_loss=nce,sampler=inference_net_continuous_samples,dataset=cal500,inference_module=inference_net,inference_module=tasknn,inference_module_loss=bce+score,sampler=tasknn_contiuous_samples,ref=7tvr5xhg"
 - ${args}
 - --file-friendly-logging
 method: bayes
@@ -20,7 +20,7 @@ early_terminate:
 
 parameters:
   env.dataset_name:
-    value: '[data_name]'
+    value: 'cal500'
   env.cross_entropy_loss_weight:
     value: 1.0
   env.dvn_score_loss_weight:
@@ -28,34 +28,19 @@ parameters:
     min: -6.9
     max: 2.3
   env.ff_dropout_10x:
-    distribution: q_uniform
-    min: 0.5 # 1
-    max: 5.49 # 5
-    # value: 0.5 # bibtex
+    value: 2 # bibtex
   env.ff_hidden:
-    distribution: q_uniform
-    min: 50 # 100
-    max: 549 # 500
-    q: 100  
-    # value: 400 # bibtex
+    value: 500 # bibtex
   env.ff_linear_layers:
-    distribution: q_uniform
-    min: 0.5  # 1
-    max: 5.49 # 5
-    q: 1  
-    # value: 2 # bibtex
+    value: 5 # bibtex  
   env.ff_weight_decay:
     value: 0.00001
   env.global_score_hidden_dim:
-    distribution: q_uniform
-    min: 50  #100
-    max: 449 #400
-    q: 100
-    # value: 200 # bibtex
+    value: 400 # bibtex  
   trainer.optimizer.optimizers.task_nn.lr:
     distribution: log_uniform
     min: -12.5
-    max: -4.5 
+    max: -4.5  
   trainer.optimizer.optimizers.score_nn.lr:
     distribution: log_uniform
     min: -11.5
