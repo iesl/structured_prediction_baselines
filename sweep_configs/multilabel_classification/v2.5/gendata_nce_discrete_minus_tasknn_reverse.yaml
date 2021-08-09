@@ -1,4 +1,4 @@
-name: delicious_nce_discrete_minus_tasknn_reverse
+name: [data_name]_nce_discrete_minus_tasknn_reverse
 description: "Train tasknn using cross-entropy and  score loss (v(f(x),y)). The score-nn will be trained using NCE with a - sign (score-ln Pn). The samples are taken as discrete samples from the tasknn output."
 program: allennlp
 command:
@@ -6,7 +6,7 @@ command:
 - train_with_wandb
 - model_configs/multilabel_classification/v2.5/gendata_nce_discrete_tasknn_reverse.jsonnet
 - --include-package=structured_prediction_baselines
-- --wandb_tags="task=mlc,model=dvn,sampler=inference_net_continuous_samples,dataset=delicious,inference_module=inference_net,inference_module=tasknn,sampler=tasknn_contiuous_samples"
+- --wandb_tags="task=mlc,model=dvn,sampler=inference_net_continuous_samples,dataset=[data_name],inference_module=inference_net,inference_module=tasknn,sampler=tasknn_contiuous_samples"
 - ${args}
 - --file-friendly-logging
 method: bayes
@@ -20,7 +20,7 @@ early_terminate:
 
 parameters:
   env.dataset_name:
-    value: 'delicious'
+    value: '[data_name]'
   env.cross_entropy_loss_weight:
     value: 1.0
   env.dvn_score_loss_weight:
@@ -79,6 +79,6 @@ parameters:
     distribution: q_uniform
     q: 20 # 10, 25, ..., 50
     min: 20 # ln(10)
-    max: 80 # ln(50)
+    max: 100 # ln(50)
   model.loss_fn.sign:
     value: "-"

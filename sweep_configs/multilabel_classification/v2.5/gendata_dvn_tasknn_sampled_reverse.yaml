@@ -1,4 +1,4 @@
-name: genbase_dvn_tasknn_samples_reverse
+name: [data_name]_dvn_tasknn_samples_reverse
 description: "Train tasknn using cross-entropy and dvn score loss (v(f(x),y)). We will have only one sampler--tasknn continuous samples--to train scoreNN. The network parameters are from structure_prediction_baselines/7tvr5xhg"
 program: allennlp
 command:
@@ -6,7 +6,7 @@ command:
 - train_with_wandb
 - model_configs/multilabel_classification/v2.5/gendata_dvn_tasknn_samples_reverse.jsonnet
 - --include-package=structured_prediction_baselines
-- --wandb_tags="task=mlc,model=dvn,sampler=inference_net_continuous_samples,dataset=genbase,inference_module=inference_net,inference_module=tasknn,sampler=tasknn_contiuous_samples,ref=7tvr5xhg"
+- --wandb_tags="task=mlc,model=dvn,sampler=inference_net_continuous_samples,dataset=[data_name],inference_module=inference_net,inference_module=tasknn,sampler=tasknn_contiuous_samples,ref=7tvr5xhg"
 - ${args}
 - --file-friendly-logging
 method: bayes
@@ -20,7 +20,7 @@ early_terminate:
 
 parameters:
   env.dataset_name:
-    value: 'genbase'
+    value: '[data_name]'
   env.cross_entropy_loss_weight:
     value: 1.0
   env.dvn_score_loss_weight:
