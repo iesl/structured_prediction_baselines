@@ -103,6 +103,7 @@ class MultilabelClassificationWithScoreNNEvaluation(MultilabelClassification):
         if self.evaluation_module is None:
             raise ValueError("Evaluation Module can not be none for this sampler")
 
+        self.micro_map = MultilabelClassificationMicroAvgPrecision()
         self.average_rank = MultilabelClassificationAvgRank()
         self.mrr = MultilabelClassificationMeanReciprocalRank()
         self.ndcg = MultilabelClassificationNormalizedDiscountedCumulativeGain()
@@ -154,6 +155,7 @@ class MultilabelClassificationWithScoreNNEvaluation(MultilabelClassification):
         eval_metrics = {
             # "eval_on_distribution_f1": self.distribution_samples_f1.get_metric(reset),
             # "eval_on_random_f1": self.random_samples_f1.get_metric(reset),
+            "micro_map": self.micro_map.get_metric(reset),
             "average_rank": self.average_rank.get_metric(reset),
             "MRR": self.mrr.get_metric(reset),
             "NDCG": self.ndcg.get_metric(reset),
