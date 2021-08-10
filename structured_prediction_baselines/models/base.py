@@ -56,6 +56,8 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         oracle_value_function: Optional[OracleValueFunction] = None,
         score_nn: Optional[ScoreNN] = None,
         inference_module: Optional[Sampler] = None,
+        evaluation_module: Optional[Sampler] = None,
+        num_eval_samples: int = 10,
         regularizer: Optional[RegularizerApplicator] = None,
         initializer: Optional[InitializerApplicator] = None,
         **kwargs: Any,
@@ -93,11 +95,17 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         else:
             self.inference_module = sampler
 
+        self.evaluation_module = evaluation_module
+        self.num_eval_samples = num_eval_samples
+        # self.eval_only_metrics = {}
         if initializer is not None:
             initializer(self)
         self.logging_children.append(self.loss_fn)
         self.logging_children.append(self.sampler)
         self.logging_children.append(self.inference_module)
+        if evaluation_module is not None:
+            self.logging_children.append(self.evaluation_module)
+
         mode = ModelMode.UPDATE_SCORE_NN
 
         if self.score_nn is not None:
@@ -124,6 +132,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         inference_module: Optional[Lazy[Sampler]] = None,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
+        evaluation_module: Optional[Lazy[Sampler]] = None,
         regularizer: Optional[RegularizerApplicator] = None,
         initializer: Optional[InitializerApplicator] = None,
         **kwargs: Any,
@@ -158,6 +167,14 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
                 main_sampler=sampler_,
             )
 
+        if evaluation_module is not None:
+            evaluation_module_ = evaluation_module.construct(
+                score_nn=score_nn,
+                oracle_value_function=oracle_value_function
+            )
+        else:
+            evaluation_module_ = None
+
         return cls(
             vocab=vocab,
             sampler=sampler_,
@@ -165,6 +182,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
             oracle_value_function=oracle_value_function,
             score_nn=score_nn,
             inference_module=inference_module_,
+            evaluation_module=evaluation_module_,
             regularizer=regularizer,
             initializer=initializer,
             **kwargs,
@@ -197,6 +215,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         task_nn: TaskNN,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
+        evaluation_module: Optional[Lazy[Sampler]] = None,
         regularizer: Optional[RegularizerApplicator] = None,
         initializer: Optional[InitializerApplicator] = None,
         **kwargs: Any,
@@ -238,6 +257,14 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         )
         inference_module_.log_key = inference_module_.log_key + "_inf"
 
+        if evaluation_module is not None:
+            evaluation_module_ = evaluation_module.construct(
+                score_nn=score_nn,
+                oracle_value_function=oracle_value_function
+            )
+        else:
+            evaluation_module_ = None
+
         return cls(
             vocab=vocab,
             sampler=sampler_,
@@ -245,6 +272,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
             oracle_value_function=oracle_value_function,
             score_nn=score_nn,
             inference_module=inference_module_,
+            evaluation_module=evaluation_module_,
             regularizer=regularizer,
             initializer=initializer,
             **kwargs,
@@ -252,6 +280,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
 
     def calculate_metrics(
         self,
+        x: torch.Tensor,
         labels: torch.Tensor,  # shape: (batch, ...)
         y_hat: torch.Tensor,  # shape: (batch, ...)
         buffer: Dict,
