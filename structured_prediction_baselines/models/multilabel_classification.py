@@ -101,7 +101,7 @@ class MultilabelClassificationWithScoreNNEvaluation(MultilabelClassification):
     ) -> None:
         super().__init__(**kwargs)
         if self.evaluation_module is None:
-            raise ValueError("Evaluation Module can not be none for this sampler")
+            raise ValueError("Evaluation Module can not be none for this model type.")
 
         self.micro_map = MultilabelClassificationMicroAvgPrecision()
         self.average_rank = MultilabelClassificationAvgRank()
@@ -119,17 +119,13 @@ class MultilabelClassificationWithScoreNNEvaluation(MultilabelClassification):
         y_hat: torch.Tensor,
         buffer: Dict,
     ) -> None:
-
-        self.map(y_hat, labels)
+        super().calculate_metrics(x, labels, y_hat, buffer)
         self.micro_map(y_hat, labels)
 
         if not self.inference_module.is_normalized:
             y_hat_n = torch.sigmoid(y_hat)
         else:
             y_hat_n = y_hat
-
-        self.relaxed_f1(y_hat_n, labels)
-        self.f1(y_hat_n, labels)
 
         distribution_samples = self.get_samples(y_hat_n, labels=labels)
         sample_scores = self.score_nn(x, distribution_samples, buffer)  # (batch, num_samples+1)
