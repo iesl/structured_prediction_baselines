@@ -3,8 +3,8 @@ local data_dir = std.extVar('DATA_DIR');
 local cuda_device = std.extVar('CUDA_DEVICE');
 local use_wandb = (if test == '1' then false else true);
 
-local dataset_name = std.parseJson(std.extVar('dataset_name'));
-local dataset_metadata = (import '../datasets.jsonnet')[dataset_name];
+local dataset_name = 'bibtex_original';
+local dataset_metadata = (import '../../datasets.jsonnet')[dataset_name];
 local num_labels = dataset_metadata.num_labels;
 local num_input_features = dataset_metadata.input_features;
 
@@ -12,13 +12,19 @@ local num_input_features = dataset_metadata.input_features;
 local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
 local label_space_dim = ff_hidden;
 local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
+//local ff_activation = std.parseJson(std.extVar('ff_activation'));
 local ff_activation = 'softplus';
 local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
 local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
+//local global_score_hidden_dim = 150;
 local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
-local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
-local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'));
+local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
+local oracle_cost_weight = 1; #std.parseJson(std.extVar('oracle_cost_weight'));
+local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
+local sc_temp = std.parseJson(std.extVar('stopping_criteria'));
+local stopping_criteria = (if std.toString(sc_temp) == '0' then 1 else sc_temp);
+
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
   evaluate_on_test: true,
@@ -46,6 +52,29 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
       log_key: 'sampler',
       constituent_samplers: [],
     },
+    inference_module: {
+      type: 'inference-network-unnormalized',
+      log_key: "tasknn",
+      loss_fn: {
+        type: 'combination-loss',
+        log_key: 'loss',
+        constituent_losses: [
+          {
+            type: 'multi-label-dvn-score',
+            log_key: 'infscore-loss',
+            reduction: 'none',
+            normalize_y: true,
+          },  //This loss can be different from the main loss // change this
+          {
+            type: 'multi-label-bce',
+            log_key: 'sampler-bce-loss',
+            reduction: 'none',
+          },
+        ],
+        loss_weights: [inference_score_weight, cross_entropy_loss_weight],
+        reduction: 'mean',
+      },
+    },
     task_nn: {
       type: 'multi-label-classification',
       feature_network: {
@@ -60,29 +89,6 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
         vocab_namespace: 'labels',
       },
     },
-    inference_module: {
-      type: 'multi-label-inference-net-normalized',
-      log_key: 'inference_module',
-      loss_fn: {
-        type: 'combination-loss',
-        log_key: 'loss',
-        constituent_losses: [
-          {
-            type: 'multi-label-score-loss',
-            log_key: 'neg.score',
-            normalize_y: true,
-            reduction: 'none',
-          },  //This loss can be different from the main loss // change this
-          {
-            type: 'multi-label-bce',
-            reduction: 'none',
-            log_key: 'bce',
-          },
-        ],
-        loss_weights: [dvn_score_loss_weight, cross_entropy_loss_weight],
-        reduction: 'mean',
-      },
-    },
     oracle_value_function: { type: 'per-instance-f1', differentiable: false },
     score_nn: {
       type: 'multi-label-classification',
@@ -90,13 +96,13 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
         type: 'multi-label-classification',
         feature_network: {
           input_dim: num_input_features,
-          num_layers: ff_linear_layers,
-          activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + [ff_activation]),
-          hidden_dims: ff_hidden,
-          dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
+          num_layers: 2,
+          activations: (['sigmoid' for i in std.range(0, 2 - 2)] + ['sigmoid']),
+          hidden_dims: 300,
+          dropout: ([0.3 for i in std.range(0, 2 - 2)] + [0]),
         },
         label_embeddings: {
-          embedding_dim: ff_hidden,
+          embedding_dim: 300,
           vocab_namespace: 'labels',
         },
       },
@@ -104,23 +110,22 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
         type: 'multi-label-feedforward',
         feedforward: {
           input_dim: num_labels,
-          num_layers: 1,
-          activations: ff_activation,
-          hidden_dims: global_score_hidden_dim,
+          num_layers: 3,
+          activations: 'sigmoid',
+          hidden_dims: 100,
         },
       },
     },
-    loss_fn: {
-      type: 'multi-label-nce-ranking-with-cont-sampling',
-      log_key: 'nce',
-      num_samples: 10,
-      sign: '+',
-      std: 10.0,
+    loss_fn: { // for learning the score-NN
+      type: 'zero-dvn-loss',
+      reduction: 'mean',
+      log_key: 'zero-score-loss',
     },
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
-        [@'.*_linear_layers.*weight', (if std.member(['tanh', 'sigmoid'], ff_activation) then { type: 'xavier_uniform', gain: gain } else { type: 'kaiming_uniform', nonlinearity: 'relu' })],
+        [@'score_nn.*', { type: 'pretrained', weights_file_path: '/mnt/nfs/scratch1/jaylee/repository/structured_prediction/pretrained_models/DVN/best_DVN_hao.th' }],
+        [@'.*feedforward._linear_layers.*weight', (if std.member(['tanh', 'sigmoid'], ff_activation) then { type: 'xavier_uniform', gain: gain } else { type: 'kaiming_uniform', nonlinearity: 'relu' })],
         [@'.*linear_layers.*bias', { type: 'zero' }],
       ],
     },
@@ -131,12 +136,12 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
   },
   trainer: {
     type: 'gradient_descent_minimax',
-    num_epochs: if test == '1' then 10 else 300,
-    grad_norm: { task_nn: 10.0 },
+    num_epochs: if test == '1' then 150 else 300,
+    //grad_norm: 10.0,
     patience: 20,
     validation_metric: '+fixed_f1',
     cuda_device: std.parseInt(cuda_device),
-    learning_rate_schedulers: {
+    learning_rate_scheduler: {
       task_nn: {
         type: 'reduce_on_plateau',
         factor: 0.5,
@@ -145,17 +150,16 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
         verbose: true,
       },
     },
-    optimizer: {
-      optimizers: {
-        task_nn:
-          {
-            lr: 0.001,
-            weight_decay: ff_weight_decay,
-            type: 'adamw',
-          },
-        score_nn: {
-          lr: 0.005,
+    optimizer:{
+      optimizers:{
+        task_nn:{
+          lr: 0.0002,
           weight_decay: ff_weight_decay,
+          type: 'adamw',
+        },
+        score_nn: {
+          lr: 0.0, #0.0036,
+          weight_decay: 0.0, #7.0563993657317645e-06,
           type: 'adamw',
         },
       },
@@ -165,7 +169,7 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
     },
     callbacks: [
       'track_epoch_callback',
-      'slurm',
+      'decrease-xtropy-callback',
     ] + (
       if use_wandb then [
         {
@@ -175,7 +179,7 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
       ]
       else []
     ),
-    inner_mode: 'score_nn',
-    num_steps: { task_nn: 1, score_nn: 1 },
+    inner_mode: 'task_nn',
+    num_steps: { task_nn: stopping_criteria, score_nn: 1 },
   },
 }

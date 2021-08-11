@@ -28,36 +28,18 @@ parameters:
     min: -6.9
     max: 2.3
   env.ff_dropout_10x:
-    distribution: q_uniform
-    min: 1.5
-    max: 5.49
-    # value: 0.5
+    value: 5
   env.ff_hidden:
-    distribution: q_uniform
-    min: 200
-    max: 500
-    q: 100  
-    # value: 400
+    value: 400
   env.ff_linear_layers:
-    distribution: q_uniform
-    min: 1.5
-    max: 3.49
-    q: 1
-  env.ff_linear_layers:
-    distribution: q_uniform
-    min: 0.5
-    max: 5.49
-    q: 1  
+    value: 2
   env.ff_weight_decay:
     value: 0.00001
   env.global_score_hidden_dim:
-    distribution: q_uniform
-    min: 100
-    max: 400
-    q: 100
+    value: 200
   trainer.optimizer.optimizers.task_nn.lr:
     distribution: log_uniform
-    min: -11.5
+    min: -12.5
     max: -4.5 
   trainer.optimizer.optimizers.score_nn.lr:
     distribution: log_uniform
@@ -69,11 +51,10 @@ parameters:
     max: 11.99
     q: 3
   env.task_nn_steps: # instead of trainer.num_steps.task_nn
-    value: 1
-    # distribution: q_uniform
-    # q: 5 # 1, 5, 10 --> manual handling in the jsonnet.
-    # min: 0
-    # max: 10
+    distribution: q_uniform
+    q: 5 # 1, 5, 10 --> manual handling in the jsonnet.
+    min: 0
+    max: 10
   model.loss_fn.num_samples:
     distribution: q_uniform
     q: 20 # 10, 25, ..., 50
@@ -81,7 +62,3 @@ parameters:
     max: 80 # ln(50)
   model.loss_fn.sign:
     value: "-"
-  #model.loss_fn.std:
-  #  distribution: log_uniform 
-  #  min: -6.9 # ln(0.001)
-  #  max: 1.6  # ln(5)

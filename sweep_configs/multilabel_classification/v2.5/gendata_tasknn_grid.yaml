@@ -1,4 +1,4 @@
-name: [data_name]_tasknn
+name: '[data_name]'_tasknn
 description: "Train tasknn using cross-entropy only"
 program: allennlp
 command:
@@ -9,7 +9,7 @@ command:
 - --wandb_tags="task=mlc,model=tasknn,sampler=none,dataset=[data_name],inference_module=tasknn,sampler=none,ref=7tvr5xhg"
 - ${args}
 - --file-friendly-logging
-method: bayes
+method: grid
 metric:
   goal: maximize
   name: "validation/best_fixed_f1"
@@ -23,29 +23,17 @@ parameters:
     value: '[data_name]'
   env.cross_entropy_loss_weight:
     value: 1.0
-  env.ff_dropout_10x:
-    distribution: q_uniform
-    min: 0.5 # 1
-    max: 5.49 # 5
-    # value: 0.5 # bibtex
+  env.ff_dropout_10x: 
+    values: [1,2,3,4,5]
   env.ff_hidden:
-    distribution: q_uniform
-    min: 50 # 100
-    max: 549 # 500
-    q: 100  
-    # value: 400 # bibtex
+    values: [200,300,400,500]
   env.ff_linear_layers:
-    distribution: q_uniform
-    min: 0.5  # 1
-    max: 5.49 # 5
-    q: 1  
-    # value: 2 # bibtex
+    values: [1,2,3,4,5]
   env.ff_weight_decay:
     value: 0.00001
   trainer.optimizer.optimizers.task_nn.lr:
-    distribution: log_uniform
-    min: -12.5
-    max: -4.5 
+    values: [0.01,0.005,0.0001]
+  # scoreNN not really used in this swep.
   env.dvn_score_loss_weight:
     value: 0.0
   env.global_score_hidden_dim:

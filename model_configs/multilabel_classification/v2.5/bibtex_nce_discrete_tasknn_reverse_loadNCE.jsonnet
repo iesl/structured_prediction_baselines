@@ -3,7 +3,7 @@ local data_dir = std.extVar('DATA_DIR');
 local cuda_device = std.extVar('CUDA_DEVICE');
 local use_wandb = (if test == '1' then false else true);
 
-local dataset_name = std.parseJson(std.extVar('dataset_name'));
+local dataset_name = 'bibtex_original';
 local dataset_metadata = (import '../datasets.jsonnet')[dataset_name];
 local num_labels = dataset_metadata.num_labels;
 local num_input_features = dataset_metadata.input_features;
@@ -18,7 +18,9 @@ local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
 local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
-local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'));
+local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
+local sc_temp = std.parseJson(std.extVar('stopping_criteria')); # variable for task_nn.steps
+local task_nn_steps = (if std.toString(sc_temp) == '0' then 1 else sc_temp);
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
   evaluate_on_test: true,
@@ -69,7 +71,7 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
         constituent_losses: [
           {
             type: 'multi-label-score-loss',
-            log_key: 'neg.score',
+            log_key: 'neg.nce_score',
             normalize_y: true,
             reduction: 'none',
           },  //This loss can be different from the main loss // change this
@@ -79,7 +81,7 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
             log_key: 'bce',
           },
         ],
-        loss_weights: [dvn_score_loss_weight, cross_entropy_loss_weight],
+        loss_weights: [inference_score_weight, cross_entropy_loss_weight],
         reduction: 'mean',
       },
     },
@@ -111,15 +113,15 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
       },
     },
     loss_fn: {
-      type: 'multi-label-nce-ranking-with-cont-sampling',
+      type: 'multi-label-nce-ranking-with-discrete-sampling',
       log_key: 'nce',
       num_samples: 10,
-      sign: '+',
-      std: 10.0,
+      sign: '-',
     },
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
+        [@'score_nn.*', { type: 'pretrained', weights_file_path: '/mnt/nfs/scratch1/jaylee/repository/structured_prediction/pretrained_models/NCE50/NCE50.th' }],
         [@'.*_linear_layers.*weight', (if std.member(['tanh', 'sigmoid'], ff_activation) then { type: 'xavier_uniform', gain: gain } else { type: 'kaiming_uniform', nonlinearity: 'relu' })],
         [@'.*linear_layers.*bias', { type: 'zero' }],
       ],
@@ -176,6 +178,6 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
       else []
     ),
     inner_mode: 'score_nn',
-    num_steps: { task_nn: 1, score_nn: 1 },
+    num_steps: { task_nn: task_nn_steps, score_nn: 1 },
   },
 }
