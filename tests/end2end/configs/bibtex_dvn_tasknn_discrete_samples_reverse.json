@@ -142,7 +142,7 @@
                 "verbose": true
             }
         },
-        "num_epochs": 300,
+        "num_epochs": 1,
         "num_steps": {
             "score_nn": 1,
             "task_nn": 1
