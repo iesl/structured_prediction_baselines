@@ -145,6 +145,7 @@ local transformer_dim = 768;
         {
           type: 'wandb_allennlp',
           sub_callbacks: [{ type: 'log_best_validation_metrics', priority: 100 }],
+          save_model_archive: false,
         },
       ]
       else []
