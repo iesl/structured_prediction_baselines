@@ -3,12 +3,12 @@
         "type": "arff",
         "num_labels": 159
     },
+    "vocabulary": {
+        "type": "from_files",
+        "directory": "bibtex_vocabulary"
+    },
     "model": {
         "type": "multi-label-classification-with-infnet",
-        "vocabulary": {
-            "type": "from_files",
-            "directory": "bibtex_vocabulary"
-        },
         "inference_module": {
             "type": "multi-label-inference-net-normalized",
             "log_key": "inference_module",
