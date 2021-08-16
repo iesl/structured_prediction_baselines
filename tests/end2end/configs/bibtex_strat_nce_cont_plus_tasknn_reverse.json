@@ -5,6 +5,10 @@
     },
     "model": {
         "type": "multi-label-classification-with-infnet",
+        "vocabulary": {
+            "type": "from_files",
+            "directory": "bibtex_vocabulary"
+        },
         "inference_module": {
             "type": "multi-label-inference-net-normalized",
             "log_key": "inference_module",
@@ -125,7 +129,6 @@
         "callbacks": [
             "track_epoch_callback",
             "slurm"
-            
         ],
         "checkpointer": {
             "keep_most_recent_by_count": 1
@@ -154,12 +157,12 @@
                 "score_nn": {
                     "type": "adamw",
                     "lr": 0.0005943149729227067,
-                    "weight_decay": 1e-05
+                    "weight_decay": 0.00001
                 },
                 "task_nn": {
                     "type": "adamw",
                     "lr": 0.003014184259558871,
-                    "weight_decay": 1e-05
+                    "weight_decay": 0.00001
                 }
             }
         },

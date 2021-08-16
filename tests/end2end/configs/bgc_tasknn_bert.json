@@ -16,6 +16,10 @@
     },
     "model": {
         "type": "multi-label-classification-with-infnet",
+        "vocabulary": {
+            "type": "from_files",
+            "directory": "blurb_bert_vocab"
+        },
         "inference_module": {
             "type": "multi-label-basic",
             "log_key": "inference_module",
@@ -125,7 +129,7 @@
             "optimizers": {
                 "task_nn": {
                     "type": "huggingface_adamw",
-                    "lr": 1e-05,
+                    "lr": 0.00001,
                     "weight_decay": 0.001
                 }
             }

@@ -6,11 +6,11 @@ import pytest
 from pytest_console_scripts import ScriptRunner
 from .common import (
     config_directory,
-    vocab_directory,
     root_directory,
     configs,
     marks,
 )
+import json
 
 
 base_training_command_template = """
@@ -18,7 +18,7 @@ allennlp
 train
 {config}
 --include-package=structured_prediction_baselines
---overrides={{ "type": "default", "dataset_reader.max_instances": 100, "trainer.cuda_device": -1, "vocabulary": {{"type": "from_files", "directory": "{vocab_directory}" }} }}
+--overrides={{ "type": "default", "dataset_reader.max_instances": 100, "trainer.cuda_device": -1 }}
 -s {serialization_dir}
         """
 # extra { } in overrides to escape format() call
@@ -52,6 +52,14 @@ def test_complete_training(
     training_env: Dict[str, str],
     model_directories: Path,
 ) -> None:  # fixture
+    with open(config) as f:
+        config_ = json.load(f)
+    vocab_directory = (
+        Path(__file__).parent
+        / "assets"
+        / "vocab"
+        / config_["model"]["vocabulary"]["directory"]
+    ).absolute()
     os.environ.update(**training_env)
     script_runner = ScriptRunner("subprocess", config_directory)
     command = (
