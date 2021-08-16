@@ -18,7 +18,7 @@ allennlp
 train
 {config}
 --include-package=structured_prediction_baselines
---overrides={{ "type": "default", "dataset_reader.max_instances": 100, "trainer.cuda_device": -1 , "vocab": {{"type": "from_files", "directory": "{vocab_directory}" }} }}
+--overrides={{ "type": "default", "dataset_reader.max_instances": 100, "trainer.cuda_device": -1 , "vocabulary": {{"type": "from_files", "directory": "{vocab_directory}" }} }}
 -s {serialization_dir}
         """
 # extra { } in overrides to escape format() call
@@ -58,7 +58,7 @@ def test_complete_training(
         Path(__file__).parent
         / "assets"
         / "vocab"
-        / config_["model"]["vocab"]["directory"]
+        / config_["model"]["vocabulary"]["directory"]
     ).absolute()
     os.environ.update(**training_env)
     script_runner = ScriptRunner("subprocess", config_directory)
