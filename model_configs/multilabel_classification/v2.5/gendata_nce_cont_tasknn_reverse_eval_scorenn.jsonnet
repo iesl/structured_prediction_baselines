@@ -3,7 +3,7 @@ local data_dir = std.extVar('DATA_DIR');
 local cuda_device = std.extVar('CUDA_DEVICE');
 local use_wandb = (if test == '1' then false else true);
 
-local dataset_name = 'bibtex_strat';
+local dataset_name = std.parseJson(std.extVar('dataset_name'));
 local dataset_metadata = (import '../datasets.jsonnet')[dataset_name];
 local num_labels = dataset_metadata.num_labels;
 local num_input_features = dataset_metadata.input_features;
@@ -11,7 +11,7 @@ local num_input_features = dataset_metadata.input_features;
 // model variables
 local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
 local label_space_dim = ff_hidden;
-local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
+local ff_dropout = std.parseJson(std.extVar('ff_dropout_10x')) / 10.0;
 local ff_activation = 'softplus';
 local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
 local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
@@ -19,6 +19,10 @@ local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_di
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
 local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'));
+local task_temp = std.parseJson(std.extVar('task_nn_steps')); # variable for task_nn.steps
+local task_nn_steps = (if std.toString(task_temp) == '0' then 1 else task_temp);
+local score_temp = std.parseJson(std.extVar('score_nn_steps')); # variable for score_nn.steps
+local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_temp);
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
   evaluate_on_test: true,
@@ -40,7 +44,7 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
 
   // Model
   model: {
-    type: 'multi-label-classification-with-infnet-and-scorenn-evaluation',
+    type: 'multi-label-classification-with-infnet',
     sampler: {
       type: 'appending-container',
       log_key: 'sampler',
@@ -97,18 +101,15 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
       },
     },
     inference_module: {
-      type: 'multi-label-inference-net-normalized-or-continuous-sampled',
+      type: 'multi-label-inference-net-normalized',
       log_key: 'inference_module',
-      keep_probs: true,
-      num_samples: 20,
-      std: 0.5,
       loss_fn: {
         type: 'combination-loss',
         log_key: 'loss',
         constituent_losses: [
           {
-            type: 'multi-label-dvn-score',
-            log_key: 'neg.dvn_score',
+            type: 'multi-label-score-loss',
+            log_key: 'neg.nce_score',
             normalize_y: true,
             reduction: 'none',
           },  //This loss can be different from the main loss // change this
@@ -149,7 +150,13 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
         },
       },
     },
-    loss_fn: { type: 'multi-label-dvn-bce', log_key: 'dvn_bce' },
+    loss_fn: {
+      type: 'multi-label-nce-ranking-with-cont-sampling',
+      log_key: 'nce',
+      num_samples: 10,
+      sign: '+',
+      std: 10.0,
+    },
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
@@ -165,7 +172,7 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
   trainer: {
     type: 'gradient_descent_minimax',
     num_epochs: if test == '1' then 10 else 300,
-    grad_norm: {"task_nn": 10.0},
+    grad_norm: { task_nn: 10.0 },
     patience: 20,
     validation_metric: '+fixed_f1',
     cuda_device: std.parseInt(cuda_device),
@@ -182,12 +189,12 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
       optimizers: {
         task_nn:
           {
-            lr: 0.0036166128364796433,
+            lr: 0.001,
             weight_decay: ff_weight_decay,
             type: 'adamw',
           },
         score_nn: {
-          lr: 0.0007979849977427997,
+          lr: 0.005,
           weight_decay: ff_weight_decay,
           type: 'adamw',
         },
@@ -209,6 +216,6 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
       else []
     ),
     inner_mode: 'score_nn',
-    num_steps: { task_nn: 1, score_nn: 9 },
+    num_steps: { task_nn: task_nn_steps, score_nn: score_nn_steps },
   },
 }
