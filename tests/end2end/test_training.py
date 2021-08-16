@@ -58,7 +58,7 @@ def test_complete_training(
         Path(__file__).parent
         / "assets"
         / "vocab"
-        / config_["model"]["vocabulary"]["directory"]
+        / config_["model"]["vocab"]["directory"]
     ).absolute()
     os.environ.update(**training_env)
     script_runner = ScriptRunner("subprocess", config_directory)
