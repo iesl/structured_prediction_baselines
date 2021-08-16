@@ -5,7 +5,7 @@
     },
     "model": {
         "type": "multi-label-classification-with-infnet",
-"vocabulary": {
+        "vocab": {
             "type": "from_files",
             "directory": "bibtex_vocabulary"
         },
@@ -126,7 +126,6 @@
         "callbacks": [
             "track_epoch_callback",
             "slurm"
-            
         ],
         "checkpointer": {
             "keep_most_recent_by_count": 1
@@ -154,13 +153,13 @@
             "optimizers": {
                 "score_nn": {
                     "type": "adamw",
-                    "lr": 2.2995158012047178e-05,
-                    "weight_decay": 7.954541101696148e-07
+                    "lr": 0.000022995158012047178,
+                    "weight_decay": 7.954541101696148e-7
                 },
                 "task_nn": {
                     "type": "adamw",
                     "lr": 0.0045064127190682915,
-                    "weight_decay": 7.954541101696148e-07
+                    "weight_decay": 7.954541101696148e-7
                 }
             }
         },

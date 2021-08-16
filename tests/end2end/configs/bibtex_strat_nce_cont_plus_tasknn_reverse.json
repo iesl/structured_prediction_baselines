@@ -5,7 +5,7 @@
     },
     "model": {
         "type": "multi-label-classification-with-infnet",
-        "vocabulary": {
+        "vocab": {
             "type": "from_files",
             "directory": "bibtex_vocabulary"
         },
