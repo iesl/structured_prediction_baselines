@@ -13,12 +13,12 @@ on:
 
 jobs:
   tests:
-    name: ${{ matrix.session }}-${{ matrix.python-version }}-${{ matrix.os }}
+    name: ${{ matrix.session }}-python-${{ matrix.python-version }}-os-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         python-version: ['3.8']
-        os: ['macos-latest', 'ubuntu-latest']
+        os: ['macos-latest']
       fail-fast: true
     env:
       NOXSESSION: ${{ matrix.session }}
