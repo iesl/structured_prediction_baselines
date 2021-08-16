@@ -16,7 +16,7 @@
     },
     "model": {
         "type": "multi-label-classification-with-infnet",
-        "vocab": {
+        "vocabulary": {
             "type": "from_files",
             "directory": "blurb_bert_vocab"
         },
