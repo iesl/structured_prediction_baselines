@@ -16,7 +16,7 @@
                             "weight_decay": 0
                         }
                     },
-                    "log_key": "distribution_gbi",
+                    "log_key": "tasknn_gbi",
                     "loss_fn": {
                         "log_key": "neg.dvn_score",
                         "reduction": "none",
