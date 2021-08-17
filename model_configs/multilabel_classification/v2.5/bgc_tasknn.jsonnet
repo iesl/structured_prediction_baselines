@@ -98,20 +98,22 @@ local transformer_dim = 768;
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
-        [@'.*_linear_layers.*weight', (if std.member(['tanh', 'sigmoid'], ff_activation) then { type: 'xavier_uniform', gain: gain } else { type: 'kaiming_uniform', nonlinearity: 'relu' })],
-        [@'.*linear_layers.*bias', { type: 'zero' }],
+        [@'.*feedforward._linear_layers.*weight', (if std.member(['tanh', 'sigmoid'], ff_activation) then { type: 'xavier_uniform', gain: gain } else { type: 'kaiming_uniform', nonlinearity: 'relu' })],
+        [@'.*feedforward._linear_layers.*bias', { type: 'zero' }],
       ],
     },
   },
   data_loader: {
-    shuffle: true,
-    batch_size: 8,  // effective batch size = batch_size*num_gradient_accumulation_steps
+    "batch_sampler": {
+      "type": "bucket",
+      "batch_size" : 2 // effective batch size = batch_size*num_gradient_accumulation_steps
+    },
   },
   trainer: {
     type: 'gradient_descent_minimax',
     num_epochs: if test == '1' then 10 else 300,
-    grad_norm: { task_nn: 10.0 },
-    num_gradient_accumulation_steps: 4,  // effective batch size = batch_size*num_gradient_accumulation_steps
+    grad_norm: { task_nn: 1.0 },
+    num_gradient_accumulation_steps: 16,  // effective batch size = batch_size*num_gradient_accumulation_steps
     patience: 5,
     validation_metric: '+fixed_f1',
     cuda_device: std.parseInt(cuda_device),
