@@ -16,16 +16,18 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 // // score_nn
 local transformer_model = 'bert-base-uncased';  // huggingface name of the model
 local transformer_dim = 768;
+local transformer_vocab_size = 30522;
 local score_nn_ff_hidden = std.parseJson(std.extVar('score_nn_ff_hidden'));
 local score_nn_ff_linear_layers = std.parseJson(std.extVar('score_nn_ff_linear_layers'));
 local score_nn_weight_decay = std.parseJson(std.extVar('score_nn_weight_decay'));
-local score_nn_ff_hidden = std.parseJson(std.extVar('score_nn_ff_hidden'));
 local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
+local score_nn_dropout = std.parseJson(std.extVar('score_nn_dropout_10x')) / 10.0;
 // // task_nn
 local task_nn_dropout = std.parseJson(std.extVar('task_nn_dropout_10x')) / 10.0;
 local task_nn_ff_linear_layers = std.parseJson(std.extVar('task_nn_ff_linear_layers'));
 local task_nn_weight_decay = std.parseJson(std.extVar('task_nn_weight_decay'));
 local task_nn_transformer_hidden = std.parseJson(std.extVar('task_nn_transformer_hidden'));
+local task_nn_ff_hidden = task_nn_transformer_hidden;
 local task_nn_embedding = std.floor(task_nn_transformer_hidden / 2);
 local task_nn_transformer_layers = std.parseJson(std.extVar('task_nn_transformer_layers'));
 local task_nn_transformer_attn_heads = std.parseJson(std.extVar('task_nn_transformer_attn_heads'));
@@ -37,7 +39,7 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
   // Data
   dataset_reader: {
     type: 'bgc',
-    [if test == '1' then 'max_instances']: 100,
+    //[if test == '1' then 'max_instances']: 100,
     token_indexers: {
       x: {
         type: 'pretrained_transformer',
@@ -73,6 +75,7 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
           token_embedders: {
             x: {
               type: 'embedding',
+              num_embeddings: transformer_vocab_size,
               embedding_dim: task_nn_embedding,
             },
           },
@@ -89,15 +92,17 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
         },
         seq2vec_encoder: {
           type: 'cls_pooler',
+          embedding_dim: transformer_dim,
         },
         final_dropout: 0,
         feedforward: {
           input_dim: task_nn_embedding,
           num_layers: task_nn_ff_linear_layers,
           activations: ([ff_activation for i in std.range(0, task_nn_ff_linear_layers - 2)] + [ff_activation]),
-          hidden_dims: ff_hidden,
-          dropout: ([task_nn_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
+          hidden_dims: ([task_nn_ff_hidden for i in std.range(0, task_nn_ff_linear_layers - 2)] + [task_nn_embedding]),  // move up and then down
+          dropout: ([task_nn_dropout for i in std.range(0, task_nn_ff_linear_layers - 2)] + [0]),
         },
+        text_field_embedder_rename_map: { x: { token_ids: 'tokens' } },
       },
       label_embeddings: {
         embedding_dim: task_nn_embedding,
