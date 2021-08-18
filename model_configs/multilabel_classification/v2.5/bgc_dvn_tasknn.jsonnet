@@ -185,14 +185,14 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
   data_loader: {
     batch_sampler: {
       type: 'bucket',
-      batch_size: 2,
+      batch_size: 16,
     },
   },
   trainer: {
     type: 'gradient_descent_minimax',
-    num_epochs: if test == '1' then 10 else 300,
+    num_epochs: if test == '1' then 1 else 300,
     grad_norm: { task_nn: 10.0, score_nn: 1.0 },
-    num_gradient_accumulation_steps: 16,  // effective batch size = batch_size*num_gradient_accumulation_steps
+    num_gradient_accumulation_steps: 4,  // effective batch size = batch_size*num_gradient_accumulation_steps
     patience: 5,
     validation_metric: '+fixed_f1',
     cuda_device: std.parseInt(cuda_device),
