@@ -65,8 +65,11 @@ local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_tem
       },
     },
     inference_module: {
-      type: 'multi-label-inference-net-normalized',
+      type: 'multi-label-inference-net-normalized-or-continuous-sampled',
       log_key: 'inference_module',
+      keep_probs: true,
+      num_samples: 20,
+      std: 0.5,
       loss_fn: {
         type: 'combination-loss',
         log_key: 'loss',
@@ -175,5 +178,9 @@ local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_tem
     ),
     inner_mode: 'score_nn',
     num_steps: { task_nn: task_nn_steps, score_nn: score_nn_steps },
+  },
+  vocabulary: {
+    type: "from_files", 
+    directory: (data_dir + '/' + dataset_metadata.dir_name + '/' + 'eurlex-ev-vocab'),
   },
 }

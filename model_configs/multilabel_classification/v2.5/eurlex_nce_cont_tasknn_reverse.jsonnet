@@ -72,8 +72,8 @@ local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_tem
         log_key: 'loss',
         constituent_losses: [
           {
-            type: 'multi-label-dvn-score',
-            log_key: 'neg.dvn_score',
+            type: 'multi-label-score-loss',
+            log_key: 'neg.nce_score',
             normalize_y: true,
             reduction: 'none',
           },  //This loss can be different from the main loss // change this
@@ -114,7 +114,13 @@ local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_tem
         },
       },
     },
-    loss_fn: { type: 'multi-label-dvn-bce', log_key: 'dvn_bce' },
+    loss_fn: {
+      type: 'multi-label-nce-ranking-with-cont-sampling',
+      log_key: 'nce',
+      num_samples: 10,
+      sign: '+',
+      std: 10.0,
+    },
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
@@ -176,4 +182,8 @@ local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_tem
     inner_mode: 'score_nn',
     num_steps: { task_nn: task_nn_steps, score_nn: score_nn_steps },
   },
+  vocabulary: {
+    type: "from_files", 
+    directory: (data_dir + '/' + dataset_metadata.dir_name + '/' + 'eurlex-ev-vocab'),
+  } 
 }

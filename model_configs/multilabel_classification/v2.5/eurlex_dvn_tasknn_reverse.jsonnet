@@ -176,4 +176,8 @@ local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_tem
     inner_mode: 'score_nn',
     num_steps: { task_nn: task_nn_steps, score_nn: score_nn_steps },
   },
+  vocabulary: {
+    type: "from_files", 
+    directory: (data_dir + '/' + dataset_metadata.dir_name + '/' + 'eurlex-ev-vocab'),
+  } 
 }
