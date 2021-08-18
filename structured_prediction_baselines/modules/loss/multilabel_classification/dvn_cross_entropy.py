@@ -6,9 +6,15 @@ from structured_prediction_baselines.modules.loss import (
 )
 import torch
 
+def _normalize(y: torch.Tensor) -> torch.Tensor:
+    return torch.sigmoid(y)
 
 @Loss.register("multi-label-dvn-bce")
 class MultiLabelDVNCrossEntropyLoss(DVNLoss):
+    
+    def normalize(self, y: torch.Tensor) -> torch.Tensor:
+        return _normalize(y)
+
     def compute_loss(
         self,
         predicted_score: torch.Tensor,  # logits of shape (batch, num_samples)
@@ -29,6 +35,10 @@ class MultiLabelDVNCrossEntropyLoss(DVNLoss):
 
 @Loss.register("multi-label-dvn-ca-bce")
 class MultiLabelDVNCostAugCrossEntropyLoss(DVNLossCostAugNet):
+
+    def normalize(self, y: torch.Tensor) -> torch.Tensor:
+        return _normalize(y)
+
     def compute_loss(
         self,
         predicted_score: torch.Tensor,  # logits of shape (batch, num_samples)
@@ -54,8 +64,8 @@ class ZeroLoss(MultiLabelDVNCrossEntropyLoss):
     """
 
     def __init__(self, **kwargs: Any):
-        super().__init__(**kwargs)
-
+        super().__init__(**kwargs) 
+                
     def forward(
         self,
         x: Any,

@@ -6,10 +6,10 @@ name: Tests
 on:
   push:
     branches: [ main, dev/main ]
-    paths-ignore: ['docs/**'] # don't run when only docs are changed
+    paths-ignore: ['docs/**', 'CHANGELOG.md'] # don't run when only docs are changed
   pull_request:
     branches: [ main, dev/main ]
-    paths-ignore: ['docs/**']
+    paths-ignore: ['docs/**', 'CHANGELOG.md']
 
 jobs:
   tests:

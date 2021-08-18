@@ -1,0 +1,82 @@
+name: [data_name]_dvn_tasknn_samples_reverse
+description: "Train tasknn using cross-entropy and dvn score loss (v(f(x),y)). We will have only one sampler--tasknn continuous samples--to train scoreNN. The network parameters are from structure_prediction_baselines/7tvr5xhg"
+program: allennlp
+command:
+- ${program}
+- train_with_wandb
+- model_configs/multilabel_classification/v2.5/gendata_dvn_tasknn_samples_reverse.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb_tags="task=mlc,model=dvn,sampler=inference_net_continuous_samples,dataset=[data_name],inference_module=inference_net,inference_module=tasknn,sampler=tasknn_contiuous_samples,ref=7tvr5xhg"
+- ${args}
+- --file-friendly-logging
+method: bayes
+metric:
+  goal: maximize
+  name: "validation/best_fixed_f1"
+
+early_terminate:
+  type: hyperband
+  min_iter: 20
+
+parameters:
+  env.dataset_name:
+    value: '[data_name]'
+  env.cross_entropy_loss_weight:
+    value: 1.0
+  env.dvn_score_loss_weight:
+    distribution: log_uniform
+    min: -6.9
+    max: 2.3
+  env.ff_dropout_10x:
+    distribution: q_uniform
+    min: 0.5 # 1
+    max: 5.49 # 5
+    # value: 0.5 # bibtex
+  env.ff_hidden:
+    distribution: q_uniform
+    min: 50 # 100
+    max: 549 # 500
+    q: 100  
+    # value: 400 # bibtex
+  env.ff_linear_layers:
+    distribution: q_uniform
+    min: 0.5  # 1
+    max: 5.49 # 5
+    q: 1  
+    # value: 2 # bibtex
+  env.ff_weight_decay:
+    value: 0.00001
+  env.global_score_hidden_dim:
+    distribution: q_uniform
+    min: 50  #100
+    max: 449 #400
+    q: 100
+    # value: 200 # bibtex  
+  trainer.optimizer.optimizers.task_nn.lr:
+    distribution: log_uniform
+    min: -12.5
+    max: -4.5 
+  trainer.optimizer.optimizers.score_nn.lr:
+    distribution: log_uniform
+    min: -11.5
+    max: -4.5
+  env.score_nn_steps:
+    distribution: q_uniform
+    min: 0
+    max: 11.99
+    q: 3
+  env.task_nn_steps: # instead of trainer.num_steps.task_nn
+    value: 1
+    # distribution: q_uniform
+    # q: 5 # 1, 5, 10 --> manual handling in the jsonnet.
+    # min: 0
+    # max: 10
+  model.inference_module.num_samples:
+    distribution: q_log_uniform
+    q: 5 # 1, 5, 10, 15, ..., 50
+    min: 0 # ln(1)
+    max: 3.92 # ln(50)
+  model.inference_module.std:
+    distribution: log_uniform 
+    min: -6.9 # ln(0.001)
+    max: 1.6  # ln(5)

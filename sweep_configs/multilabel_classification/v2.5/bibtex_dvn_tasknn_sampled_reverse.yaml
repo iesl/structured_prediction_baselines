@@ -19,6 +19,8 @@ early_terminate:
   min_iter: 20
 
 parameters:
+  env.dataset_name:
+    value: 'bibtex_original'
   env.cross_entropy_loss_weight:
     value: 1.0
   env.dvn_score_loss_weight:
