@@ -78,6 +78,41 @@ tar -xzvf mediamill-stratified10folds-meka.tar.gz
 rm mediamill-stratified10folds-meka.tar.gz
 cd ../..
 
+
+
+# mlc with taxonomy
+mkdir -p data/expr_fun
+cd data/expr_fun
+gdown https://drive.google.com/uc?id=1w_I7gpdJeCaavPC8W9CkVzszR_PsgoBL
+tar -xzvf expr_fun.tar.gz
+rm expr_fun.tar.gz
+cd ../..
+
+mkdir -p data/expr_go
+cd data/expr_go
+gdown https://drive.google.com/uc?id=1m_xHwr6bPPfe3YX2-7E_8qYkPqryWOuX
+tar -xzvf expr_go.tar.gz
+rm expr_go.tar.gz
+cd ../..
+
+mkdir -p data/spo_fun
+cd data/spo_fun
+gdown https://drive.google.com/uc?id=1JKICdapuU9IuDskF72fmpE29E4savwXr
+tar -xzvf spo_fun.tar.gz
+rm spo_fun.tar.gz
+cd ../..
+
+mkdir -p data/spo_go
+cd data/spo_go
+gdown https://drive.google.com/uc?id=10X3osoI26vL8FN__oMZYcQkuk89BevuQ
+tar -xzvf spo_go.tar.gz
+rm spo_go.tar.gz
+cd ../..
+
+
+
+
+
 # Bibtex better stratified splits.
 mkdir -p data/bibtex_stratified10folds_meka
 wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1V8OMs4HqxZCeZYoG2DbDK-8zGC-iL2wn' -O data/bibtex_stratified10folds_meka/Bibtex-fold1.arff
@@ -90,4 +125,3 @@ wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=15stG
 wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1AepSJKrQ_PA0yCUVsbU5gmlW6GRLDtCd' -O data/bibtex_stratified10folds_meka/Bibtex-fold8.arff
 wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1ATz5E7GkZ0Kh5i6_uBCqAp7bdMEGg7an' -O data/bibtex_stratified10folds_meka/Bibtex-fold9.arff
 wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1rvmycPjHD4Juvnf6DjwEBFhhNquheivy' -O data/bibtex_stratified10folds_meka/Bibtex-fold10.arff
-
