@@ -36,6 +36,10 @@
 - Dev/v1.2/jy  Created sweeps/configs for testing effect of pretrained model + general data sweeps.  [\#35](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/35) ([leejayyoon](https://github.com/leejayyoon))
 - Added 6 more feature based datasets and blurb and nyt [\#19](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/19) ([dhruvdcoder](https://github.com/dhruvdcoder))
 
+**Merged pull requests:**
+
+- Added expr and spo, go and fun datasets. [\#44](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/44) ([dhruvdcoder](https://github.com/dhruvdcoder))
+
 ## [v0.1.0](https://github.com/dhruvdcoder/structured_prediction_baselines/tree/v0.1.0) (2021-07-08)
 
 [Full Changelog](https://github.com/dhruvdcoder/structured_prediction_baselines/compare/ef23891a32a0dcc7b9ca02a8c11e008cbe412dbb...v0.1.0)
