@@ -10,57 +10,15 @@ local num_labels = dataset_metadata.num_labels;
 local num_input_features = dataset_metadata.input_features;
 
 // model variables
-local transformer_hidden = std.parseJson(std.extVar('transformer_hidden'));
-local embedding_dim = std.parseJson(std.extVar('embedding_dim'));
-local label_space_dim = embedding_dim;
-local dropout = std.parseJson(std.extVar('dropout_10x')) / 10.0;
-local transformer_layers = std.parseJson(std.extVar('transformer_layers'));
-local transformer_attn_heads = std.parseJson(std.extVar('transformer_attn_heads'));
-local weight_decay = std.parseJson(std.extVar('weight_decay'));
-local activation = 'softplus';
-local gain = (if activation == 'tanh' then 5 / 3 else 1);
-
-local create_feature_network(
-  embedding_dim=300,
-  transformer_layers=3,
-  transformer_hidden=1024,
-  transformer_attn_heads=3,
-  dropout=0.1,
-  use_glove=true,
-      ) = {
-  text_field_embedder: {
-    token_embedders: {
-      x: if (embedding_dim == 300 && use_glove) then {
-        type: 'embedding',
-        embedding_dim: embedding_dim,
-        pretrained_file: 'https://allennlp.s3.amazonaws.com/datasets/glove/glove.840B.300d.txt.gz',
-        trainable: true,
-      } else {
-        type: 'embedding',
-        embedding_dim: embedding_dim,
-      },
-    },
-  },
-  seq2seq_encoder: {
-    type: 'pytorch_transformer',
-    input_dim: embedding_dim,
-    num_layers: transformer_layers,
-    feedforward_hidden_dim: transformer_hidden,
-    num_attention_heads: transformer_attn_heads,
-    positional_encoding: 'sinusoidal',
-    positional_embedding_size: 512,  // same as max_len of encoder
-    dropout_prob: dropout,
-  },
-  seq2vec_encoder: {
-    type: 'cls_pooler',
-    embedding_dim: embedding_dim,
-  },
-  final_dropout: 0,  // don't need a dropout here because transformer output ends with a dropout
-  // we will drop the extra feed-forward because each layer of transformer ends with
-  // a two layer feedforward.
-};
-
-
+local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
+local label_space_dim = ff_hidden;
+local task_nn_dropout = std.parseJson(std.extVar('task_nn_dropout_10x')) / 10.0;
+local ff_activation = 'softplus';
+local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
+local task_nn_weight_decay = std.parseJson(std.extVar('task_nn_weight_decay'));
+local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
+local transformer_model = 'bert-base-uncased';  // huggingface name of the model
+local transformer_dim = 768;
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
   evaluate_on_test: true,
@@ -70,13 +28,16 @@ local create_feature_network(
     [if test == '1' then 'max_instances']: 100,
     token_indexers: {
       x: {
-        type: 'single_id',
-        lowercase_tokens: true,
+        type: 'pretrained_transformer',
+        model_name: transformer_model,
       },
     },
     tokenizer: {
-      type: 'spacy',
+      type: 'pretrained_transformer',
+      model_name: transformer_model,
+      max_length: 512,
     },
+
   },
   train_data_path: (data_dir + '/' + dataset_metadata.dir_name + '/' +
                     dataset_metadata.train_file),
@@ -84,7 +45,7 @@ local create_feature_network(
                          dataset_metadata.validation_file),
   test_data_path: (data_dir + '/' + dataset_metadata.dir_name + '/' +
                    dataset_metadata.test_file),
-  vocabulary: { type: 'from_files', directory: data_dir + '/' + dataset_metadata.dir_name + '/vocabulary' },
+
   // Model
   model: {
     type: 'multi-label-classification-with-infnet',
@@ -95,9 +56,30 @@ local create_feature_network(
     },
     task_nn: {
       type: 'multi-label-text-classification',
-      feature_network: create_feature_network(embedding_dim, transformer_layers, transformer_hidden, transformer_attn_heads, dropout),
+      feature_network: {
+        text_field_embedder: {
+          token_embedders: {
+            x: {
+              type: 'pretrained_transformer',
+              model_name: transformer_model,
+            },
+          },
+        },
+        seq2vec_encoder: {
+          type: 'bert_pooler',
+          pretrained_model: transformer_model,
+        },
+        final_dropout: task_nn_dropout,
+        feedforward: {
+          input_dim: transformer_dim,
+          num_layers: ff_linear_layers,
+          activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + [ff_activation]),
+          hidden_dims: ff_hidden,
+          dropout: ([task_nn_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
+        },
+      },
       label_embeddings: {
-        embedding_dim: embedding_dim,
+        embedding_dim: ff_hidden,
         vocab_namespace: 'labels',
       },
     },
@@ -116,26 +98,22 @@ local create_feature_network(
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
-        [@'.*feedforward._linear_layers.*weight', (if std.member(['tanh', 'sigmoid'], activation) then { type: 'xavier_uniform', gain: gain } else { type: 'kaiming_uniform', nonlinearity: 'relu' })],
+        [@'.*feedforward._linear_layers.*weight', (if std.member(['tanh', 'sigmoid'], ff_activation) then { type: 'xavier_uniform', gain: gain } else { type: 'kaiming_uniform', nonlinearity: 'relu' })],
         [@'.*feedforward._linear_layers.*bias', { type: 'zero' }],
       ],
     },
   },
   data_loader: {
-    batch_sampler: {
-      type: 'bucket',
-      batch_size: 32,  // effective batch size = batch_size*num_gradient_accumulation_steps
-      sorting_keys: ['x'],
+    "batch_sampler": {
+      "type": "bucket",
+      "batch_size" : 2 // effective batch size = batch_size*num_gradient_accumulation_steps
     },
-    num_workers: 5,
-    max_instances_in_memory: if test == '1' then 10 else 1000,
-    start_method: if cuda_device == '-1' then 'spawn' else 'fork',
   },
   trainer: {
     type: 'gradient_descent_minimax',
-    num_epochs: if test == '1' then 1 else 300,
-    grad_norm: { task_nn: 5.0 },
-    //num_gradient_accumulation_steps: 16,  // effective batch size = batch_size*num_gradient_accumulation_steps
+    num_epochs: if test == '1' then 10 else 300,
+    grad_norm: { task_nn: 1.0 },
+    num_gradient_accumulation_steps: 16,  // effective batch size = batch_size*num_gradient_accumulation_steps
     patience: 5,
     validation_metric: '+fixed_f1',
     cuda_device: std.parseInt(cuda_device),
@@ -153,7 +131,7 @@ local create_feature_network(
         task_nn:
           {
             lr: 1e-5,
-            weight_decay: weight_decay,
+            weight_decay: task_nn_weight_decay,
             type: 'huggingface_adamw',
           },
       },

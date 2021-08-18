@@ -92,7 +92,7 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
         },
         seq2vec_encoder: {
           type: 'cls_pooler',
-          embedding_dim: transformer_dim,
+          embedding_dim: task_nn_embedding,
         },
         final_dropout: 0,
         feedforward: {
