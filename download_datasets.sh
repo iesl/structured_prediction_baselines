@@ -84,29 +84,29 @@ cd ../..
 mkdir -p data/expr_fun
 cd data/expr_fun
 gdown https://drive.google.com/uc?id=1w_I7gpdJeCaavPC8W9CkVzszR_PsgoBL
-tar -xzvf expr_fun.tar.gz
-rm expr_fun.tar.gz
+tar -xzvf expr_FUN.tar.gz
+rm expr_FUN.tar.gz
 cd ../..
 
 mkdir -p data/expr_go
 cd data/expr_go
 gdown https://drive.google.com/uc?id=1m_xHwr6bPPfe3YX2-7E_8qYkPqryWOuX
-tar -xzvf expr_go.tar.gz
-rm expr_go.tar.gz
+tar -xzvf expr_GO.tar.gz
+rm expr_GO.tar.gz
 cd ../..
 
 mkdir -p data/spo_fun
-cd data/spo_fun
+cd data/spo_fun 
 gdown https://drive.google.com/uc?id=1JKICdapuU9IuDskF72fmpE29E4savwXr
-tar -xzvf spo_fun.tar.gz
-rm spo_fun.tar.gz
+tar -xzvf spo_FUN.tar.gz
+rm spo_FUN.tar.gz
 cd ../..
 
 mkdir -p data/spo_go
 cd data/spo_go
 gdown https://drive.google.com/uc?id=10X3osoI26vL8FN__oMZYcQkuk89BevuQ
-tar -xzvf spo_go.tar.gz
-rm spo_go.tar.gz
+tar -xzvf spo_GO.tar.gz
+rm spo_GO.tar.gz
 cd ../..
 
 
