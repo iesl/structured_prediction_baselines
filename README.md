@@ -11,6 +11,11 @@ Implements baselines for tasks like POS tagging, NER and SRL.
 ```
 /bin/bash setup_env.sh
 ```
+From allennlp v2.5, additional steps are required: 
+```
+pip install --upgrade allennlp==2.5.0
+pip install --upgrade git+https://github.com/dhruvdcoder/wandb-allennlp.git@feat/convert-to-plugin
+```
 
 # Running the models
 

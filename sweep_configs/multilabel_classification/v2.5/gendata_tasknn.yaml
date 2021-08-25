@@ -23,8 +23,6 @@ parameters:
     value: '[data_name]'
   env.cross_entropy_loss_weight:
     value: 1.0
-  env.dvn_score_loss_weight:
-    value: 0.0
   env.ff_dropout_10x:
     distribution: q_uniform
     min: 0.5 # 1
@@ -44,15 +42,13 @@ parameters:
     # value: 2 # bibtex
   env.ff_weight_decay:
     value: 0.00001
-  env.global_score_hidden_dim:
-    distribution: q_uniform
-    min: 50  #100
-    max: 449 #400
-    q: 100
-    # value: 200 # bibtex
   trainer.optimizer.optimizers.task_nn.lr:
     distribution: log_uniform
     min: -12.5
     max: -4.5 
+  env.dvn_score_loss_weight:
+    value: 0.0
+  env.global_score_hidden_dim:
+    value: 200
   trainer.optimizer.optimizers.score_nn.lr:
     value: 0.001

@@ -105,6 +105,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         self.logging_children.append(self.inference_module)
         if evaluation_module is not None:
             self.logging_children.append(self.evaluation_module)
+
         mode = ModelMode.UPDATE_SCORE_NN
 
         if self.score_nn is not None:
