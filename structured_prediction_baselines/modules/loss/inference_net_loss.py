@@ -169,11 +169,7 @@ class MarginBasedLoss(Loss):
 
         if y_cost_aug is None:
             y_cost_aug = torch.zeros_like(y_hat)
-        elif self.normalize_y:  # y_cost_aug is not None
-            y_cost_aug = self.normalize(y_cost_aug)
 
-        if self.normalize_y:
-            y_hat = self.normalize(y_hat)
         ground_truth_score = self.score_nn(
             x, labels.to(dtype=y_hat.dtype), buffer
         )

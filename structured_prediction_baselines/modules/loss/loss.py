@@ -61,6 +61,12 @@ class Loss(LoggingMixin, torch.nn.Module, Registrable):
         buffer: Dict,
         **kwargs: Any,
     ) -> torch.Tensor:
+
+        if self.normalize_y:
+            y_hat = self.normalize(y_hat)
+            if y_hat_extra is not None:
+                y_hat_extra = self.normalize(y_hat_extra)
+
         loss_unreduced = self._forward(
             x, labels, y_hat, y_hat_extra, buffer, **kwargs
         )

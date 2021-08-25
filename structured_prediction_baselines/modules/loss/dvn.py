@@ -83,8 +83,6 @@ class DVNLoss(Loss):
         # score_nn always expects y to be normalized
         # do the normalization based on the task
 
-        if self.normalize_y:
-            y_hat = self.normalize(y_hat)
         predicted_score = self.score_nn(
             x, y_hat, buffer, **kwargs
         )  # (batch, num_samples)
@@ -166,11 +164,7 @@ class DVNLossCostAugNet(Loss):
         )  # purely for typing, no runtime effect
         # score_nn always expects y to be normalized
         # do the normalization based on the task
-
-        if self.normalize_y:
-            y_hat = self.normalize(y_hat)
-            y_hat_extra = self.normalize(y_hat_extra)
-
+        
         predicted_score = self.score_nn(
             x, y_hat, buffer, **kwargs
         )  # (batch, num_samples)
@@ -256,10 +250,7 @@ class DVNScoreLoss(Loss):
 
         # score_nn always expects y to be normalized
         # do the normalization based on the task
-
-        if self.normalize_y:
-            y_hat = self.normalize(y_hat)
-
+        
         predicted_score = self.score_nn(
             x, y_hat, buffer, **kwargs
         )  # (batch, num_samples)
@@ -324,13 +315,7 @@ class DVNScoreCostAugNet(Loss):
         # y_hat shape (batch, num_samples, ...)
         self.score_nn = cast(
             ScoreNN, self.score_nn
-        )  # purely for typing, no runtime effect
-
-        # score_nn always expects y to be normalized
-        # do the normalization based on the task
-
-        if self.normalize_y:
-            y_hat = self.normalize(y_hat)
+        )  # purely for typing, no runtime effect 
 
         predicted_score_infnet = self.score_nn(
             x, y_hat, buffer, **kwargs
