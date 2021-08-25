@@ -6,7 +6,7 @@ local cuda_device = std.extVar('CUDA_DEVICE');
 local use_wandb = (if test == '1' then false else true);
 
 local dataset_name = 'cal500';
-local dataset_metadata = (import '../datasets.jsonnet')[dataset_name];
+local dataset_metadata = (import '../../datasets.jsonnet')[dataset_name];
 local num_labels = dataset_metadata.num_labels;
 local num_input_features = dataset_metadata.input_features;
 
