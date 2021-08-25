@@ -52,7 +52,7 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
       constituent_samplers: [
         {
           type: 'gradient-based-inference',
-          log_key: 'distribution_gbi',
+          log_key: 'tasknn_gbi',
           gradient_descent_loop: {
             optimizer: {
               lr: 0.1,  //0.1
