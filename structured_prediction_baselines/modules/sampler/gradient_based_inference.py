@@ -427,11 +427,17 @@ class GradientBasedInferenceSampler(Sampler):
             torch.Tensor
         ],  #: If given will have shape (batch, ...)
         buffer: Dict,
+        init_samples: torch.tensor = None,
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
-        init = self.get_initial_output(
-            x, labels
-        )  # E (batch*num_init_samples, ...)
+
+        if init_samples is not None:
+            init = init_samples
+        else:
+            init = self.get_initial_output(
+                x, labels
+            )  # E (batch*num_init_samples, ...)
+
         # new: (batch, num_init_samples,...)
         # we have to reshape labels from (batch, ...) to (batch*num_init_samples, ...)
 
@@ -443,6 +449,7 @@ class GradientBasedInferenceSampler(Sampler):
 
         if labels is not None:
             labels = labels.unsqueeze(1)
+
         # switch of gradients on parameters using context manager
         with self.no_param_grad():
             loss_fn = self.get_loss_fn(

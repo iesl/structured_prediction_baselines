@@ -8,3 +8,15 @@ from .multilabel_classification_mean_average_precision import (
 from .multilabel_classification_micro_average_precision import (
     MultilabelClassificationMicroAvgPrecision,
 )
+from .multilabel_classification_average_rank import (
+    MultilabelClassificationAvgRank
+)
+from .multilabel_classification_mean_reciprocal_rank import (
+    MultilabelClassificationMeanReciprocalRank
+)
+from .multilabel_classification_ndcg import (
+    MultilabelClassificationNormalizedDiscountedCumulativeGain
+)
+from .multilabel_classification_rbo import (
+    MultilabelClassificationRankBiasedOverlap
+)

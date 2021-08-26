@@ -212,6 +212,8 @@ class LoggingMixin(object):
         reset: bool = True,
         type_: Optional[Tuple[Type[LoggedValueT], ...]] = None,
     ) -> Dict[str, valueT]:
+        self_values = {}
+
         def take(v: LoggedValue) -> bool:
             return isinstance(v, type_) if type_ is not None else True
 
