@@ -21,6 +21,8 @@ class MultilabelClassificationNormalizedDiscountedCumulativeGain(Average):
             t.cpu().numpy()
             for t in self.detach_tensors(true_scores, predicted_scores)
         ]
-
-        ndcg = ndcg_score(true_scores, predicted_scores)
-        super().__call__(ndcg)
+        for single_example_true_scores, single_example_pred_scores in zip(
+            true_scores, predicted_scores
+        ):
+            ndcg = ndcg_score(single_example_true_scores.reshape(1, -1), single_example_pred_scores.reshape(1, -1))
+            super().__call__(ndcg)
