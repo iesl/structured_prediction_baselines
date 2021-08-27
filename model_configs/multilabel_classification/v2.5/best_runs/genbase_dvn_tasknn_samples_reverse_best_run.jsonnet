@@ -1,4 +1,4 @@
-// Run Id: b3dhyc8g
+// Run Id: jsuwd9b6
 
 local test = std.extVar('TEST');  // a test run with small dataset
 local data_dir = std.extVar('DATA_DIR');
@@ -11,16 +11,16 @@ local num_labels = dataset_metadata.num_labels;
 local num_input_features = dataset_metadata.input_features;
 
 // model variables
-local ff_hidden = 300; //std.parseJson(std.extVar('ff_hidden'));
+local ff_hidden = 400; //std.parseJson(std.extVar('ff_hidden'));
 local label_space_dim = ff_hidden;
 local ff_dropout = 0.3; //std.parseJson(std.extVar('ff_dropout'));
 local ff_activation = 'softplus';
 local ff_linear_layers = 1; //std.parseJson(std.extVar('ff_linear_layers'));
 local ff_weight_decay = 0.00001; //std.parseJson(std.extVar('ff_weight_decay'));
-local global_score_hidden_dim = 300; //std.parseJson(std.extVar('global_score_hidden_dim'));
+local global_score_hidden_dim = 200; //std.parseJson(std.extVar('global_score_hidden_dim'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local cross_entropy_loss_weight = 1; //std.parseJson(std.extVar('cross_entropy_loss_weight'));
-local dvn_score_loss_weight = 0.6829; //std.parseJson(std.extVar('dvn_score_loss_weight'));
+local dvn_score_loss_weight = 0.02758; //std.parseJson(std.extVar('dvn_score_loss_weight'));
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
   evaluate_on_test: true,
@@ -102,8 +102,8 @@ local dvn_score_loss_weight = 0.6829; //std.parseJson(std.extVar('dvn_score_loss
       type: 'multi-label-inference-net-normalized-or-continuous-sampled',
       log_key: 'inference_module',
       keep_probs: true,
-      num_samples: 10,
-      std: 0.008092,
+      num_samples: 20,
+      std: 3.996,
       loss_fn: {
         type: 'combination-loss',
         log_key: 'loss',
@@ -184,12 +184,12 @@ local dvn_score_loss_weight = 0.6829; //std.parseJson(std.extVar('dvn_score_loss
       optimizers: {
         task_nn:
           {
-            lr: 0.002142,
+            lr: 0.0009966,
             weight_decay: ff_weight_decay,
             type: 'adamw',
           },
         score_nn: {
-          lr: 0.006907,
+          lr: 0.0004636,
           weight_decay: ff_weight_decay,
           type: 'adamw',
         },
@@ -211,6 +211,6 @@ local dvn_score_loss_weight = 0.6829; //std.parseJson(std.extVar('dvn_score_loss
       else []
     ),
     inner_mode: 'score_nn',
-    num_steps: { task_nn: 1, score_nn: 9 },
+    num_steps: { task_nn: 10, score_nn: 3 },
   },
 }
