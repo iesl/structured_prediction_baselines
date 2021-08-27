@@ -37,7 +37,7 @@ def main(args):
 
     job_dir = Path(slurm_dir / args.sweep_id)
     try:
-        job_dir.mkdir(parents=True, exist_ok=False)
+        job_dir.mkdir(parents=True, exist_ok=True)
     except OSError as e:
         if not args.force:
             raise ValueError(

@@ -129,7 +129,7 @@ local create_feature_network(
     },
     num_workers: 5,
     max_instances_in_memory: if test == '1' then 10 else 1000,
-    start_method: 'spawn',
+    start_method: if cuda_device == '-1' then 'spawn' else 'fork',
   },
   trainer: {
     type: 'gradient_descent_minimax',

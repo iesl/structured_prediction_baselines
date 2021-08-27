@@ -73,7 +73,6 @@ class DVNLoss(Loss):
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         # labels shape (batch, 1, ...)
         # y_hat shape (batch, num_samples, ...)
-        num_samples = y_hat[1]
         self.oracle_value_function = cast(
             OracleValueFunction, self.oracle_value_function
         )  # purely for typing, no runtime effect
