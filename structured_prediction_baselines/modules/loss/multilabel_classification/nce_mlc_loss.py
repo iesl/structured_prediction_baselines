@@ -12,11 +12,16 @@ def _normalize(y: torch.Tensor) -> torch.Tensor:
 
 
 class MultiLabelNCERankingLoss(NCERankingLoss):
-    def __init__(self, sign: Literal["-", "+"] = "-", **kwargs: Any):
-        super().__init__(**kwargs)
+    def __init__(self, 
+                sign: Literal["-", "+"] = "-", 
+                use_scorenn: bool = True,
+                **kwargs: Any):
+        super().__init__(use_scorenn, **kwargs)
         self.sign = sign
         self.mul = -1 if sign == "-" else 1
         self.bce = torch.nn.BCELoss(reduction="none")
+        # when self.use_scorenn=True, the sign should always be +.
+        assert (sign == "+" if self.use_scorenn else True)  
 
     def normalize(self, y: torch.Tensor) -> torch.Tensor:
         return _normalize(y)
