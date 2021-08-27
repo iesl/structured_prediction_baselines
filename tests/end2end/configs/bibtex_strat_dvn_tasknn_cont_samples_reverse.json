@@ -3,6 +3,10 @@
         "type": "arff",
         "num_labels": 159
     },
+    "vocabulary": {
+        "type": "from_files",
+        "directory": "bibtex_vocabulary"
+    },
     "model": {
         "type": "multi-label-classification-with-infnet",
         "inference_module": {
@@ -125,7 +129,6 @@
         "callbacks": [
             "track_epoch_callback",
             "slurm"
-            
         ],
         "checkpointer": {
             "keep_most_recent_by_count": 1
@@ -144,7 +147,7 @@
                 "verbose": true
             }
         },
-        "num_epochs": 300,
+        "num_epochs": 1,
         "num_steps": {
             "score_nn": 9,
             "task_nn": 1
@@ -154,12 +157,12 @@
                 "score_nn": {
                     "type": "adamw",
                     "lr": 0.0007979849977427997,
-                    "weight_decay": 1e-05
+                    "weight_decay": 0.00001
                 },
                 "task_nn": {
                     "type": "adamw",
                     "lr": 0.0036166128364796433,
-                    "weight_decay": 1e-05
+                    "weight_decay": 0.00001
                 }
             }
         },
