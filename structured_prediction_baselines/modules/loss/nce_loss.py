@@ -112,8 +112,8 @@ class NCERankingLoss(NCELoss):
             assert not distance.requires_grad
         else:
             score = 0
-            print(distance.requires_grad)
-            assert distance.requires_grad
+            # print(distance.requires_grad)
+            # assert distance.requires_grad
         
         new_score = score - distance  # (batch, 1+num_samples)
         ranking_loss = self.cross_entropy(
