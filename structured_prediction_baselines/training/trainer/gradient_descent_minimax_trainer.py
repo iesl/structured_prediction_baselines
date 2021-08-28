@@ -674,13 +674,16 @@ class GradientDescentMinimaxTrainer(Trainer):
             batch_group_inner_outputs = []
             batch_group_outer_outputs = []
 
-            assert len(batch_group) <= 1
             num_inner_steps = self.num_steps(self.inner_mode)
             num_outer_steps = self.num_steps(self.inner_mode.flip())
 
             for outer_step in range(num_outer_steps):
 
                 for inner_step in range(num_inner_steps):
+                    # Check if optmizer for this mode is present
+
+                    if self.inner_mode.value not in self.optimizer:
+                        break
                     # we need to zero_grad before each optimization step.
                     self.optimizer.zero_grad(
                         opt_key=self.inner_mode.value, set_to_none=True
@@ -697,6 +700,11 @@ class GradientDescentMinimaxTrainer(Trainer):
                     )  # log avg inner loss
                     train_inner_loss += batch_group_inner_loss
                 # outer step
+                # Check if optmizer for this mode is present
+
+                if self.inner_mode.flip().value not in self.optimizer:
+                    continue
+
                 self.optimizer.zero_grad(
                     opt_key=self.inner_mode.flip().value, set_to_none=True
                 )

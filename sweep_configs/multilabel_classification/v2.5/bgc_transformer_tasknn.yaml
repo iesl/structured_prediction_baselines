@@ -1,0 +1,37 @@
+
+name: bgc_transformer_tasknn
+description: "Simple tasknn only model for blurb dataset. Here tasknn is non-pretrained transformer."
+program: allennlp
+command:
+- ${program}
+- train_with_wandb
+- model_configs/multilabel_classification/v2.5/bgc_transformer_tasknn.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb_tags="task=text_mlc,model=tasknn,sampler=inference_net,dataset=bgc,inference_module=inference_net,inference_module=tasknn,sampler=tasknn"
+- ${args}
+- --file-friendly-logging
+
+method: grid
+metric:
+  goal: maximize
+  name: "validation/best_fixed_f1"
+
+early_terminate:
+  type: hyperband
+  min_iter: 7
+
+parameters:
+  env.transformer_hidden:
+    value: 600
+  env.embedding_dim:
+    value: 300
+  env.dropout_10x:
+    values: [0.0, 0.1, 0.3]
+  env.transformer_layers:
+    values: [3, 5, 7]
+  env.transformer_attn_heads:
+    values: [1, 3, 5]
+  env.weight_decay:
+    values: [0, 0.001, 0.1]
+  trainer.optimizer.optimizers.task_nn.lr:
+    values: [0.00005, 0.0001, 0.0005, 0.001, 0.005]

@@ -180,7 +180,7 @@
         "type": "gradient_descent_minimax",
         "callbacks": [
             "track_epoch_callback",
-            "slurm",
+            "slurm"
         ],
         "checkpointer": {
             "keep_most_recent_by_count": 1
