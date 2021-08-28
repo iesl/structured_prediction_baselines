@@ -1,0 +1,59 @@
+name: genbase_ranking_discrete_on_tasknn
+description: "Train tasknn using cross-entropy and  ranking loss. The score-nn will be trained using NCE with a - sign (score-ln Pn). The samples are taken as discrete samples from the tasknn output."
+program: allennlp
+command:
+- ${program}
+- train_with_wandb
+- model_configs/multilabel_classification/v2.5/gendata_ranking_discrete_on_tasknn.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb_tags="task=mlc,model=dvn,sampler=inference_net_continuous_samples,dataset=genbase,inference_module=inference_net,inference_module=tasknn,sampler=tasknn_contiuous_samples"
+- ${args}
+- --file-friendly-logging
+method: bayes
+metric:
+  goal: maximize
+  name: "validation/best_fixed_f1"
+
+early_terminate:
+  type: hyperband
+  min_iter: 20
+
+parameters:
+  env.dataset_name:
+    value: 'genbase'
+  env.cross_entropy_loss_weight:
+    value: 1.0
+  env.dvn_score_loss_weight:
+    distribution: log_uniform
+    min: -6.9
+    max: 2.3
+  env.ff_dropout_10x:
+    value: 3
+    # distribution: q_uniform
+    # min: 0.5 # 1
+    # max: 5.49 # 5
+  env.ff_hidden:
+    value: 400 # bibtex
+  env.ff_linear_layers:
+    value: 1
+  env.ff_weight_decay:
+    value: 0.00001
+  env.global_score_hidden_dim:
+    value: 200 
+    # distribution: q_uniform
+    # min: 50  #100
+    # max: 449 #400
+    # q: 100
+  trainer.optimizer.optimizers.task_nn.lr:
+    distribution: log_uniform
+    min: -12.5
+    max: -4.5 
+  trainer.optimizer.optimizers.score_nn.lr:
+    value: 0.001
+  env.task_nn_steps: # instead of trainer.num_steps.task_nn
+    value: 1
+  env.num_samples:
+    distribution: q_uniform
+    q: 20 # 10, 25, ..., 50
+    min: 80
+    max: 100
