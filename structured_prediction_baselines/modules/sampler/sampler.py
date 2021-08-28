@@ -344,7 +344,8 @@ class AppendingSamplerContainer(SamplerContainer):
         loss_ = torch.zeros_like(loss[0])
 
         for l_ in loss:
-            loss_ = loss_ + l_
+            if l_ is not None:
+                loss_ = loss_ + l_
 
         return (all_samples, None, loss_)
 

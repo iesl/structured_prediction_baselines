@@ -167,7 +167,7 @@ local gbi_optim = 'adam';
     optimizer: {
       optimizers: {
         score_nn: {
-          lr: 0.005,
+          lr: 0.0008,
           weight_decay: ff_weight_decay,
           type: 'adamw',
         },
@@ -188,7 +188,7 @@ local gbi_optim = 'adam';
       ]
       else []
     ),
-    inner_mode: 'score_nn',
+    inner_mode: 'task_nn',
     num_steps: { task_nn: 0, score_nn: 1 },
   },
 }
