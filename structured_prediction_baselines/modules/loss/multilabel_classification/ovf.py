@@ -19,8 +19,5 @@ class MultiLabelOVFLoss(Loss):
     ) -> torch.Tensor:
         assert labels is not None
         assert self.oracle_value_function is not None
-
-        if self.normalize_y:
-            y_hat = self.normalize(y_hat)
-
+        
         return -self.oracle_value_function(labels, y_hat)  # (batch,)

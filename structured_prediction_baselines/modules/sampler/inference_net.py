@@ -32,12 +32,6 @@ from structured_prediction_baselines.modules.task_nn import (
 
 @Sampler.register("inference-network")
 class InferenceNetSampler(Sampler):
-    def mark_parameters_with_model_mode(self) -> None:
-        mode = ModelMode.UPDATE_TASK_NN
-
-        for param in self.inference_nn.parameters():
-            mode.mark_parameter_with_model_mode(param)
-
     def parameters_with_model_mode(
         self, mode: ModelMode
     ) -> Iterator[torch.nn.Parameter]:
@@ -145,3 +139,5 @@ class InferenceNetSampler(Sampler):
 InferenceNetSampler.register("inference-network-unnormalized")(
     InferenceNetSampler
 )
+
+Sampler.register("inference-network-unnormalized")(InferenceNetSampler)

@@ -27,8 +27,9 @@
     test_file: 'test.arff',
   },
   // text datasets
-  blurb: {
+  bgc: {
     dir_name: 'bgc',
+    num_labels: 146,
     train_file: 'train.jsonl',
     validation_file: 'dev.jsonl',
     test_file: 'test.jsonl',

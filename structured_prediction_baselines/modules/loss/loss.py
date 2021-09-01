@@ -21,6 +21,7 @@ class Loss(LoggingMixin, torch.nn.Module, Registrable):
     In some cases, this will only act as a wrapper around loss modules from pytorch.
     """
 
+    default_implementation = "zero"
     allowed_reductions = ["sum", "mean", "none"]
 
     def __init__(
@@ -61,6 +62,12 @@ class Loss(LoggingMixin, torch.nn.Module, Registrable):
         buffer: Dict,
         **kwargs: Any,
     ) -> torch.Tensor:
+
+        if self.normalize_y:
+            y_hat = self.normalize(y_hat)
+            if y_hat_extra is not None:
+                y_hat_extra = self.normalize(y_hat_extra)
+
         loss_unreduced = self._forward(
             x, labels, y_hat, y_hat_extra, buffer, **kwargs
         )
@@ -106,24 +113,26 @@ class Loss(LoggingMixin, torch.nn.Module, Registrable):
         raise NotImplementedError
 
 
-# @Loss.register("zero-loss")
-# class ZeroLoss(Loss):
-#     """
-#     Loss function to give zero signal to DVN
-#     """
-#     def __init__(self, **kwargs: Any):
-#         super().__init__(**kwargs)
+@Loss.register("zero")
+class ZeroLoss(Loss):
+    """
+    Loss function which always outputs zero.
+    """
 
-#     def forward(
-#         self,
-#         x: Any,
-#         labels: Optional[torch.Tensor],  # (batch, 1, ...)
-#         y_hat: torch.Tensor,  # (batch, num_samples, ...)
-#         y_hat_extra: Optional[torch.Tensor],  # (batch, num_samples)
-#         buffer: Dict,
-#         **kwargs: Any,
-#     ) -> torch.Tensor:
-#         return 0
+    def __init__(self, reduction: str = "none", **kwargs: Any):
+        reduction = "none"
+        super().__init__(reduction=reduction, **kwargs)
+
+    def forward(
+        self,
+        x: Any,
+        labels: Optional[torch.Tensor],  # (batch, 1, ...)
+        y_hat: torch.Tensor,  # (batch, num_samples, ...)
+        y_hat_extra: Optional[torch.Tensor],  # (batch, num_samples)
+        buffer: Dict,
+        **kwargs: Any,
+    ) -> torch.Tensor:
+        return torch.zeros(1, device=y_hat.device).sum()
 
 
 @Loss.register("combination-loss")

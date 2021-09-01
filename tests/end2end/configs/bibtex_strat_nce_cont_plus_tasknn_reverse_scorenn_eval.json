@@ -3,6 +3,10 @@
         "type": "arff",
         "num_labels": 159
     },
+    "vocabulary": {
+        "type": "from_files",
+        "directory": "bibtex_vocabulary"
+    },
     "model": {
         "type": "multi-label-classification-with-infnet-and-scorenn-evaluation",
         "evaluation_module": {
@@ -180,7 +184,7 @@
         "type": "gradient_descent_minimax",
         "callbacks": [
             "track_epoch_callback",
-            "slurm",
+            "slurm"
         ],
         "checkpointer": {
             "keep_most_recent_by_count": 1
