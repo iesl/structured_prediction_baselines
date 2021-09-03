@@ -50,6 +50,6 @@ class GroundTruthSampler(Sampler):
 
         return (
             labels.unsqueeze(1).to(dtype=self.score_nn.input_dtype),
-            None,
+            None, None,
         )  # because labels will have shape (batch, ...)
         # and samples should have shape (batch, num_samples, ...)

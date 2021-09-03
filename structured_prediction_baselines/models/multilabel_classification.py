@@ -42,7 +42,9 @@ class MultilabelClassification(ScoreBasedLearningModel):
         # metrics
         self.f1 = MultilabelClassificationF1()
         self.map = MultilabelClassificationMeanAvgPrecision()
+
         # self.micro_map = MultilabelClassificationMicroAvgPrecision()
+
         self.relaxed_f1 = MultilabelClassificationRelaxedF1()
 
     def unsqueeze_labels(self, labels: torch.Tensor) -> torch.Tensor:
@@ -65,6 +67,7 @@ class MultilabelClassification(ScoreBasedLearningModel):
     ) -> None:
 
         self.map(y_hat, labels)
+
         # self.micro_map(y_hat, labels)
 
         if not self.inference_module.is_normalized:
@@ -79,7 +82,9 @@ class MultilabelClassification(ScoreBasedLearningModel):
         metrics = {
             "MAP": self.map.get_metric(reset),
             "fixed_f1": self.f1.get_metric(reset),
+
             # "micro_map": self.micro_map.get_metric(reset),
+
             "relaxed_f1": self.relaxed_f1.get_metric(reset),
         }
 

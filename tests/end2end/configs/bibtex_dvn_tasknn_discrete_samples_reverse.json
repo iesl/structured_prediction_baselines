@@ -3,6 +3,10 @@
         "type": "arff",
         "num_labels": 159
     },
+    "vocabulary": {
+        "type": "from_files",
+        "directory": "bibtex_vocabulary"
+    },
     "model": {
         "type": "multi-label-classification-with-infnet",
         "inference_module": {
@@ -142,7 +146,7 @@
                 "verbose": true
             }
         },
-        "num_epochs": 300,
+        "num_epochs": 1,
         "num_steps": {
             "score_nn": 1,
             "task_nn": 1
