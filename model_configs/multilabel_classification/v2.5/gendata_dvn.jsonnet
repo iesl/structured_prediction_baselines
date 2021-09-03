@@ -39,6 +39,7 @@ local gbi_optim = 'adam';
   test_data_path: (data_dir + '/' + dataset_metadata.dir_name + '/' +
                    dataset_metadata.test_file),
 
+  [if dataset_name == 'eurlexev' then 'vocabulary']: {type: "from_files", directory: (data_dir + '/' + dataset_metadata.dir_name + '/' + 'eurlex-ev-vocab'),},
   // Model
   model: {
     type: 'multi-label-classification',
