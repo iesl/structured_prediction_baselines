@@ -12,7 +12,7 @@ args = parser.parse_args()
 
 model_state_dict = torch.load(args.load_model_path, map_location=torch.device(device))
 updated_state_dict = OrderedDict([
-		(k.replace('sampler.constituent_samplers.0', 'sampler.tasknn'), v) 
+		(k.replace('sampler.constituent_samplers.0', 'sampler'), v)
 			if k.startswith('sampler.constituent_samplers.0') 
 			else (k, v) for k, v in model_state_dict.items()
 	])
