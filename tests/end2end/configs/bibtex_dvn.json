@@ -168,17 +168,7 @@
     "trainer": {
         "type": "gradient_descent_minimax",
         "callbacks": [
-            "track_epoch_callback",
-            "slurm",
-            {
-                "sub_callbacks": [
-                    {
-                        "priority": 100,
-                        "type": "log_best_validation_metrics"
-                    }
-                ],
-                "type": "wandb_allennlp"
-            }
+            "track_epoch_callback"
         ],
         "checkpointer": {
             "keep_most_recent_by_count": 1
