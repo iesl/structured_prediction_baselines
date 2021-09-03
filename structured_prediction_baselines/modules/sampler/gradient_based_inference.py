@@ -429,7 +429,7 @@ class GradientBasedInferenceSampler(Sampler):
         buffer: Dict,
         init_samples: torch.tensor = None,
         **kwargs: Any,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
 
         if init_samples is not None:
             init = init_samples
@@ -467,12 +467,14 @@ class GradientBasedInferenceSampler(Sampler):
                 self.stopping_criteria,
                 self.output_space.projection_function_,
             )
+        loss_values_tensor = torch.tensor(loss_values)
 
         return (
             self.get_samples_from_trajectory(
                 trajectory, loss_values_tensors, loss_values
             ),  # (batch, num_samples, ...)
-            torch.tensor(loss_values),
+            loss_values_tensor,
+            torch.mean(loss_values_tensor),
         )
 
 
