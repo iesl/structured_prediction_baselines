@@ -204,7 +204,6 @@
         "patience": 20,
         "validation_metric": "+fixed_f1"
     },
-    "type": "train_test_log_to_wandb",
     "data_loader": {
         "batch_size": 32,
         "shuffle": true
