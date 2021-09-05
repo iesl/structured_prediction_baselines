@@ -3,11 +3,11 @@ local data_dir = std.extVar('DATA_DIR');
 local cuda_device = std.extVar('CUDA_DEVICE');
 local use_wandb = (if test == '1' then false else true);
 
-local dataset_name = 'cal500'; //std.parseJson(std.extVar('dataset_name'));
+local dataset_name = std.parseJson(std.extVar('dataset_name'));
 local dataset_metadata = (import '../datasets.jsonnet')[dataset_name];
 local num_labels = dataset_metadata.num_labels;
 local num_input_features = dataset_metadata.input_features;
-local pretrained_tasknn_weights_path = '/mnt/nfs/scratch1/purujitgoyal/structured_prediction_baselines/xtropy_model_weights/update/' + dataset_name + '_best.th';
+local pretrained_tasknn_weights_path = '/mnt/nfs/scratch1/jaylee/repository/revOrder_structured_prediction/xtropy_model_weights/update/' + dataset_name + '_best.th';
 
 // model variables
 local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
@@ -118,9 +118,9 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
+        [".*sampler.inference_nn.*", {"type": "pretrained", "weights_file_path": pretrained_tasknn_weights_path}],
         [@'.*_linear_layers.*weight', (if std.member(['tanh', 'sigmoid'], ff_activation) then { type: 'xavier_uniform', gain: gain } else { type: 'kaiming_uniform', nonlinearity: 'relu' })],
         [@'.*linear_layers.*bias', { type: 'zero' }],
-        [".*sampler.inference_nn.*", {"type": "pretrained", "weights_file_path": pretrained_tasknn_weights_path}],
       ],
     },
   },
@@ -169,6 +169,6 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
       else []
     ),
     inner_mode: 'score_nn',
-    num_steps: { task_nn: 0, score_nn: 1 },
+    num_steps: { task_nn: 1, score_nn: 1 },
   },
 }
