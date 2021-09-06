@@ -57,8 +57,6 @@ parameters:
     q: 20 # 10, 25, ..., 50
     min: 20 # ln(10)
     max: 100 # ln(50)
-  model.loss_fn.sign:
-    value: "-"
   model.loss_fn.std:
     distribution: log_uniform 
     min: -6.9 # ln(0.001)

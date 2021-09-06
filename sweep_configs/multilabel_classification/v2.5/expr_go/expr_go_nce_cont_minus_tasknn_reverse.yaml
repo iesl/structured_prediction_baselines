@@ -1,4 +1,4 @@
-name: expr_go_nce_cont_minus_tasknn_reverse
+name: expr_go_nce_cont_MINUS_tasknn_reverse_rerun
 description: "Train tasknn using cross-entropy and  score loss (v(f(x),y)). The score-nn will be trained using NCE with a - sign (score+ln Pn). The samples are taken as continuous samples by adding gaussian noise to the tasknn output logits"
 program: allennlp
 command:
@@ -6,7 +6,7 @@ command:
 - train_with_wandb
 - model_configs/multilabel_classification/v2.5/gendata_nce_cont_tasknn_reverse.jsonnet
 - --include-package=structured_prediction_baselines
-- --wandb_tags="task=mlc,score_nn_loss=nce,sampler=inference_net_continuous_samples,dataset=expr_go,inference_module=inference_net,inference_module=tasknn,inference_module_loss=bce+score,sampler=tasknn_contiuous_samples,ref=7tvr5xhg"
+- --wandb_tags="task=mlc,score_nn_loss=nce,sampler=inference_net_continuous_samples,dataset=expr_go,inference_module=inference_net,inference_module=tasknn"
 - ${args}
 - --file-friendly-logging
 method: bayes
@@ -57,8 +57,6 @@ parameters:
     q: 20 # 10, 25, ..., 50
     min: 20 # ln(10)
     max: 100 # ln(50)
-  model.loss_fn.sign:
-    value: "-"
   model.loss_fn.std:
     distribution: log_uniform 
     min: -6.9 # ln(0.001)

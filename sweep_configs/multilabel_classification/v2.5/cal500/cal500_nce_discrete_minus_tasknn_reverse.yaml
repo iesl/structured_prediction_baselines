@@ -1,4 +1,4 @@
-name: cal500_nce_discrete_minus_tasknn_reverse_sh400
+name: cal500_nce_discrete_MINUS_tasknn_reverse_rerun
 description: "Train tasknn using cross-entropy and  score loss (v(f(x),y)). The score-nn will be trained using NCE with a - sign (score-ln Pn). The samples are taken as discrete samples from the tasknn output."
 program: allennlp
 command:
@@ -6,7 +6,7 @@ command:
 - train_with_wandb
 - model_configs/multilabel_classification/v2.5/gendata_nce_discrete_tasknn_reverse.jsonnet
 - --include-package=structured_prediction_baselines
-- --wandb_tags="task=mlc,model=dvn,sampler=inference_net_continuous_samples,dataset=cal500,inference_module=inference_net,inference_module=tasknn,sampler=tasknn_contiuous_samples"
+- --wandb_tags="task=mlc,model=dvn,sampler=inference_net_disc_samples,dataset=cal500,inference_module=inference_net,inference_module=tasknn"
 - ${args}
 - --file-friendly-logging
 method: bayes
