@@ -151,9 +151,9 @@ class MultilabelClassificationWithScoreNNEvaluation(MultilabelClassification):
         random_samples = self.get_samples(y_hat_n, random=True)
 
         # call evaluation_module on distribution and random samples
-        tasknn_gbi_samples, _ = self.evaluation_module(x, labels, buffer, init_samples=tasknn_samples[:, 1:, :], index=0)
+        tasknn_gbi_samples, _, loss_ = self.evaluation_module(x, labels, buffer, init_samples=tasknn_samples[:, 1:, :], index=0)
         self.tasknn_samples_gbi_f1(self.squeeze_y(tasknn_gbi_samples), labels)
-        random_gbi_samples, _ = self.evaluation_module(x, labels, buffer, init_samples=random_samples, index=1)
+        random_gbi_samples, _, loss_ = self.evaluation_module(x, labels, buffer, init_samples=random_samples, index=1)
         self.random_samples_gbi_f1(self.squeeze_y(random_gbi_samples), labels)
 
     def get_true_metrics(self, reset: bool = False) -> Dict[str, float]:
