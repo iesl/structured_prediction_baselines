@@ -118,7 +118,7 @@ local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_tem
       type: 'multi-label-nce-ranking-with-discrete-sampling',
       log_key: 'nce',
       num_samples: 10,
-      sign: '+',
+      sign: '-',
     },
     initializer: {
       regexes: [

@@ -60,5 +60,3 @@ parameters:
     q: 20 # 10, 25, ..., 50
     min: 20 # ln(10)
     max: 100 # ln(50)
-  model.loss_fn.sign:
-    value: "-"
