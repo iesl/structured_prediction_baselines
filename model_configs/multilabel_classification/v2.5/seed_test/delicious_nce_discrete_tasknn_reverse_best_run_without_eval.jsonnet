@@ -46,47 +46,11 @@ local seed = std.parseJson(std.extVar('random_seed'));
 
   // Model
   model: {
-    type: 'multi-label-classification-with-infnet-and-scorenn-evaluation',
+    type: 'multi-label-classification-with-infnet',
     sampler: {
       type: 'appending-container',
       log_key: 'sampler',
       constituent_samplers: [],
-    },
-    evaluation_module: {
-      type: 'indexed-container',
-      log_key: 'evaluation',
-      constituent_samplers: [
-        {
-          type: 'gradient-based-inference',
-          log_key: 'distribution_gbi',
-          gradient_descent_loop: {
-            optimizer: {
-              lr: 0.1,  //0.1
-              weight_decay: 0,
-              type: 'sgd',
-            },
-          },
-          loss_fn: { type: 'multi-label-dvn-score', reduction: 'none', log_key: 'neg.dvn_score'},
-          output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
-          stopping_criteria: 20,
-          sample_picker: { type: 'best' },  // {type: 'best'}
-        },
-        {
-          type: 'gradient-based-inference',
-          log_key: 'random_gbi',
-          gradient_descent_loop: {
-            optimizer: {
-              lr: 0.1,  //0.1
-              weight_decay: 0,
-              type: 'sgd',
-            },
-          },
-          loss_fn: { type: 'multi-label-dvn-score', reduction: 'none', log_key: 'neg.dvn_score'},
-          output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
-          stopping_criteria: 20,
-          sample_picker: { type: 'best' },  // {type: 'best'}
-        },
-      ],
     },
     task_nn: {
       type: 'multi-label-classification',
