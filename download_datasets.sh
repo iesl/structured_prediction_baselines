@@ -40,14 +40,14 @@ tar -xzvf cal500-stratified10folds-meka.tar.gz
 rm cal500-stratified10folds-meka.tar.gz
 cd ../..
 
-mkdir -p data/corel5k-stratified10folds-meka # 5000	499	374 card: 3.522  (comparison bibtex: 7395 1836 159 card: 2.4)
+mkdir -p data/corel5k-stratified10folds-meka # 5000	499	374 card: 3.522  (comparison bibtex: 7395 1836 159 card: 2.4) --> 0.001 active label ratio per (example * label dim).
 cd data/corel5k-stratified10folds-meka
 gdown https://drive.google.com/uc?id=1_29bDv6Hir5LMqxOOHJ1bpEmZoMlw0Pr
 tar -xzvf corel5k-stratified10folds-meka.tar.gz
 rm corel5k-stratified10folds-meka.tar.gz
 cd ../..
 
-mkdir -p data/delicious-stratified10folds-meka #16110	500	983 card: 19.02
+mkdir -p data/delicious-stratified10folds-meka #16110	500	983 card: 19.02  -> 0.02  active label ratio per (example * label dim).
 cd data/delicious-stratified10folds-meka
 gdown https://drive.google.com/uc?id=1ks93YBs7MkHW8uBPmG5fSbtk3-ejZmaA
 tar -xzvf delicious-stratified10folds-meka.tar.gz

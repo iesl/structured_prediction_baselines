@@ -1,12 +1,12 @@
-name: bibtex_strat_margin_l1_tasknn_reverse
+name: spo_fun_margin_l1_tasknn
 description: "Train tasknn using cross-entropy and inference score loss (as in Tu & Gimpel). The score-nn will be trained using margin based loss with cost augmented network. There is no sampling in this version"
 program: allennlp
 command:
 - ${program}
 - train_with_wandb
-- model_configs/multilabel_classification/v2.5/bibtex_strat_margin_l1_tasknn_reverse.jsonnet
+- model_configs/multilabel_classification/v2.5/gendata_margin_l1_tasknn.jsonnet
 - --include-package=structured_prediction_baselines
-- --wandb_tags="task=mlc,score_nn_loss=margin,task_nn_loss=bce+inference_score,sampler=inference_net,dataset=bibtex_strat,inference_module=inference_net,inference_module=tasknn,inference_module_loss=bce+inference_score,sampler=tasknn"
+- --wandb_tags="task=mlc,score_nn_loss=margin,task_nn_loss=bce+inference_score,sampler=inference_net,dataset=spo_fun,inference_module=inference_net,inference_module=tasknn,inference_module_loss=bce+inference_score,sampler=tasknn"
 - ${args}
 - --file-friendly-logging
 method: bayes
@@ -19,6 +19,8 @@ early_terminate:
   min_iter: 20
 
 parameters:
+  env.dataset_name:
+    value: 'spo_fun'
   env.cross_entropy_loss_weight:
     distribution: log_uniform
     min: -6.9
@@ -27,26 +29,29 @@ parameters:
     distribution: log_uniform
     min: -6.9
     max: 2.3
-  env.ff_dropout:
-    value: 0.5
+  env.ff_dropout_10x:
+    value: 1 # bibtex
   env.ff_hidden:
-    value: 400
+    value: 300 # bibtex
   env.ff_linear_layers:
-    value: 2
+    value: 4 # bibtex
   env.ff_weight_decay:
     value: 0.00001
   env.global_score_hidden_dim:
-    value: 200
+    distribution: q_uniform
+    min: 50  #100
+    max: 449 #400
+    q: 100
   trainer.optimizer.optimizers.task_nn.lr:
     distribution: log_uniform
-    min: -11.5
+    min: -12.5
     max: -4.5
   trainer.optimizer.optimizers.score_nn.lr:
     distribution: log_uniform
     min: -11.5
     max: -4.5
-  trainer.num_steps.score_nn:
+  env.task_nn_steps: # instead of trainer.num_steps.task_nn
     distribution: q_uniform
-    min: 3
-    max: 11
-    q: 3
+    q: 5 # 1, 5, 10 --> manual handling in the jsonnet.
+    min: 0
+    max: 10

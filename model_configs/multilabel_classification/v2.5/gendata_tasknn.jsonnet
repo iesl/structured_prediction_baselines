@@ -165,6 +165,7 @@ local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'))
         {
           type: 'wandb_allennlp',
           sub_callbacks: [{ type: 'log_best_validation_metrics', priority: 100 }],
+          save_model_archive: false,
         },
       ]
       else []
