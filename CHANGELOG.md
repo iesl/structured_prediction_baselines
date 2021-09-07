@@ -18,6 +18,10 @@
 - Added 'multi-label-score-loss' and changes in relevant configs \(bibtex\_strat\_nce\) [\#31](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/31) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - sweep and model configs for dvn, nce reverse order [\#29](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/29) ([dhruvdcoder](https://github.com/dhruvdcoder))
 
+### 🐛 Bug Fixes:
+
+- Making GBI work again. [\#47](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/47) ([dhruvdcoder](https://github.com/dhruvdcoder))
+
 ### 📖 Documentation updates
 
 - Add new dependency version info in README [\#27](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/27) ([leejayyoon](https://github.com/leejayyoon))
