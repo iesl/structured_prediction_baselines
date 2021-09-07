@@ -9,7 +9,7 @@ command:
 - --wandb_tags="task=mlc,model=dvn,sampler=inference_net_continuous_samples,dataset=delicious,inference_module=inference_net,inference_module=tasknn,sampler=tasknn_contiuous_samples"
 - ${args}
 - --file-friendly-logging
-method: bayes
+method: grid
 metric:
   goal: maximize
   name: "validation/best_fixed_f1"

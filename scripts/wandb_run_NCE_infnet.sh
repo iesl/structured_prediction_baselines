@@ -25,7 +25,7 @@ export dvn_score_loss_weight=0
 export num_samples=10
 export stopping_criteria=0
 export task_nn_steps=1
-export score_nn_steps=1
+export score_nn_steps=2
 
 #wandb_allennlp --subcommand=train \
 # --config_file=model_configs/<path_to_config_file> \

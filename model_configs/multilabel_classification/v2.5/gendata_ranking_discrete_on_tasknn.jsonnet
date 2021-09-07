@@ -75,8 +75,8 @@ local num_samples = std.parseJson(std.extVar('num_samples'));
             type: 'multi-label-nce-ranking-with-discrete-sampling',
             log_key: 'nce-on-tasknn',
             num_samples: num_samples,
-            sign: '+',
-            use_scorenn: false,
+            sign: '+', // score + sample prob --> sample prob (as score=0 in this setting.)
+            use_scorenn: false, // score=0 because of use_scorenn = False.
             normalize_y: true,
           },
           {
