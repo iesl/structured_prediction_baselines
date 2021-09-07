@@ -24,6 +24,7 @@ local task_nn_steps = (if std.toString(task_temp) == '0' then 1 else task_temp);
 local score_temp = std.parseJson(std.extVar('score_nn_steps')); # variable for score_nn.steps
 local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_temp);
 local scorenn_path = std.parseJson(std.extVar('scorenn_path'));
+local freeze_scorenn = std.parseJson(std.extVar('freeze_scorenn'));
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
   evaluate_on_test: true,
@@ -150,6 +151,11 @@ local scorenn_path = std.parseJson(std.extVar('scorenn_path'));
       optimizers: {
         task_nn:
           {
+            lr: 0.001,
+            weight_decay: ff_weight_decay,
+            type: 'adamw',
+          },
+       [if freeze_scorenn == false then 'score_nn']: {
             lr: 0.001,
             weight_decay: ff_weight_decay,
             type: 'adamw',
