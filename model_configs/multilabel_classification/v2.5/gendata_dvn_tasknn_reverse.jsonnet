@@ -169,6 +169,7 @@ local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_tem
         {
           type: 'wandb_allennlp',
           sub_callbacks: [{ type: 'log_best_validation_metrics', priority: 100 }],
+          save_model_archive: false,
         },
       ]
       else []

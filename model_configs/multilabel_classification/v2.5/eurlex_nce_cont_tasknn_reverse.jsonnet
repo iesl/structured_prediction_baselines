@@ -118,7 +118,7 @@ local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_tem
       type: 'multi-label-nce-ranking-with-cont-sampling',
       log_key: 'nce',
       num_samples: 10,
-      sign: '+',
+      sign: '-',
       std: 10.0,
     },
     initializer: {
@@ -175,6 +175,7 @@ local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_tem
         {
           type: 'wandb_allennlp',
           sub_callbacks: [{ type: 'log_best_validation_metrics', priority: 100 }],
+          save_model_archive: false,
         },
       ]
       else []

@@ -7,6 +7,7 @@ local dataset_name = std.parseJson(std.extVar('dataset_name'));
 local dataset_metadata = (import '../datasets.jsonnet')[dataset_name];
 local num_labels = dataset_metadata.num_labels;
 local num_input_features = dataset_metadata.input_features;
+local pretrained_tasknn_weights_path = '/mnt/nfs/scratch1/jaylee/repository/revOrder_structured_prediction/xtropy_model_weights/update/' + dataset_name + '_best.th';
 
 // model variables
 local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
@@ -17,12 +18,12 @@ local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
 local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
 local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
-local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
-local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'));
-local task_temp = std.parseJson(std.extVar('task_nn_steps')); # variable for task_nn.steps
-local task_nn_steps = (if std.toString(task_temp) == '0' then 1 else task_temp);
-local score_temp = std.parseJson(std.extVar('score_nn_steps')); # variable for score_nn.steps
-local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_temp);
+// local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
+// local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'));
+//local task_temp = std.parseJson(std.extVar('task_nn_steps')); # variable for task_nn.steps
+//local task_nn_steps = (if std.toString(task_temp) == '0' then 1 else task_temp);
+//local score_temp = std.parseJson(std.extVar('score_nn_steps')); # variable for score_nn.steps
+//local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_temp);
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
   evaluate_on_test: true,
@@ -44,51 +45,42 @@ local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_tem
 
   // Model
   model: {
-    type: 'multi-label-classification-with-infnet',
+    type: 'multi-label-classification',
     sampler: {
-      type: 'appending-container',
+      type: 'multi-label-inference-net-normalized',
       log_key: 'sampler',
-      constituent_samplers: [],
-    },
-    task_nn: {
-      type: 'multi-label-classification',
-      feature_network: {
-        input_dim: num_input_features,
-        num_layers: ff_linear_layers,
-        activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + [ff_activation]),
-        hidden_dims: ff_hidden,
-        dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
+    //   constituent_samplers: [],
+      inference_nn: {
+            type: 'multi-label-classification',
+            feature_network: {
+                input_dim: num_input_features,
+                num_layers: ff_linear_layers,
+                activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + [ff_activation]),
+                hidden_dims: ff_hidden,
+                dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
+            },
+            label_embeddings: {
+                embedding_dim: ff_hidden,
+                vocab_namespace: 'labels',
+            },
       },
-      label_embeddings: {
-        embedding_dim: ff_hidden,
-        vocab_namespace: 'labels',
-      },
+      loss_fn : { type: "zero" }
     },
     inference_module: {
-      type: 'multi-label-inference-net-normalized-or-continuous-sampled',
-      log_key: 'inference_module',
-      keep_probs: true,
-      num_samples: 20,
-      std: 0.5,
-      loss_fn: {
-        type: 'combination-loss',
-        log_key: 'loss',
-        constituent_losses: [
-          {
-            type: 'multi-label-dvn-score',
-            log_key: 'neg.dvn_score',
-            normalize_y: true,
-            reduction: 'none',
-          },  //This loss can be different from the main loss // change this
-          {
-            type: 'multi-label-bce',
-            reduction: 'none',
-            log_key: 'bce',
-          },
-        ],
-        loss_weights: [dvn_score_loss_weight, cross_entropy_loss_weight],
-        reduction: 'mean',
+      type: 'gradient-based-inference',
+      gradient_descent_loop: {
+        optimizer: {
+          lr: 0.1,  //0.1
+          weight_decay: 0,
+          type: 'adam',
+        },
       },
+      loss_fn: { type: 'multi-label-score-loss', reduction: 'none' },  //This loss can be different from the main loss
+      output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: null },
+      stopping_criteria: 20,
+      sample_picker: { type: 'best' },
+      number_init_samples: 3,
+      random_mixing_in_init: 1.0,
     },
     oracle_value_function: { type: 'per-instance-f1', differentiable: false },
     score_nn: {
@@ -117,10 +109,16 @@ local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_tem
         },
       },
     },
-    loss_fn: { type: 'multi-label-dvn-bce', log_key: 'dvn_bce' },
+    loss_fn: {
+      type: 'multi-label-nce-ranking-with-discrete-sampling',
+      log_key: 'nce',
+      num_samples: 10,
+      sign: '-',
+    },
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
+        [".*sampler.inference_nn.*", {"type": "pretrained", "weights_file_path": pretrained_tasknn_weights_path}],
         [@'.*_linear_layers.*weight', (if std.member(['tanh', 'sigmoid'], ff_activation) then { type: 'xavier_uniform', gain: gain } else { type: 'kaiming_uniform', nonlinearity: 'relu' })],
         [@'.*linear_layers.*bias', { type: 'zero' }],
       ],
@@ -133,12 +131,12 @@ local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_tem
   trainer: {
     type: 'gradient_descent_minimax',
     num_epochs: if test == '1' then 10 else 300,
-    grad_norm: { task_nn: 10.0 },
+    grad_norm: { score_nn: 10.0 },
     patience: 20,
     validation_metric: '+fixed_f1',
     cuda_device: std.parseInt(cuda_device),
     learning_rate_schedulers: {
-      task_nn: {
+      score_nn: {
         type: 'reduce_on_plateau',
         factor: 0.5,
         mode: 'max',
@@ -148,12 +146,6 @@ local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_tem
     },
     optimizer: {
       optimizers: {
-        task_nn:
-          {
-            lr: 0.001,
-            weight_decay: ff_weight_decay,
-            type: 'adamw',
-          },
         score_nn: {
           lr: 0.005,
           weight_decay: ff_weight_decay,
@@ -172,16 +164,15 @@ local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_tem
         {
           type: 'wandb_allennlp',
           sub_callbacks: [{ type: 'log_best_validation_metrics', priority: 100 }],
-          save_model_archive: false,
         },
       ]
       else []
     ),
     inner_mode: 'score_nn',
-    num_steps: { task_nn: task_nn_steps, score_nn: score_nn_steps },
+    num_steps: { task_nn: 1, score_nn: 1 },
   },
   vocabulary: {
     type: "from_files", 
     directory: (data_dir + '/' + dataset_metadata.dir_name + '/' + 'eurlex-ev-vocab'),
-  },
+  } 
 }

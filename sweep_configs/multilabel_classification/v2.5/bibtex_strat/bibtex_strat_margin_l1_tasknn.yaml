@@ -1,12 +1,12 @@
-name: eurlexev_nce_cont_MINUS_tasknn_reverse_rerun
-description: "Train tasknn using cross-entropy and  score loss (v(f(x),y)). The score-nn will be trained using NCE with a - sign (score+ln Pn). The samples are taken as continuous samples by adding gaussian noise to the tasknn output logits"
+name: bibtex_strat_margin_l1_tasknn_scorestep
+description: "Train tasknn using cross-entropy and inference score loss (as in Tu & Gimpel). The score-nn will be trained using margin based loss with cost augmented network. There is no sampling in this version"
 program: allennlp
 command:
 - ${program}
 - train_with_wandb
-- model_configs/multilabel_classification/v2.5/eurlex_nce_cont_tasknn_reverse.jsonnet
+- model_configs/multilabel_classification/v2.5/gendata_margin_l1_tasknn_scorestep.jsonnet
 - --include-package=structured_prediction_baselines
-- --wandb_tags="task=mlc,score_nn_loss=nce,sampler=inference_net_continuous_samples,dataset=eurlexev,inference_module=inference_net,inference_module=tasknn"
+- --wandb_tags="task=mlc,score_nn_loss=margin,task_nn_loss=bce+inference_score,sampler=inference_net,dataset=bibtex_strat,inference_module=inference_net,inference_module=tasknn,inference_module_loss=bce+inference_score,sampler=tasknn"
 - ${args}
 - --file-friendly-logging
 method: bayes
@@ -20,27 +20,29 @@ early_terminate:
 
 parameters:
   env.dataset_name:
-    value: 'eurlexev'
+    value: 'bibtex_strat'
   env.cross_entropy_loss_weight:
-    value: 1.0
-  env.dvn_score_loss_weight:
+    distribution: log_uniform
+    min: -6.9
+    max: 2.3
+  env.inference_score_weight:
     distribution: log_uniform
     min: -6.9
     max: 2.3
   env.ff_dropout_10x:
-    value: 1
+    value: 5.0
   env.ff_hidden:
-    value: 500
+    value: 400
   env.ff_linear_layers:
     value: 2
   env.ff_weight_decay:
     value: 0.00001
   env.global_score_hidden_dim:
-    value: 300
+    value: 200
   trainer.optimizer.optimizers.task_nn.lr:
     distribution: log_uniform
-    min: -12.5
-    max: -4.5 
+    min: -11.5
+    max: -4.5
   trainer.optimizer.optimizers.score_nn.lr:
     distribution: log_uniform
     min: -11.5
@@ -51,17 +53,7 @@ parameters:
     max: 11.99
     q: 3
   env.task_nn_steps: # instead of trainer.num_steps.task_nn
-    # value: 1
     distribution: q_uniform
     q: 5 # 1, 5, 10 --> manual handling in the jsonnet.
     min: 0
     max: 10
-  model.loss_fn.num_samples:
-    distribution: q_uniform
-    q: 20 # 10, 25, ..., 50
-    min: 20 # ln(10)
-    max: 100 # ln(50)
-  model.loss_fn.std:
-    distribution: log_uniform 
-    min: -6.9 # ln(0.001)
-    max: 1.6  # ln(5)

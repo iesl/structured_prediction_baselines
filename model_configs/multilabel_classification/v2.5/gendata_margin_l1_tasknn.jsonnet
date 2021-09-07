@@ -188,6 +188,7 @@ local task_nn_steps = (if std.toString(task_temp) == '0' then 1 else task_temp);
         {
           type: 'wandb_allennlp',
           sub_callbacks: [{ type: 'log_best_validation_metrics', priority: 100 }],
+          save_model_archive: false,
         },
       ]
       else []
