@@ -6,7 +6,7 @@ command:
 - --wandb_tags="task=mlc,model=dvn,sampler=inference_net,dataset=delicious,inference_module=inference_net,inference_module=tasknn,sampler=tasknn,ref=7tvr5xhg"
 - ${args}
 - --file-friendly-logging
-description: Train tasknn using cross-entropy and dvn score loss (v(f(x),y)). The dvn is pretrained and fixed taken from run ryjhp4h6. We will
+description: Train tasknn using cross-entropy and dvn score loss (v(f(x),y)). The dvn is pretrained and taken from run ryjhp4h6. We will
   have only one sampler--tasknn continuous--to train scoreNN. The network parameters
   are from structure_prediction_baselines/7tvr5xhg
 early_terminate:
@@ -16,10 +16,10 @@ method: bayes
 metric:
   goal: maximize
   name: validation/best_fixed_f1
-name: delicious_dvn_tasknn_fixed_pretrained_scorenn
+name: delicious_dvn_tasknn_pretrained_scorenn
 parameters:
   env.freeze_scorenn:
-    value: true
+    value: false
   env.scorenn_path:
     value: .allennlp_models/run-20210830_100533-t2o7zwy7/best.th
   env.cross_entropy_loss_weight:

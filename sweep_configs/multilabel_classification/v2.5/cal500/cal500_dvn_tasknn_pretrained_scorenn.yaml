@@ -16,7 +16,7 @@ method: bayes
 metric:
   goal: maximize
   name: validation/best_fixed_f1
-name: cal500_dvn_tasknn_pretrained_scorenn
+name: cal500_dvn_tasknn_fixed_pretrained_scorenn
 parameters:
   env.freeze_scorenn:
     value: false
@@ -56,4 +56,8 @@ parameters:
     distribution: log_uniform
     max: -4.5
     min: -12.5
+  trainer.optimizer.optimizers.score_nn.lr:
+    distribution: log_uniform
+    max: 0
+    min: -8
 program: allennlp

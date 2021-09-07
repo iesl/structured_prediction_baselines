@@ -3,7 +3,7 @@ command:
 - train_with_wandb
 - model_configs/multilabel_classification/v2.5/gendata_dvn_tasknn_pretrained_scorenn.jsonnet
 - --include-package=structured_prediction_baselines
-- --wandb_tags="task=mlc,model=dvn,sampler=inference_net,dataset=cal500,inference_module=inference_net,inference_module=tasknn,sampler=tasknn,ref=7tvr5xhg"
+- --wandb_tags="task=mlc,model=dvn,sampler=inference_net,dataset=genbase,inference_module=inference_net,inference_module=tasknn,sampler=tasknn,ref=7tvr5xhg"
 - ${args}
 - --file-friendly-logging
 description: Train tasknn using cross-entropy and dvn score loss (v(f(x),y)). The dvn is pretrained and fixed taken from run ryjhp4h6. We will
@@ -16,16 +16,16 @@ method: bayes
 metric:
   goal: maximize
   name: validation/best_fixed_f1
-name: cal500_dvn_tasknn_pretrained_scorenn
+name: genbase_dvn_tasknn_pretrained_scorenn
 parameters:
   env.freeze_scorenn:
     value: false
   env.scorenn_path:
-    value: .allennlp_models/run-20210829_230944-mgpf3t8g/best.th
+    value: .allennlp_models/run-20210829_185859-ryjhp4h6/best.th
   env.cross_entropy_loss_weight:
     value: 1
   env.dataset_name:
-    value: cal500
+    value: genbase
   env.dvn_score_loss_weight:
     distribution: log_uniform
     max: 2.3
@@ -33,9 +33,9 @@ parameters:
   env.ff_dropout_10x:
     value: 3
   env.ff_hidden:
-    value: 500
+    value: 400
   env.ff_linear_layers:
-    value: 5
+    value: 1
   env.ff_weight_decay:
     distribution: log_uniform
     max: -2.3
@@ -56,4 +56,9 @@ parameters:
     distribution: log_uniform
     max: -4.5
     min: -12.5
+  trainer.optimizer.optimizers.score_nn.lr:
+    distribution: log_uniform
+    max: 0
+    min: -8
 program: allennlp
+

@@ -16,10 +16,10 @@ method: bayes
 metric:
   goal: maximize
   name: validation/best_fixed_f1
-name: bibtex_strat_dvn_tasknn_fixed_pretrained_scorenn
+name: bibtex_strat_dvn_tasknn_pretrained_scorenn
 parameters:
   env.freeze_scorenn:
-    value: true
+    value: false
   env.scorenn_path:
     value: .allennlp_models/run-20210830_023627-zrweq15h/best.th
   env.cross_entropy_loss_weight:
