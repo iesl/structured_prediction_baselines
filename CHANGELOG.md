@@ -20,6 +20,7 @@
 
 ### 🐛 Bug Fixes:
 
+- Default "nce discrete" jsonnet has "-" signs now. [\#51](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/51) ([leejayyoon](https://github.com/leejayyoon))
 - Making GBI work again. [\#47](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/47) ([dhruvdcoder](https://github.com/dhruvdcoder))
 
 ### 📖 Documentation updates
