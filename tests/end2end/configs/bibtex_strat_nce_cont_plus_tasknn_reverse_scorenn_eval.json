@@ -3,6 +3,10 @@
         "type": "arff",
         "num_labels": 159
     },
+    "vocabulary": {
+        "type": "from_files",
+        "directory": "bibtex_vocabulary"
+    },
     "model": {
         "type": "multi-label-classification-with-infnet-and-scorenn-evaluation",
         "evaluation_module": {
