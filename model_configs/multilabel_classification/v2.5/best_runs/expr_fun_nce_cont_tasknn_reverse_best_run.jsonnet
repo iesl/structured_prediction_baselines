@@ -1,4 +1,4 @@
-// Run ID: 74slraph
+// Run ID: ilb47rx8
 
 {
     "dataset_reader": {
@@ -83,7 +83,7 @@
                 ],
                 "log_key": "loss",
                 "loss_weights": [
-                    0.0017597708709688124,
+                    0.15717519502607122,
                     1
                 ],
                 "reduction": "mean"
@@ -109,11 +109,9 @@
         "loss_fn": {
             "type": "multi-label-nce-ranking-with-cont-sampling",
             "log_key": "nce",
-            "num_samples": 40,
-            "sign": [
-                null
-            ],
-            "std": 1.3468577725596476
+            "num_samples": 80,
+            "sign": "-",
+            "std": 0.8838264136881562
         },
         "oracle_value_function": {
             "type": "per-instance-f1",
@@ -223,19 +221,19 @@
         },
         "num_epochs": 300,
         "num_steps": {
-            "score_nn": 3,
+            "score_nn": 6,
             "task_nn": 1
         },
         "optimizer": {
             "optimizers": {
                 "score_nn": {
                     "type": "adamw",
-                    "lr": 3.1106378668862966e-05,
+                    "lr": 6.701708269333459e-05,
                     "weight_decay": 1e-05
                 },
                 "task_nn": {
                     "type": "adamw",
-                    "lr": 0.0015409046003860795,
+                    "lr": 0.0019131796562723746,
                     "weight_decay": 1e-05
                 }
             }

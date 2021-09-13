@@ -1,4 +1,5 @@
-// Run ID: eza738zg
+// Run ID: p9vsngs4
+
 {
     "dataset_reader": {
         "type": "arff",
@@ -82,7 +83,7 @@
                 ],
                 "log_key": "loss",
                 "loss_weights": [
-                    0.23964777896000408,
+                    0.013291940709670672,
                     1
                 ],
                 "reduction": "mean"
@@ -108,10 +109,8 @@
         "loss_fn": {
             "type": "multi-label-nce-ranking-with-discrete-sampling",
             "log_key": "nce",
-            "num_samples": 40,
-            "sign": [
-                null
-            ]
+            "num_samples": 60,
+            "sign": "-"
         },
         "oracle_value_function": {
             "type": "per-instance-f1",
@@ -221,19 +220,19 @@
         },
         "num_epochs": 300,
         "num_steps": {
-            "score_nn": 12,
+            "score_nn": 9,
             "task_nn": 1
         },
         "optimizer": {
             "optimizers": {
                 "score_nn": {
                     "type": "adamw",
-                    "lr": 1.964614409590766e-05,
+                    "lr": 0.002753869173203098,
                     "weight_decay": 1e-05
                 },
                 "task_nn": {
                     "type": "adamw",
-                    "lr": 0.00036769772914442035,
+                    "lr": 0.00021424606044800426,
                     "weight_decay": 1e-05
                 }
             }

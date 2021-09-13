@@ -1,4 +1,4 @@
-// Run ID: hg26fp2o
+// Run ID: 6zt05lu1
 
 {
     "dataset_reader": {
@@ -83,7 +83,7 @@
                 ],
                 "log_key": "loss",
                 "loss_weights": [
-                    2.0001118834078624,
+                    0.9999795464384962,
                     1
                 ],
                 "reduction": "mean"
@@ -109,10 +109,8 @@
         "loss_fn": {
             "type": "multi-label-nce-ranking-with-discrete-sampling",
             "log_key": "nce",
-            "num_samples": 80,
-            "sign": [
-                null
-            ]
+            "num_samples": 40,
+            "sign": "-"
         },
         "oracle_value_function": {
             "type": "per-instance-f1",
@@ -222,19 +220,19 @@
         },
         "num_epochs": 300,
         "num_steps": {
-            "score_nn": 6,
-            "task_nn": 1
+            "score_nn": 3,
+            "task_nn": 10
         },
         "optimizer": {
             "optimizers": {
                 "score_nn": {
                     "type": "adamw",
-                    "lr": 2.946071676730072e-05,
+                    "lr": 0.008205295159315241,
                     "weight_decay": 1e-05
                 },
                 "task_nn": {
                     "type": "adamw",
-                    "lr": 0.0008965852439278495,
+                    "lr": 0.000543731847285782,
                     "weight_decay": 1e-05
                 }
             }

@@ -1,4 +1,4 @@
-// Run ID: n2it71al
+// Run ID: jaa8jw1j
 
 {
     "dataset_reader": {
@@ -83,7 +83,7 @@
                 ],
                 "log_key": "loss",
                 "loss_weights": [
-                    3.6141211326741707,
+                    0.35519433545187695,
                     1
                 ],
                 "reduction": "mean"
@@ -109,11 +109,9 @@
         "loss_fn": {
             "type": "multi-label-nce-ranking-with-cont-sampling",
             "log_key": "nce",
-            "num_samples": 60,
-            "sign": [
-                null
-            ],
-            "std": 1.1858110793918186
+            "num_samples": 100,
+            "sign": "-",
+            "std": 0.022432075950319968
         },
         "oracle_value_function": {
             "type": "per-instance-f1",
@@ -223,19 +221,19 @@
         },
         "num_epochs": 300,
         "num_steps": {
-            "score_nn": 1,
+            "score_nn": 12,
             "task_nn": 1
         },
         "optimizer": {
             "optimizers": {
                 "score_nn": {
                     "type": "adamw",
-                    "lr": 0.0004774318275510176,
+                    "lr": 0.007880942127938492,
                     "weight_decay": 1e-05
                 },
                 "task_nn": {
                     "type": "adamw",
-                    "lr": 0.006430659855384059,
+                    "lr": 0.0007302752337629527,
                     "weight_decay": 1e-05
                 }
             }

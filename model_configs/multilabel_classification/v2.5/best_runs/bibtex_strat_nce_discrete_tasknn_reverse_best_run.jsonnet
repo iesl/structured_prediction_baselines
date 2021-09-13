@@ -1,4 +1,4 @@
-// Run ID: sy85d5g7
+// Run ID: ehe1shcm
 
 {
     "dataset_reader": {
@@ -83,7 +83,7 @@
                 ],
                 "log_key": "loss",
                 "loss_weights": [
-                    5.927410525189994,
+                    5.567193044974443,
                     1
                 ],
                 "reduction": "mean"
@@ -109,10 +109,8 @@
         "loss_fn": {
             "type": "multi-label-nce-ranking-with-discrete-sampling",
             "log_key": "nce",
-            "num_samples": 40,
-            "sign": [
-                null
-            ]
+            "num_samples": 20,
+            "sign": "-"
         },
         "oracle_value_function": {
             "type": "per-instance-f1",
@@ -214,19 +212,19 @@
         },
         "num_epochs": 300,
         "num_steps": {
-            "score_nn": 3,
-            "task_nn": 10
+            "score_nn": 12,
+            "task_nn": 5
         },
         "optimizer": {
             "optimizers": {
                 "score_nn": {
                     "type": "adamw",
-                    "lr": 3.2809589365342876e-05,
+                    "lr": 0.00020858454931907349,
                     "weight_decay": 1e-05
                 },
                 "task_nn": {
                     "type": "adamw",
-                    "lr": 0.0004976237617969443,
+                    "lr": 0.0012236417240330793,
                     "weight_decay": 1e-05
                 }
             }

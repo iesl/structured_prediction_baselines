@@ -1,4 +1,4 @@
-// Run ID: fhjxt1ln
+// Run ID: ws33nfxq
 
 {
     "dataset_reader": {
@@ -83,7 +83,7 @@
                 ],
                 "log_key": "loss",
                 "loss_weights": [
-                    0.01805583080441279,
+                    0.04328653511237586,
                     1
                 ],
                 "reduction": "mean"
@@ -109,10 +109,8 @@
         "loss_fn": {
             "type": "multi-label-nce-ranking-with-discrete-sampling",
             "log_key": "nce",
-            "num_samples": 40,
-            "sign": [
-                null
-            ]
+            "num_samples": 60,
+            "sign": "-"
         },
         "oracle_value_function": {
             "type": "per-instance-f1",
@@ -221,12 +219,12 @@
             "optimizers": {
                 "score_nn": {
                     "type": "adamw",
-                    "lr": 0.001436856211542758,
+                    "lr": 0.005861859172889458,
                     "weight_decay": 1e-05
                 },
                 "task_nn": {
                     "type": "adamw",
-                    "lr": 0.0011955409237674544,
+                    "lr": 0.001150071573220457,
                     "weight_decay": 1e-05
                 }
             }

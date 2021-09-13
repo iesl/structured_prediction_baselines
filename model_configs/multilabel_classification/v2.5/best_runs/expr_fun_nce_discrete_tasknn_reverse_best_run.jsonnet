@@ -1,4 +1,4 @@
-// Run ID: 7tdq58zc
+// Run ID: mzc2tvkm
 
 {
     "dataset_reader": {
@@ -83,7 +83,7 @@
                 ],
                 "log_key": "loss",
                 "loss_weights": [
-                    0.1464468343812675,
+                    4.140955060784174,
                     1
                 ],
                 "reduction": "mean"
@@ -110,9 +110,7 @@
             "type": "multi-label-nce-ranking-with-discrete-sampling",
             "log_key": "nce",
             "num_samples": 80,
-            "sign": [
-                null
-            ]
+            "sign": "-"
         },
         "oracle_value_function": {
             "type": "per-instance-f1",
@@ -222,19 +220,19 @@
         },
         "num_epochs": 300,
         "num_steps": {
-            "score_nn": 9,
-            "task_nn": 5
+            "score_nn": 6,
+            "task_nn": 10
         },
         "optimizer": {
             "optimizers": {
                 "score_nn": {
                     "type": "adamw",
-                    "lr": 0.001174621384960915,
+                    "lr": 5.251719386935595e-05,
                     "weight_decay": 1e-05
                 },
                 "task_nn": {
                     "type": "adamw",
-                    "lr": 0.0006375230706163491,
+                    "lr": 0.00021635282183101723,
                     "weight_decay": 1e-05
                 }
             }
