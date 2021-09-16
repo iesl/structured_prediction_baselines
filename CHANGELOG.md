@@ -27,6 +27,10 @@
 
 - Add new dependency version info in README [\#27](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/27) ([leejayyoon](https://github.com/leejayyoon))
 
+### 📦 Dependencies
+
+- Tracking notebooks using jupytext [\#54](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/54) ([dhruvdcoder](https://github.com/dhruvdcoder))
+
 ### 👷 Build and CI
 
 - Automatic generation of changelog [\#23](https://github.com/dhruvdcoder/structured_prediction_baselines/issues/23)
