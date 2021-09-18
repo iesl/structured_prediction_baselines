@@ -27,6 +27,10 @@
 
 - Add new dependency version info in README [\#27](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/27) ([leejayyoon](https://github.com/leejayyoon))
 
+### 📦 Dependencies
+
+- Tracking notebooks using jupytext [\#54](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/54) ([dhruvdcoder](https://github.com/dhruvdcoder))
+
 ### 👷 Build and CI
 
 - Automatic generation of changelog [\#23](https://github.com/dhruvdcoder/structured_prediction_baselines/issues/23)
@@ -36,6 +40,7 @@
 
 ### ⚙️  Model and sweep configs
 
+- Feat/from pretrained dvn [\#52](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/52) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Added sweeps & jsonnet for eurlex \(and other small sweep config changes\) [\#45](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/45) ([leejayyoon](https://github.com/leejayyoon))
 - Organized sweep configs for general data & specific datasets. [\#40](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/40) ([leejayyoon](https://github.com/leejayyoon))
 - Feat/general data configs [\#39](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/39) ([leejayyoon](https://github.com/leejayyoon))
