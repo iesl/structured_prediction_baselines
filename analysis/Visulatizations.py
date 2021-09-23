@@ -73,6 +73,9 @@ dev_data_loader = DataLoader.from_params(
 vocab = Vocabulary.from_instances(train_data_loader.iter_instances())
 
 # %%
+loaded_model
+
+# %%
 train_data_loader.index_with(vocab)
 dev_data_loader.index_with(vocab)
 
@@ -93,8 +96,8 @@ dev_data_loader.index_with(vocab)
 # ## Get an instance from the data
 
 # %%
-train_instances = train_data_loader.iter_instances()
-inst0 = next(train_instances)
+dev_instances = dev_data_loader.iter_instances()
+inst0 = next(dev_instances)
 instances = [inst0]
 
 # %%
@@ -126,26 +129,36 @@ import matplotlib.pyplot as plt
 plt.style.use('seaborn-white')
 import numpy as np
 
-# %%
-y0 = np.linspace(0, 1, 500)
-y1 = np.linspace(0, 1, 500)
-z = np.zeros((500, 500))
 
 # %%
-x = model_input['x']
-y = model_input['labels'].clone().detach().float()
-for i in range(len(y0)):
-    for j in range(len(y1)):
-        y[0][0] = y0[i]
-        y[0][1] = y1[j]
-        with torch.no_grad():
-            z[i][j] = loaded_model(x, y, mode=ModelMode.COMPUTE_SCORE)['score']
+def compute_score_values(model, model_input, dim1, dim2, rmin=-0.5, rmax=1.5, n=100, sigmoid=False):
+    dim1_values = np.linspace(rmin, rmax, n)
+    dim2_values = np.linspace(rmin, rmax, n)
+    dim1_mesh, dim2_mesh = np.meshgrid(dim1_values, dim2_values)
+    z = np.zeros((n, n))
+    
+    x = model_input['x']
+    y = model_input['labels'].clone().detach().float()
+    # y = 1 - y
+    for i in range(len(dim1_values)):
+        for j in range(len(dim2_values)):
+            y[0][dim1] = dim1_mesh[i][j]
+            y[0][dim2] = dim2_mesh[i][j]
+            with torch.no_grad():
+                z[j][i] = loaded_model(x, y, mode=ModelMode.COMPUTE_SCORE)['score']
+    if sigmoid:
+        z = torch.sigmoid(torch.from_numpy(z)).numpy()
+    return dim1_mesh, dim2_mesh, z
+
 
 # %%
-plt.contour(y1, y0, z, 20, colors='black', )
+Y0, Y1, z = compute_score_values(loaded_model, model_input, 0, -1, n=200, sigmoid=True)
+
+# %%
+plt.contour(Y0, Y1, z, 20, cmap='RdGy')
 plt.colorbar()
-plt.xlabel("y1")
-plt.ylabel("y0")
+plt.xlabel("y0")
+plt.ylabel("y1")
 plt.show()
 
 # %%
