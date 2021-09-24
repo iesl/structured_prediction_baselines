@@ -15,6 +15,7 @@ from structured_prediction_baselines.metrics import (
     MultilabelClassificationRankBiasedOverlap
 )
 from .base import ScoreBasedLearningModel
+from ..modules.oracle_value_function.manhatten_distance import ManhattanDistanceValueFunction
 
 logger = logging.getLogger(__name__)
 
@@ -113,8 +114,8 @@ class MultilabelClassificationWithScoreNNEvaluation(MultilabelClassification):
         self.mrr = MultilabelClassificationMeanReciprocalRank()
         self.ndcg = MultilabelClassificationNormalizedDiscountedCumulativeGain()
         self.rbo = MultilabelClassificationRankBiasedOverlap()
-        self.tasknn_samples_f1 = MultilabelClassificationF1()
-        self.random_samples_f1 = MultilabelClassificationF1()
+        self.tasknn_samples_gbi_f1 = MultilabelClassificationF1()
+        self.random_samples_gbi_f1 = MultilabelClassificationF1()
 
     @torch.no_grad()
     def calculate_metrics(  # type: ignore
@@ -135,6 +136,9 @@ class MultilabelClassificationWithScoreNNEvaluation(MultilabelClassification):
         tasknn_samples = self.get_samples(y_hat_n, labels=labels)
         sample_scores = self.score_nn(x, tasknn_samples, buffer)  # (batch, num_samples+1)
         true_scores = self.oracle_value_function(self.unsqueeze_labels(labels), tasknn_samples)
+        if isinstance(self.oracle_value_function, ManhattanDistanceValueFunction):  # invert the scores for l1 ovf
+            true_scores = true_scores - true_scores.amin(dim=1, keepdim=True)
+
         sample_labels = torch.zeros_like(sample_scores)  # (batch, num_samples+1)
         sample_labels[:, 0] = 1  # set true label index to 1
 
@@ -147,16 +151,16 @@ class MultilabelClassificationWithScoreNNEvaluation(MultilabelClassification):
         random_samples = self.get_samples(y_hat_n, random=True)
 
         # call evaluation_module on distribution and random samples
-        tasknn_gbi_samples, _, loss_ = self.evaluation_module(x, labels, buffer, init_samples=tasknn_samples, index=0)
-        self.tasknn_samples_f1(self.squeeze_y(tasknn_gbi_samples), labels)
+        tasknn_gbi_samples, _, loss_ = self.evaluation_module(x, labels, buffer, init_samples=tasknn_samples[:, 1:, :], index=0)
+        self.tasknn_samples_gbi_f1(self.squeeze_y(tasknn_gbi_samples), labels)
         random_gbi_samples, _, loss_ = self.evaluation_module(x, labels, buffer, init_samples=random_samples, index=1)
-        self.random_samples_f1(self.squeeze_y(random_gbi_samples), labels)
+        self.random_samples_gbi_f1(self.squeeze_y(random_gbi_samples), labels)
 
     def get_true_metrics(self, reset: bool = False) -> Dict[str, float]:
         metrics = super().get_true_metrics(reset=reset)
         eval_metrics = {
-            "tasknn_samples_fixed_f1": self.tasknn_samples_f1.get_metric(reset),
-            "random_samples_fixed_f1": self.random_samples_f1.get_metric(reset),
+            "tasknn_samples_gbi_fixed_f1": self.tasknn_samples_gbi_f1.get_metric(reset),
+            "random_samples_gbi_fixed_f1": self.random_samples_gbi_f1.get_metric(reset),
             "micro_map": self.micro_map.get_metric(reset),
             "average_rank": self.average_rank.get_metric(reset),
             "MRR": self.mrr.get_metric(reset),
