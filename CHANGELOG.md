@@ -12,6 +12,7 @@
 
 - Add original infnet setup \(Tu, Gimpel\) in the reverse order  [\#32](https://github.com/dhruvdcoder/structured_prediction_baselines/issues/32)
 - Add unnormalized score loss for training tasknn [\#30](https://github.com/dhruvdcoder/structured_prediction_baselines/issues/30)
+- Adds Best Run Configs [\#50](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/50) ([purujitgoyal](https://github.com/purujitgoyal))
 - Score-nn Evaluation [\#42](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/42) ([purujitgoyal](https://github.com/purujitgoyal))
 - Text MLC with any text encoder including BERT [\#37](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/37) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Original inference\_net setup as in Tu & Gimpel [\#33](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/33) ([dhruvdcoder](https://github.com/dhruvdcoder))
@@ -40,6 +41,7 @@
 
 ### ⚙️  Model and sweep configs
 
+- No cross entropy configs for DVN+tasknn [\#53](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/53) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Feat/from pretrained dvn [\#52](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/52) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Added sweeps & jsonnet for eurlex \(and other small sweep config changes\) [\#45](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/45) ([leejayyoon](https://github.com/leejayyoon))
 - Organized sweep configs for general data & specific datasets. [\#40](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/40) ([leejayyoon](https://github.com/leejayyoon))

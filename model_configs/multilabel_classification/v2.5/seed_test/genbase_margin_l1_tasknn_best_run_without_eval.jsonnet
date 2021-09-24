@@ -1,28 +1,33 @@
+// Run ID: 7e30jm5b
+
 local test = std.extVar('TEST');  // a test run with small dataset
 local data_dir = std.extVar('DATA_DIR');
 local cuda_device = std.extVar('CUDA_DEVICE');
 local use_wandb = (if test == '1' then false else true);
 
-local dataset_name = std.parseJson(std.extVar('dataset_name'));
-local dataset_metadata = (import '../datasets.jsonnet')[dataset_name];
+local dataset_name = 'genbase';
+local dataset_metadata = (import '../../datasets.jsonnet')[dataset_name];
 local num_labels = dataset_metadata.num_labels;
 local num_input_features = dataset_metadata.input_features;
 
 // model variables
-local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
+local ff_hidden = 400; //std.parseJson(std.extVar('ff_hidden'));
 local label_space_dim = ff_hidden;
-local ff_dropout = std.parseJson(std.extVar('ff_dropout_10x')) / 10.0;
+local ff_dropout = 0.2; //std.parseJson(std.extVar('ff_dropout'));
 local ff_activation = 'softplus';
-local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
-local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
-local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
+local ff_linear_layers = 1; //std.parseJson(std.extVar('ff_linear_layers'));
+local ff_weight_decay = 0.00001; //std.parseJson(std.extVar('ff_weight_decay'));
+local global_score_hidden_dim = 400; //std.parseJson(std.extVar('global_score_hidden_dim'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
-local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
-local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
-local task_temp = std.parseJson(std.extVar('task_nn_steps')); // variable for task_nn.steps
-local task_nn_steps = (if std.toString(task_temp) == '0' then 1 else task_temp);
+local cross_entropy_loss_weight = 7.529; //std.parseJson(std.extVar('cross_entropy_loss_weight'));
+local inference_score_weight = 0.01014; //std.parseJson(std.extVar('inference_score_weight'));
+local seed = std.parseJson(std.extVar('random_seed'));
+
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
+  random_seed: seed,
+  numpy_seed: seed,
+  pytorch_seed: seed,
   evaluate_on_test: true,
   // Data
   dataset_reader: {
@@ -166,12 +171,12 @@ local task_nn_steps = (if std.toString(task_temp) == '0' then 1 else task_temp);
       optimizers: {
         task_nn:
           {
-            lr: 0.001,
+            lr: 0.0007418,
             weight_decay: ff_weight_decay,
             type: 'adamw',
           },
         score_nn: {
-          lr: 0.005,
+          lr: 0.0002697,
           weight_decay: ff_weight_decay,
           type: 'adamw',
         },
@@ -188,12 +193,11 @@ local task_nn_steps = (if std.toString(task_temp) == '0' then 1 else task_temp);
         {
           type: 'wandb_allennlp',
           sub_callbacks: [{ type: 'log_best_validation_metrics', priority: 100 }],
-          save_model_archive: false,
         },
       ]
       else []
     ),
     inner_mode: 'task_nn',
-    num_steps: { task_nn: task_nn_steps, score_nn: 1 },
+    num_steps: { task_nn: 10, score_nn: 1 },
   },
 }

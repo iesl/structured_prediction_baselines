@@ -96,7 +96,7 @@ rm expr_GO.tar.gz
 cd ../..
 
 mkdir -p data/spo_fun
-cd data/spo_fun 
+cd data/spo_fun
 gdown https://drive.google.com/uc?id=1JKICdapuU9IuDskF72fmpE29E4savwXr
 tar -xzvf spo_FUN.tar.gz
 rm spo_FUN.tar.gz
