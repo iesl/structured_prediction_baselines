@@ -1,0 +1,71 @@
+command:
+- ${program}
+- train_with_wandb
+- model_configs/multilabel_classification/v2.5/gendata_dvn_tasknn_sampled_pretrained_scorenn.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb_tags="task=mlc,model=dvn,sampler=inference_net,dataset=bibtex_strat,inference_module=inference_net,inference_module=tasknn,sampler=tasknn,ref=7tvr5xhg"
+- ${args}
+- --file-friendly-logging
+description: Train tasknn using cross-entropy and dvn score loss (v(f(x),y)). The dvn is pretrained and fixed taken from run ryjhp4h6. We will
+  have only one sampler--tasknn continuous--to train scoreNN. The network parameters
+  are from structure_prediction_baselines/7tvr5xhg
+early_terminate:
+  min_iter: 20
+  type: hyperband
+method: bayes
+metric:
+  goal: maximize
+  name: validation/best_fixed_f1
+name: bibtex_strat_dvn_tasknn_samples_pretrained_scorenn_no_xtropy
+parameters:
+  env.freeze_scorenn:
+    value: false
+  env.scorenn_path:
+    value: .allennlp_models/run-20210830_023627-zrweq15h/best.th
+  env.cross_entropy_loss_weight:
+    value: 0
+  env.dataset_name:
+    value: bibtex_strat
+  env.dvn_score_loss_weight:
+    value: 1.0
+  env.ff_dropout_10x:
+    value: 3
+  env.ff_hidden:
+    value: 300
+  env.ff_linear_layers:
+    value: 1
+  env.ff_weight_decay:
+    distribution: log_uniform
+    max: -2.3
+    min: -12.5
+  env.global_score_hidden_dim:
+    value: 200
+  env.score_nn_steps:
+    distribution: q_uniform
+    max: 11.99
+    min: 0
+    q: 3
+  env.task_nn_steps:
+    distribution: q_uniform
+    max: 10
+    min: 0
+    q: 5
+  trainer.optimizer.optimizers.task_nn.lr:
+    distribution: log_uniform
+    max: -4.5
+    min: -12.5
+  trainer.optimizer.optimizers.score_nn.lr:
+    distribution: log_uniform
+    max: 0
+    min: -8
+  model.inference_module.num_samples:
+    distribution: q_log_uniform
+    max: 3.92
+    min: 0
+    q: 5
+  model.inference_module.std:
+    distribution: log_uniform
+    max: 1.6
+    min: -6.9
+program: allennlp
+
