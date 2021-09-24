@@ -1,0 +1,41 @@
+name: bgc_bert_adapter_nce_bert_adapter_tasknn
+description: "Scorenn consisting of bert adapter trained using nce objective with tasknn consisting of BERT adapter as well."
+program: allennlp
+command:
+- ${program}
+- train_with_wandb
+- model_configs/multilabel_classification/v2.5/bgc_bert_adapter_nce_bert_adapter_tasknn.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb_tags="task=text_mlc,model=tasknn,sampler=inference_net,dataset=bgc,inference_module=inference_net,inference_module=tasknn,sampler=tasknn,scorenn=bert_nce"
+- ${args}
+- --file-friendly-logging
+
+method: grid
+metric:
+  goal: maximize
+  name: "validation/best_fixed_f1"
+
+early_terminate:
+  type: hyperband
+  min_iter: 4
+
+parameters:
+  env.cross_entropy_loss_weight:
+    value: 1
+  env.dropout_10x:
+    value: 0.1
+  env.score_loss_weight:
+    values: [1.0, 3.0, 5.0, 10.0, 50.0]
+  env.global_score_hidden_dim:
+    value: 300
+  env.weight_decay:
+    value: 0.1
+  trainer.num_steps.score_nn:
+    value: 1
+  trainer.num_steps.task_nn:
+    value: 1
+  trainer.optimizer.optimizers.score_nn.lr:
+    value: 5e-05
+  trainer.optimizer.optimizers.task_nn.lr:
+    value: 5e-05
+  

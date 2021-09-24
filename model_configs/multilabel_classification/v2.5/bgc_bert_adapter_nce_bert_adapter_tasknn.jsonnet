@@ -27,7 +27,9 @@ local score_nn_dropout = dropout;
 local task_nn_dropout = dropout;
 local task_nn_weight_decay = weight_decay;
 local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
-local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'));
+local score_loss_weight = std.parseJson(std.extVar('score_loss_weight'));
+
+
 local feature_network = {
   text_field_embedder: {
     token_embedders: {
@@ -50,6 +52,7 @@ local feature_network = {
     dropout: ([task_nn_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
   },
 };
+
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
   evaluate_on_test: true,
@@ -77,15 +80,20 @@ local feature_network = {
   test_data_path: (data_dir + '/' + dataset_metadata.dir_name + '/' +
                    dataset_metadata.test_file),
 
-  vocabulary: { type: 'from_files', directory: (data_dir + '/' + dataset_metadata.dir_name + '/' + 'bert_vocab') },
+vocabulary: {
+        type: 'from_files',
+        directory: data_dir + '/' + dataset_metadata.dir_name + '/' + 'bert_vocab'
+    },
   // Model
   model: {
     type: 'multi-label-classification-with-infnet',
+    
     sampler: {
       type: 'appending-container',
       log_key: 'sampler',
       constituent_samplers: [],
     },
+
     task_nn: {
       type: 'multi-label-text-classification',
       feature_network: feature_network,
@@ -102,8 +110,8 @@ local feature_network = {
         log_key: 'loss',
         constituent_losses: [
           {
-            type: 'multi-label-dvn-score',
-            log_key: 'neg_dvn_score',
+            type: 'multi-label-score-loss',
+            log_key: 'neg_nce_score',
             normalize_y: true,
             reduction: 'none',
           },  //This loss can be different from the main loss // change this
@@ -113,7 +121,7 @@ local feature_network = {
             log_key: 'bce',
           },
         ],
-        loss_weights: [dvn_score_loss_weight, cross_entropy_loss_weight],
+        loss_weights: [score_loss_weight, cross_entropy_loss_weight],
         reduction: 'mean',
       },
     },
@@ -138,7 +146,12 @@ local feature_network = {
         },
       },
     },
-    loss_fn: { type: 'multi-label-dvn-bce', log_key: 'dvn_bce' },
+    loss_fn: {
+      type: 'multi-label-nce-ranking-with-discrete-sampling',
+      log_key: 'nce',
+      num_samples: 100,
+      sign: '-',
+    },
     initializer: {
       regexes: [
         [@'.*feedforward._linear_layers.*weight', (if std.member(['tanh', 'sigmoid'], ff_activation) then { type: 'xavier_uniform', gain: gain } else { type: 'kaiming_uniform', nonlinearity: 'relu' })],
@@ -159,9 +172,9 @@ local feature_network = {
   trainer: {
     type: 'gradient_descent_minimax',
     num_epochs: if test == '1' then 1 else 300,
-    grad_norm: { task_nn: 10.0, score_nn: 1.0 },
-    //num_gradient_accumulation_steps: 2,  // effective batch size = batch_size*num_gradient_accumulation_steps
-    patience: 5,
+    grad_norm: { task_nn: 1.0, score_nn: 1.0 },
+    //num_gradient_accumulation_steps: 8,  // effective batch size = batch_size*num_gradient_accumulation_steps
+    patience: 4,
     validation_metric: '+fixed_f1',
     cuda_device: std.parseInt(cuda_device),
     learning_rate_schedulers: {
@@ -169,7 +182,7 @@ local feature_network = {
         type: 'reduce_on_plateau',
         factor: 0.5,
         mode: 'max',
-        patience: 2,
+        patience: 1,
         verbose: true,
       },
     },
@@ -199,11 +212,12 @@ local feature_network = {
           type: 'wandb_allennlp',
           sub_callbacks: [{ type: 'log_best_validation_metrics', priority: 100 }],
           save_model_archive: false,
+          watch_model: false,
         },
       ]
       else []
     ),
     inner_mode: 'score_nn',
-    num_steps: { task_nn: 1, score_nn: 6 },
+    num_steps: { task_nn: 1, score_nn: 1 },
   },
 }

@@ -194,6 +194,7 @@ local feature_network= {
           type: 'wandb_allennlp',
           sub_callbacks: [{ type: 'log_best_validation_metrics', priority: 100 }],
           save_model_archive: false,
+          watch_model: false,
         },
       ]
       else []
