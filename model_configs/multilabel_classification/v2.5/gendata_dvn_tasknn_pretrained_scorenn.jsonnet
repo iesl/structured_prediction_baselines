@@ -18,9 +18,13 @@ local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
 local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
-local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
-local task_temp = std.parseJson(std.extVar('task_nn_steps')); // variable for task_nn.steps
+local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'));
+local task_temp = std.parseJson(std.extVar('task_nn_steps')); # variable for task_nn.steps
 local task_nn_steps = (if std.toString(task_temp) == '0' then 1 else task_temp);
+local score_temp = std.parseJson(std.extVar('score_nn_steps')); # variable for score_nn.steps
+local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_temp);
+local scorenn_path = std.parseJson(std.extVar('scorenn_path'));
+local freeze_scorenn = std.parseJson(std.extVar('freeze_scorenn'));
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
   evaluate_on_test: true,
@@ -39,6 +43,7 @@ local task_nn_steps = (if std.toString(task_temp) == '0' then 1 else task_temp);
                          dataset_metadata.validation_file),
   test_data_path: (data_dir + '/' + dataset_metadata.dir_name + '/' +
                    dataset_metadata.test_file),
+  [if dataset_name == 'eurlexev' then 'vocabulary']: {type: "from_files", directory: (data_dir + '/' + dataset_metadata.dir_name + '/' + 'eurlex-ev-vocab'),},
 
   // Model
   model: {
@@ -62,30 +67,18 @@ local task_nn_steps = (if std.toString(task_temp) == '0' then 1 else task_temp);
         vocab_namespace: 'labels',
       },
     },
-
     inference_module: {
       type: 'multi-label-inference-net-normalized',
       log_key: 'inference_module',
-      cost_augmented_layer: {
-        type: 'multi-label-stacked',
-        feedforward: {
-          input_dim: 2 * num_labels,
-          num_layers: 2,
-          activations: [ff_activation, 'linear'],
-          hidden_dims: num_labels,
-        },
-        normalize_y: true,
-      },
       loss_fn: {
         type: 'combination-loss',
         log_key: 'loss',
         constituent_losses: [
           {
-            type: 'multi-label-inference',
-            log_key: 'neg_inference',
+            type: 'multi-label-dvn-score',
+            log_key: 'neg.dvn_score',
             normalize_y: true,
             reduction: 'none',
-            inference_score_weight: inference_score_weight,
           },  //This loss can be different from the main loss // change this
           {
             type: 'multi-label-bce',
@@ -93,14 +86,11 @@ local task_nn_steps = (if std.toString(task_temp) == '0' then 1 else task_temp);
             log_key: 'bce',
           },
         ],
-        loss_weights: [1.0, cross_entropy_loss_weight],
+        loss_weights: [dvn_score_loss_weight, cross_entropy_loss_weight],
         reduction: 'mean',
       },
     },
-    oracle_value_function: {
-      type: 'manhattan',
-      differentiable: true,
-    },
+    oracle_value_function: { type: 'per-instance-f1', differentiable: false },
     score_nn: {
       type: 'multi-label-classification',
       task_nn: {
@@ -127,18 +117,13 @@ local task_nn_steps = (if std.toString(task_temp) == '0' then 1 else task_temp);
         },
       },
     },
-    loss_fn: {
-      type: 'multi-label-margin-based',
-      oracle_cost_weight: 1.0,
-      perceptron_loss_weight: inference_score_weight,
-      reduction: 'mean',
-      log_key: 'margin_loss',
-    },
+    loss_fn: { type: 'multi-label-dvn-bce', log_key: 'dvn_bce' },
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
         [@'.*_linear_layers.*weight', (if std.member(['tanh', 'sigmoid'], ff_activation) then { type: 'xavier_uniform', gain: gain } else { type: 'kaiming_uniform', nonlinearity: 'relu' })],
         [@'.*linear_layers.*bias', { type: 'zero' }],
+        [@'score_nn.*', { type: 'pretrained', weights_file_path: scorenn_path }]
       ],
     },
   },
@@ -170,11 +155,11 @@ local task_nn_steps = (if std.toString(task_temp) == '0' then 1 else task_temp);
             weight_decay: ff_weight_decay,
             type: 'adamw',
           },
-        score_nn: {
-          lr: 0.005,
-          weight_decay: ff_weight_decay,
-          type: 'adamw',
-        },
+       [if freeze_scorenn == false then 'score_nn']: {
+            lr: 0.001,
+            weight_decay: ff_weight_decay,
+            type: 'adamw',
+          },
       },
     },
     checkpointer: {
@@ -187,13 +172,13 @@ local task_nn_steps = (if std.toString(task_temp) == '0' then 1 else task_temp);
       if use_wandb then [
         {
           type: 'wandb_allennlp',
+          watch_model: false,
           sub_callbacks: [{ type: 'log_best_validation_metrics', priority: 100 }],
-          save_model_archive: false,
         },
       ]
       else []
     ),
-    inner_mode: 'task_nn',
-    num_steps: { task_nn: task_nn_steps, score_nn: 1 },
+    inner_mode: 'score_nn',
+    num_steps: { task_nn: task_nn_steps, score_nn: score_nn_steps },
   },
 }

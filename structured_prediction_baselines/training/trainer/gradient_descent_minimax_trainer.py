@@ -491,7 +491,6 @@ class GradientDescentMinimaxTrainer(Trainer):
         with self.no_grad_for_other_mode(mode):
             output_dict = self.model(**batch, mode=mode)
         output_dict["mode"] = mode
-
         if for_training:
             if "loss" not in output_dict:
                 raise RuntimeError(

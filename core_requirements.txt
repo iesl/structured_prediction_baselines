@@ -11,3 +11,4 @@ jupyter
 seaborn
 ipywidgets
 gdown
+jupytext
