@@ -173,8 +173,7 @@ class MarginBasedLoss(Loss):
         inference_score = self.score_nn(x, y_hat, buffer)
 
         if y_cost_aug is None:
-            y_cost_aug = torch.zeros_like(y_hat)
-            cost_aug_score = 0
+            cost_aug_score = torch.zeros_like(inference_score)
         else:
             cost_aug_score = self.score_nn(x, y_cost_aug, buffer)
 
