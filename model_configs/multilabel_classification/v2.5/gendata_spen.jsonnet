@@ -21,7 +21,6 @@ local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local gbi_lr = std.parseJson(std.extVar('gbi_lr'));
 //local gbi_optim = std.parseJson(std.extVar('gbi_optim'));
 local gbi_optim = 'adam';
-local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
 local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
@@ -74,7 +73,7 @@ local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'
             },
           },
           loss_fn: {
-            type: 'multi-label-margin-based',
+            type: 'multi-label-inference',
             oracle_cost_weight: 1.0,
             perceptron_loss_weight: inference_score_weight,
             log_key: 'margin_loss',
@@ -114,7 +113,7 @@ local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'
       },
     },
     loss_fn: {
-      type: 'multi-label-margin-based',
+      type: 'multi-label-structured-svm',
       oracle_cost_weight: 1.0,
       perceptron_loss_weight: inference_score_weight,
       reduction: 'mean',
