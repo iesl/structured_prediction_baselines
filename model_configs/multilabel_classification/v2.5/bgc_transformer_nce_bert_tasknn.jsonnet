@@ -9,43 +9,27 @@ local num_labels = dataset_metadata.num_labels;
 local num_input_features = dataset_metadata.input_features;
 
 // model variables
+
 // // common
 local ff_activation = 'softplus';
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
+
 // // score_nn
+local score_nn_weight_decay = std.parseJson(std.extVar('score_nn_weight_decay'));
+local score_nn_embedding = std.parseJson(std.extVar('score_nn_embedding'));
+local score_nn_dropout = std.parseJson(std.extVar('score_nn_dropout_10x')) / 10.0;
+local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
+local score_nn_transformer_layers = std.parseJson(std.extVar('score_nn_transformer_layers'));
+local score_nn_transformer_attn_heads = std.parseJson(std.extVar('score_nn_transformer_attn_heads'));
+// // task_nn
 local transformer_model = 'bert-base-uncased';  // huggingface name of the model
 local transformer_dim = 768;
 local transformer_vocab_size = 30522;
-local score_nn_weight_decay = std.parseJson(std.extVar('score_nn_weight_decay'));
-local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
-local score_nn_dropout = std.parseJson(std.extVar('score_nn_dropout_10x')) / 10.0;
-// // task_nn
 local task_nn_dropout = std.parseJson(std.extVar('task_nn_dropout_10x')) / 10.0;
 local task_nn_weight_decay = std.parseJson(std.extVar('task_nn_weight_decay'));
 local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
-local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'));
-local feature_network= {
-        text_field_embedder: {
-          token_embedders: {
-            x: {
-              type: 'pretrained_transformer',
-              model_name: transformer_model,
-            },
-          },
-        },
-        seq2vec_encoder: {
-          type: 'bert_pooler',
-          pretrained_model: transformer_model,
-        },
-        final_dropout: 0,
-        //feedforward: {
-        //  input_dim: transformer_dim,
-        //  num_layers: ff_linear_layers,
-        //  activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + [ff_activation]),
-        //  hidden_dims: ff_hidden,
-        //  dropout: ([task_nn_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
-       // },
-      };
+local score_loss_weight = std.parseJson(std.extVar('score_loss_weight'));
+
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
   evaluate_on_test: true,
@@ -73,17 +57,44 @@ local feature_network= {
   test_data_path: (data_dir + '/' + dataset_metadata.dir_name + '/' +
                    dataset_metadata.test_file),
 
+vocabulary: {
+        type: 'from_files',
+        directory: data_dir + '/' + dataset_metadata.dir_name + '/' + 'vocabulary_bert'
+    },
   // Model
   model: {
     type: 'multi-label-classification-with-infnet',
+    
     sampler: {
       type: 'appending-container',
       log_key: 'sampler',
       constituent_samplers: [],
     },
+
     task_nn: {
       type: 'multi-label-text-classification',
-      feature_network: feature_network,
+      feature_network: {
+        text_field_embedder: {
+          token_embedders: {
+            x: {
+              type: 'pretrained_transformer',
+              model_name: transformer_model,
+            },
+          },
+        },
+        seq2vec_encoder: {
+          type: 'bert_pooler',
+          pretrained_model: transformer_model,
+        },
+        final_dropout: 0,
+        feedforward: {
+          input_dim: transformer_dim,
+          num_layers: 2,
+          activations: ff_activation,
+          hidden_dims: [2*transformer_dim, transformer_dim],
+          dropout: [task_nn_dropout, 0],
+        },
+      },
       label_embeddings: {
         embedding_dim: transformer_dim,
         vocab_namespace: 'labels',
@@ -97,8 +108,8 @@ local feature_network= {
         log_key: 'loss',
         constituent_losses: [
           {
-            type: 'multi-label-dvn-score',
-            log_key: 'neg_dvn_score',
+            type: 'multi-label-score-loss',
+            log_key: 'neg_nce_score',
             normalize_y: true,
             reduction: 'none',
           },  //This loss can be different from the main loss // change this
@@ -108,7 +119,7 @@ local feature_network= {
             log_key: 'bce',
           },
         ],
-        loss_weights: [dvn_score_loss_weight, cross_entropy_loss_weight],
+        loss_weights: [score_loss_weight, cross_entropy_loss_weight],
         reduction: 'mean',
       },
     },
@@ -117,9 +128,42 @@ local feature_network= {
       type: 'multi-label-classification',
       task_nn: {
         type: 'multi-label-text-classification',
-        feature_network: feature_network,
+        feature_network: {
+        text_field_embedder: {
+          token_embedders: {
+            x: {
+              type: 'embedding',
+              num_embeddings: transformer_vocab_size,
+              embedding_dim: score_nn_embedding,
+            },
+          },
+        },
+        seq2seq_encoder: {
+          type: 'pytorch_transformer',
+          input_dim: score_nn_embedding,
+          num_layers: score_nn_transformer_layers,
+          feedforward_hidden_dim: score_nn_embedding*2,
+          num_attention_heads: score_nn_transformer_attn_heads,
+          positional_encoding: 'sinusoidal',
+          positional_embedding_size: 512,  // same as max_len of encoder
+          dropout_prob: score_nn_dropout,
+        },
+        seq2vec_encoder: {
+          type: 'cls_pooler',
+          embedding_dim: score_nn_embedding,
+        },
+        final_dropout: score_nn_dropout,
+        feedforward: {
+          input_dim: score_nn_embedding,
+          num_layers: 2,
+          activations: ff_activation,
+          hidden_dims: [2*score_nn_embedding, score_nn_embedding],  // move up and then down
+          dropout: [score_nn_dropout, 0],
+        },
+        text_field_embedder_rename_map: { x: { token_ids: 'tokens' } },
+      },
         label_embeddings: {
-          embedding_dim: transformer_dim,
+          embedding_dim: score_nn_embedding,
           vocab_namespace: 'labels',
         },
       },
@@ -133,7 +177,12 @@ local feature_network= {
         },
       },
     },
-    loss_fn: { type: 'multi-label-dvn-bce', log_key: 'dvn_bce' },
+    loss_fn: {
+      type: 'multi-label-nce-ranking-with-discrete-sampling',
+      log_key: 'nce',
+      num_samples: 10,
+      sign: '-',
+    },
     initializer: {
       regexes: [
         [@'.*feedforward._linear_layers.*weight', (if std.member(['tanh', 'sigmoid'], ff_activation) then { type: 'xavier_uniform', gain: gain } else { type: 'kaiming_uniform', nonlinearity: 'relu' })],
@@ -144,7 +193,7 @@ local feature_network= {
   data_loader: {
     batch_sampler: {
       type: 'bucket',
-      batch_size: 8,  // effective batch size = batch_size*num_gradient_accumulation_steps
+      batch_size: 4,  // effective batch size = batch_size*num_gradient_accumulation_steps
       sorting_keys: ['x'],
     },
     num_workers: 5,
@@ -154,8 +203,8 @@ local feature_network= {
   trainer: {
     type: 'gradient_descent_minimax',
     num_epochs: if test == '1' then 1 else 300,
-    grad_norm: { task_nn: 10.0, score_nn: 1.0 },
-    num_gradient_accumulation_steps: 2,  // effective batch size = batch_size*num_gradient_accumulation_steps
+    grad_norm: { task_nn: 1.0, score_nn: 1.0 },
+    num_gradient_accumulation_steps: 8,  // effective batch size = batch_size*num_gradient_accumulation_steps
     patience: 5,
     validation_metric: '+fixed_f1',
     cuda_device: std.parseInt(cuda_device),
@@ -173,7 +222,7 @@ local feature_network= {
         task_nn: {
           lr: 1e-5,
           weight_decay: task_nn_weight_decay,
-          type: 'adamw',
+          type: 'huggingface_adamw',
         },
         score_nn: {
           lr: 5e-5,
@@ -200,6 +249,6 @@ local feature_network= {
       else []
     ),
     inner_mode: 'score_nn',
-    num_steps: { task_nn: 1, score_nn: 6 },
+    num_steps: { task_nn: 1, score_nn: 1 },
   },
 }
