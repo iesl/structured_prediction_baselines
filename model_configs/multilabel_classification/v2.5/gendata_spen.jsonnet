@@ -75,7 +75,7 @@ local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'
           loss_fn: {
             type: 'multi-label-inference',
             oracle_cost_weight: 1.0,
-            perceptron_loss_weight: inference_score_weight,
+            inference_score_weight: inference_score_weight,
             log_key: 'margin_loss',
           },
           output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
