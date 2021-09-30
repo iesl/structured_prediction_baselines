@@ -162,6 +162,13 @@ local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
         [".*sampler.inference_nn.*", {"type": "pretrained", "weights_file_path": pretrained_tasknn_weights_path}],
+        [".*inference_module.inference_nn.*", {
+          "type": "pretrained",
+          "weights_file_path": pretrained_tasknn_weights_path,
+          "parameter_name_overrides": {
+            ".*inference_module.inference_nn.*": ".*sampler.inference_nn.*"
+          }
+        }],
         [@'.*_linear_layers.*weight', (if std.member(['tanh', 'sigmoid'], ff_activation) then { type: 'xavier_uniform', gain: gain } else { type: 'kaiming_uniform', nonlinearity: 'relu' })],
         [@'.*linear_layers.*bias', { type: 'zero' }],
       ],
