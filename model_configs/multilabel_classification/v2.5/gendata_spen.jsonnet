@@ -114,6 +114,7 @@ local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'
           },
           loss_fn: {
             type: 'multi-label-score-loss',
+            reduction: 'none',
             log_key: 'score_loss',
           },
           output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
