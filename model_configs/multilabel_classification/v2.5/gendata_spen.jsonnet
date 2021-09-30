@@ -85,6 +85,46 @@ local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'
           random_mixing_in_init: 1.0,
         },
     },
+    inference_module: {
+      type: 'gradient-based-inference-tasknn-init',
+      log_key: 'sampler',
+      inference_nn: {
+        type: 'multi-label-classification',
+        feature_network: {
+          input_dim: num_input_features,
+          num_layers: ff_linear_layers,
+          activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + [ff_activation]),
+          hidden_dims: ff_hidden,
+          dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
+        },
+        label_embeddings: {
+          embedding_dim: ff_hidden,
+          vocab_namespace: 'labels',
+        },
+      },
+      gbi_sampler: //GBI
+        {
+          log_key: 'gbi',
+          gradient_descent_loop: {
+            optimizer: {
+              lr: gbi_lr,  //0.1
+              weight_decay: 0,
+              type: gbi_optim,
+            },
+          },
+          loss_fn: {
+            type: 'multi-label-score-loss',
+            oracle_cost_weight: 1.0,
+            inference_score_weight: inference_score_weight,
+            log_key: 'margin_loss',
+          },
+          output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
+          stopping_criteria: 20,
+          sample_picker: { type: 'best' },
+          number_init_samples: 1,
+          random_mixing_in_init: 1.0,
+        },
+    },
     oracle_value_function: { type: 'per-instance-f1', differentiable: false },
     score_nn: {
       type: 'multi-label-classification',
