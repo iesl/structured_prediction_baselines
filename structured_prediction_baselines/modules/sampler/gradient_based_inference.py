@@ -473,7 +473,7 @@ class GradientBasedInferenceSampler(Sampler):
             self.get_samples_from_trajectory(
                 trajectory, loss_values_tensors, loss_values
             ),  # (batch, num_samples, ...)
-            loss_values_tensor,
+            None,
             torch.mean(loss_values_tensor),
         )
 
