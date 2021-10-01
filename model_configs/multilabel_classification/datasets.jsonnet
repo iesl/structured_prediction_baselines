@@ -42,9 +42,17 @@
   },
   nyt10: {
     dir_name: 'nyt',
+    num_labels: 2109,
     train_file: 'nyt-fold-0.jsonl',
-    validation_file: 'nyt-fold-@(6|7).jsonl',
-    test_file: 'nyt-fold-@(8|9).jsonl',
+    validation_file: 'nyt-fold-6.jsonl',
+    test_file: 'nyt-fold-8.jsonl',
+  },
+  rcv1: {
+    dir_name: 'rcv1',
+    num_labels: 103,
+    train_file: 'train_val_fold_@(0|1|2|3|4|5).jsonl',
+    validation_file: 'train_val_fold_@(6|7|8|9).jsonl',
+    test_file: 'test_fold_0.jsonl',
   },
 
   // feature based datasets

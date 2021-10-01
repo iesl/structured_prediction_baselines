@@ -42,10 +42,10 @@ local transformer_dim = 768;
                          dataset_metadata.validation_file),
   test_data_path: (data_dir + '/' + dataset_metadata.dir_name + '/' +
                    dataset_metadata.test_file),
-  //vocabulary: {
-  //      type: 'from_files',
-  //      directory: data_dir + '/' + dataset_metadata.dir_name + '/' + 'bert_vocab'
-  //},
+  vocabulary: {
+        type: 'from_files',
+        directory: data_dir + '/' + dataset_metadata.dir_name + '/' + 'bert_vocab'
+  },
 
   // Model
   model: {
