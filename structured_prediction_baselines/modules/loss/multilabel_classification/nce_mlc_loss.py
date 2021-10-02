@@ -12,11 +12,19 @@ def _normalize(y: torch.Tensor) -> torch.Tensor:
 
 
 class MultiLabelNCERankingLoss(NCERankingLoss):
-    def __init__(self, sign: Literal["-", "+"] = "-", **kwargs: Any):
-        super().__init__(**kwargs)
+    def __init__(self, 
+                sign: Literal["-", "+"] = "-", 
+                use_scorenn: bool = True,
+                use_distance: bool = True,
+                **kwargs: Any):
+        super().__init__(use_scorenn, **kwargs)
         self.sign = sign
         self.mul = -1 if sign == "-" else 1
         self.bce = torch.nn.BCELoss(reduction="none")
+        self.use_distance = use_distance
+        # when self.use_scorenn=False, the sign should always be +,
+        # as we want to have P_0/\sum(P_i) rather than (1/P_0) /\sum(1/P_i)
+        assert (sign == "+" if not self.use_scorenn else True)  
 
     def normalize(self, y: torch.Tensor) -> torch.Tensor:
         return _normalize(y)
@@ -34,6 +42,8 @@ class MultiLabelNCERankingLoss(NCERankingLoss):
             Remember that BCE = -y ln(x) - (1-y) ln(1-x). Hence of samples are discrete then BCE = -ln Pn.
             So in that case sign of + in this class will result in adjusted_score = score - (- ln Pn) = score + ln Pn.
         """
+        if not self.use_distance: # if not using distance then skip the bce computation.
+            return torch.zeros([samples.shape[0], samples.shape[1]], dtype=torch.long, device=probs.device) # (batch,sample)
 
         return self.mul * torch.sum(
             self.bce(probs, samples), dim=-1

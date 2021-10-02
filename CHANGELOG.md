@@ -12,7 +12,9 @@
 
 - Add original infnet setup \(Tu, Gimpel\) in the reverse order  [\#32](https://github.com/dhruvdcoder/structured_prediction_baselines/issues/32)
 - Add unnormalized score loss for training tasknn [\#30](https://github.com/dhruvdcoder/structured_prediction_baselines/issues/30)
+- Adapters and configs with blurb genre dataset [\#55](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/55) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Adds Best Run Configs [\#50](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/50) ([purujitgoyal](https://github.com/purujitgoyal))
+- Made changes for applying ranking loss directly to the TaskNN [\#48](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/48) ([leejayyoon](https://github.com/leejayyoon))
 - Score-nn Evaluation [\#42](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/42) ([purujitgoyal](https://github.com/purujitgoyal))
 - Text MLC with any text encoder including BERT [\#37](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/37) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Original inference\_net setup as in Tu & Gimpel [\#33](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/33) ([dhruvdcoder](https://github.com/dhruvdcoder))
