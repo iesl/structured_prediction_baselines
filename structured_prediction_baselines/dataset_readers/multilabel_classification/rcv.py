@@ -11,6 +11,8 @@ from typing import (
 )
 import sys
 import itertools
+from wcmatch import glob
+
 if sys.version_info >= (3, 8):
     from typing import (
         TypedDict,
@@ -35,9 +37,7 @@ from allennlp.data.token_indexers import TokenIndexer
 from allennlp.data.tokenizers import Tokenizer
 from allennlp.data.tokenizers import Token
 from .blurb_genre_collection import BlurbGenreReader
-import glob
-
-logger = logging.getLogger(__name__)
+import allennlp
 
 
 class InstanceFields(TypedDict):
@@ -47,22 +47,14 @@ class InstanceFields(TypedDict):
     labels: MultiLabelField  #: types
 
 
-@DatasetReader.register("nyt")
-class NytReader(BlurbGenreReader):
-    """
-    Reader for the New York times dataset
-
-    """
-
+@DatasetReader.register("rcv")
+class RCV(BlurbGenreReader):
     def example_to_fields(
         self,
+        headline: str,
         text: str,
-        title: str,
         labels: List[str],
-        general_descriptors: List[List[str]],
-        label_paths: List[List[str]],
-        xml_path: str,
-        taxonomy: List[str],
+        idx: str,
         meta: Dict = None,
         **kwargs: Any,
     ) -> InstanceFields:
@@ -70,73 +62,47 @@ class NytReader(BlurbGenreReader):
         to create an :class:`Instance`. If a meta dictionary is passed, then it also adds raw data in
         the meta dict.
 
-        Args:
-            text: One line summary of article,
-            title: Title of the article
-            labels:list of labels,
-            general_descriptors: Extra descriptors,
-            label_path: List of taxonomies,
-            xml_path: path to xml file,
-            taxonomy: Taxonomy extracted form xml file
-            **kwargs: Any
         Returns:
-            Dictionary of fields with the following entries:
-                sentence: contains the body.
-                mention: contains the title.
+        Dictionary of fields with the following entries:
+            sentence: contains the body.
+            mention: contains the title.
 
         """
-
         if meta is None:
             meta = {}
 
-        meta["text"] = text
+        meta["headline"] = headline
+        # meta["text"] = text
         meta["labels"] = labels
-        meta["general_descriptors"] = general_descriptors
-        meta["label_path"] = label_paths
-        meta["xml_path"] = xml_path
-        meta["taxonomy"] = taxonomy
+        meta["idx"] = idx
 
-        x = TextField(self._tokenizer.tokenize(text))
-        labels = MultiLabelField(labels)
+        x = TextField(self._tokenizer.tokenize(text),)
+
 
         return {
             "x": x,
-            "labels": labels,
+            "labels": MultiLabelField(labels),
         }
 
     def text_to_instance(  # type:ignore
         self,
+        headline: str,
         text: str,
-        title: str,
         labels: List[str],
-        general_descriptors: List[str],
-        label_paths: List[List[str]],
-        xml_path: str,
-        taxonomy: List[str],
-        **kwargs: Any
+        idx: str,
+        **kwargs: Any,
     ) -> Instance:
         """Converts contents of a single raw example to :class:`Instance`.
 
-        Args:
-            text: One line summary of article,
-            title: Title of the article
-            labels:list of labels,
-            general_descriptors: Extra descriptors,
-            label_path: List of taxonomies,
-            xml_path: path to xml file,
-            taxonomy: Taxonomy extracted form xml file
-            **kwargs: Any
-
         Returns:
-             :class:`Instance` of data
+         :class:`Instance` of data
 
         """
         meta_dict: Dict = {}
         main_fields = self.example_to_fields(
-            text, title, labels, general_descriptors, label_paths, xml_path, taxonomy, meta=meta_dict
+            headline or "", text or "", labels, idx, meta=meta_dict
         )
 
         return Instance(
             {**cast(dict, main_fields), "meta": MetadataField(meta_dict)}
         )
-
