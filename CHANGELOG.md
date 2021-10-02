@@ -43,6 +43,7 @@
 
 ### ⚙️  Model and sweep configs
 
+- NYT and RCV text datasets, readers and configs [\#59](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/59) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - No cross entropy configs for DVN+tasknn [\#53](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/53) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Feat/from pretrained dvn [\#52](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/52) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Added sweeps & jsonnet for eurlex \(and other small sweep config changes\) [\#45](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/45) ([leejayyoon](https://github.com/leejayyoon))
