@@ -1,4 +1,4 @@
-// Run ID: ehe1shcm
+// Run ID: 64bujahw
 
 {
     "dataset_reader": {
@@ -83,7 +83,7 @@
                 ],
                 "log_key": "loss",
                 "loss_weights": [
-                    5.567193044974443,
+                    5.514710814981766,
                     1
                 ],
                 "reduction": "mean"
@@ -219,12 +219,12 @@
             "optimizers": {
                 "score_nn": {
                     "type": "adamw",
-                    "lr": 0.00020858454931907349,
+                    "lr": 4.512859464505083e-05,
                     "weight_decay": 1e-05
                 },
                 "task_nn": {
                     "type": "adamw",
-                    "lr": 0.0012236417240330793,
+                    "lr": 0.0011682627302272157,
                     "weight_decay": 1e-05
                 }
             }

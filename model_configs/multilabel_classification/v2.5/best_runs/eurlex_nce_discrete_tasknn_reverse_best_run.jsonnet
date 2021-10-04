@@ -82,7 +82,7 @@
                 ],
                 "log_key": "loss",
                 "loss_weights": [
-                    1.8332771366155214,
+                    1.4968702420216018,
                     1
                 ],
                 "reduction": "mean"
@@ -109,9 +109,7 @@
             "type": "multi-label-nce-ranking-with-discrete-sampling",
             "log_key": "nce",
             "num_samples": 40,
-            "sign": [
-                null
-            ]
+            "sign": "-"
         },
         "oracle_value_function": {
             "type": "per-instance-f1",
@@ -184,6 +182,7 @@
             "track_epoch_callback",
             "slurm",
             {
+                "save_model_archive": false,
                 "sub_callbacks": [
                     {
                         "priority": 100,
@@ -212,19 +211,19 @@
         },
         "num_epochs": 300,
         "num_steps": {
-            "score_nn": 3,
+            "score_nn": 6,
             "task_nn": 5
         },
         "optimizer": {
             "optimizers": {
                 "score_nn": {
                     "type": "adamw",
-                    "lr": 0.0004001174712147149,
+                    "lr": 0.0004985134755954935,
                     "weight_decay": 1e-05
                 },
                 "task_nn": {
                     "type": "adamw",
-                    "lr": 0.0027730997997197438,
+                    "lr": 0.002500335663947311,
                     "weight_decay": 1e-05
                 }
             }
