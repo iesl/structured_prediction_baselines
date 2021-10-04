@@ -12,7 +12,9 @@
 
 - Add original infnet setup \(Tu, Gimpel\) in the reverse order  [\#32](https://github.com/dhruvdcoder/structured_prediction_baselines/issues/32)
 - Add unnormalized score loss for training tasknn [\#30](https://github.com/dhruvdcoder/structured_prediction_baselines/issues/30)
+- Adapters and configs with blurb genre dataset [\#55](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/55) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Adds Best Run Configs [\#50](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/50) ([purujitgoyal](https://github.com/purujitgoyal))
+- Made changes for applying ranking loss directly to the TaskNN [\#48](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/48) ([leejayyoon](https://github.com/leejayyoon))
 - Score-nn Evaluation [\#42](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/42) ([purujitgoyal](https://github.com/purujitgoyal))
 - Text MLC with any text encoder including BERT [\#37](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/37) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Original inference\_net setup as in Tu & Gimpel [\#33](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/33) ([dhruvdcoder](https://github.com/dhruvdcoder))
@@ -41,6 +43,7 @@
 
 ### ⚙️  Model and sweep configs
 
+- NYT and RCV text datasets, readers and configs [\#59](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/59) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - No cross entropy configs for DVN+tasknn [\#53](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/53) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Feat/from pretrained dvn [\#52](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/52) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Added sweeps & jsonnet for eurlex \(and other small sweep config changes\) [\#45](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/45) ([leejayyoon](https://github.com/leejayyoon))
@@ -50,6 +53,10 @@
 - Original infnet remaining configs [\#36](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/36) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Dev/v1.2/jy  Created sweeps/configs for testing effect of pretrained model + general data sweeps.  [\#35](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/35) ([leejayyoon](https://github.com/leejayyoon))
 - Added 6 more feature based datasets and blurb and nyt [\#19](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/19) ([dhruvdcoder](https://github.com/dhruvdcoder))
+
+### 🧪 Peripheral utilities
+
+- Scripts to count instances and print env vars in jsonnet [\#60](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/60) ([dhruvdcoder](https://github.com/dhruvdcoder))
 
 **Merged pull requests:**
 

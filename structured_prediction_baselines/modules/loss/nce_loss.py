@@ -84,8 +84,9 @@ class NCELoss(Loss):
 
 
 class NCERankingLoss(NCELoss):
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self, use_scorenn: bool = True, **kwargs: Any) -> None:
         super().__init__(**kwargs)
+        self.use_scorenn = use_scorenn
         self.cross_entropy = torch.nn.CrossEntropyLoss(reduction="none")
 
     def compute_loss(
@@ -104,10 +105,14 @@ class NCERankingLoss(NCELoss):
         distance = self.distance(
             y, y_hat.expand_as(y)
         )  # (batch, 1+num_samples) # does the job of Pn
-        score = self.score_nn(
-            x, y, buffer
-        )  # type:ignore # (batch, 1+num_samples)
-        assert not distance.requires_grad
+        if self.use_scorenn:
+            score = self.score_nn(
+                x, y, buffer
+            )  # type:ignore # (batch, 1+num_samples)
+            assert not distance.requires_grad
+        else:
+            score = 0 
+                    
         new_score = score - distance  # (batch, 1+num_samples)
         ranking_loss = self.cross_entropy(
             new_score,
