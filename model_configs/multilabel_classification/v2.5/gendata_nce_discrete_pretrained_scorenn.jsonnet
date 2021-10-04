@@ -19,11 +19,10 @@ local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_di
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
 local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'));
-local task_temp = std.parseJson(std.extVar('task_nn_steps')); # variable for task_nn.steps
+local task_temp = std.parseJson(std.extVar('task_nn_steps'));
 local task_nn_steps = (if std.toString(task_temp) == '0' then 1 else task_temp);
-local score_temp = std.parseJson(std.extVar('score_nn_steps')); # variable for score_nn.steps
-local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_temp);
 local scorenn_path = std.parseJson(std.extVar('scorenn_path'));
+
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
   evaluate_on_test: true,
