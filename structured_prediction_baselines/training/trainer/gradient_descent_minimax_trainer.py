@@ -309,6 +309,7 @@ class GradientDescentMinimaxTrainer(Trainer):
         run_confidence_checks: bool = True,
         num_steps: Dict[MODE_LITERALS_TYPE, int] = None,
         inner_mode: MODE_LITERALS_TYPE = ModelMode.UPDATE_SCORE_NN.value,
+        batch_ratio: float = 1.0,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -410,6 +411,10 @@ class GradientDescentMinimaxTrainer(Trainer):
         else:
             self._num_steps = {ModelMode(k): v for k, v in num_steps.items()}
         self.inner_mode: ModelMode = ModelMode(inner_mode)
+        if batch_ratio < 0 or batch_ratio > 1.0:
+            raise ConfigurationError("{} is an invalid value for batch_ratio. "
+                                     "It must be a float value between 0 and 1".format(batch_ratio))
+        self.batch_ratio = batch_ratio
 
     def num_steps(self, mode: ModelMode) -> int:
         return self._num_steps[mode]
@@ -530,8 +535,15 @@ class GradientDescentMinimaxTrainer(Trainer):
         batch_group_len = len(batch_group)
 
         for batch in batch_group:
+            batch_len, _ = batch['x'].shape
+            supervised_batch_len = math.ceil(self.batch_ratio * batch_len)
+            supervised_batch: TensorDict = {
+                'x': batch['x'][:supervised_batch_len, :],
+                'labels': batch['labels'][:supervised_batch_len, :],
+                'meta': batch['meta'][:supervised_batch_len]
+            }
             batch_group_loss += self.batch_forward_backward(
-                batch, mode, batch_group_len, batch_group_outputs
+                supervised_batch, mode, batch_group_len, batch_group_outputs
             )
 
         batch_grad_norm = self.rescale_gradients(mode)
