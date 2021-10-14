@@ -167,14 +167,16 @@ class MarginBasedLoss(Loss):
             labels is not None
         )  # if you call this loss, labels cannot be None
 
-        if y_cost_aug is None:
-            y_cost_aug = torch.zeros_like(y_hat)
-
         ground_truth_score = self.score_nn(
             x, labels.to(dtype=y_hat.dtype), buffer
         )
         inference_score = self.score_nn(x, y_hat, buffer)
-        cost_aug_score = self.score_nn(x, y_cost_aug, buffer)
+
+        if y_cost_aug is None:
+            y_cost_aug = y_hat
+            cost_aug_score = torch.zeros_like(inference_score)
+        else:
+            cost_aug_score = self.score_nn(x, y_cost_aug, buffer)
 
         oracle_cost: torch.Tensor = self.oracle_value_function.compute_as_cost(
             labels, y_cost_aug, mask=buffer.get("mask")
@@ -231,5 +233,43 @@ class InferenceLoss(MarginBasedLoss):
             + cost_augmented_inference_score
             + self.inference_score_weight * inference_score
         )  # the minus sign turns this into argmin objective
+
+        return loss_unreduced
+
+
+class StructuredSVMLoss(MarginBasedLoss):
+    """
+        The class outputs structured SVM (SSVM) Loss
+        Equation 8 in "Structured Prediction Energy Networks".
+    """
+
+    def __init__(self, **kwargs: Any):
+        super().__init__(**kwargs)
+
+    def _forward(
+        self,
+        x: Any,
+        labels: Optional[torch.Tensor],  # (batch, 1, ...)
+        y_hat: torch.Tensor,  # (batch, num_samples, ...) might be unnormalized
+        y_hat_extra: Optional[
+            torch.Tensor
+        ],  # (batch, num_samples, ...), might be unnormalized
+        buffer: Dict,
+        **kwargs: Any,
+    ) -> torch.Tensor:
+        y_inf = y_hat
+        y_cost_aug = y_hat_extra
+        assert buffer is not None
+        (
+            oracle_cost,
+            cost_augmented_inference_score,
+            inference_score,
+            ground_truth_score,
+        ) = self._get_values(x, labels, y_inf, y_cost_aug, buffer)
+
+        loss_unreduced = torch.relu(
+                oracle_cost * (1 / self.oracle_cost_weight)
+                - (ground_truth_score - inference_score)
+        )
 
         return loss_unreduced
