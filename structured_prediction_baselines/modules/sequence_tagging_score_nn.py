@@ -27,7 +27,7 @@ class SequenceTaggingScoreNN(ScoreNN):
             buffer["y_local"] = y_local
 
         mask = buffer.get("mask")
-
+        mask = mask.unsqueeze(1)
         if mask is None:
             mask = util.get_text_field_mask(x)
             mask = mask.unsqueeze(dim=1)
@@ -39,18 +39,6 @@ class SequenceTaggingScoreNN(ScoreNN):
         local_score = torch.sum(local_score * mask, dim=-1)
 
         return local_score  # (batch, num_samples)
-
-    def compute_global_score(
-        self,
-        y: Any,  #: (batch, num_samples, ...)
-        buffer: Dict,
-        **kwargs: Any,
-    ) -> Optional[torch.Tensor]:
-
-        if self.global_score is not None:
-            return self.global_score(y, buffer)
-        else:
-            return None
 
     def forward(
         self,

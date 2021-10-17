@@ -24,6 +24,10 @@ from .base import ScoreBasedLearningModel
 logger = logging.getLogger(__name__)
 
 
+@Model.register(
+    "sequence-tagging-with-infnet",
+    constructor="from_partial_objects_with_shared_tasknn",
+)
 @Model.register("sequence-tagging", constructor="from_partial_objects")
 class SequenceTagging(ScoreBasedLearningModel):
     def __init__(
@@ -39,7 +43,7 @@ class SequenceTagging(ScoreBasedLearningModel):
         self.num_tags = self.vocab.get_vocab_size(label_namespace)
 
         if not label_encoding:
-            raise ConfigurationError("label_encoding was specified.")
+            raise ConfigurationError("label_encoding was not specified.")
         self._f1_metric = SpanBasedF1Measure(
             vocab, tag_namespace=label_namespace, label_encoding=label_encoding
         )
@@ -77,12 +81,14 @@ class SequenceTagging(ScoreBasedLearningModel):
 
     def calculate_metrics(  # type: ignore
         self,
+        x: Any,
         labels: torch.Tensor,
         y_hat: torch.Tensor,
         buffer: Dict,
         **kwargs: Any,
     ) -> None:
         mask = buffer.get("mask")
+        mask = self.squeeze_y(mask)
         assert mask is not None
         # y_hat: (batch, seq_len, num_labels)
         # labels: (batch, seq_len, num_labels) ie one-hot

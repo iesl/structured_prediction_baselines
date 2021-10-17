@@ -280,7 +280,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
 
     def calculate_metrics(
         self,
-        x: torch.Tensor,
+        x: Any,
         labels: torch.Tensor,  # shape: (batch, ...)
         y_hat: torch.Tensor,  # shape: (batch, ...)
         buffer: Dict,
@@ -301,7 +301,21 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
     def squeeze_y(self, y: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
 
-    def forward(
+    def initialize_buffer(
+        self,
+        **kwargs: Any,
+    ) -> Dict:
+        return {}
+
+    def construct_args_for_forward(self, **kwargs: Any) -> Dict:
+        kwargs["buffer"] = self.initialize_buffer(**kwargs)
+
+        return kwargs
+
+    def forward(self, **kwargs: Any) -> Dict:
+        return self._forward(**self.construct_args_for_forward(**kwargs))
+
+    def _forward(
         self,
         x: Any,
         labels: torch.Tensor,
@@ -310,14 +324,14 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
     ) -> Dict:
 
         if mode == ModelMode.UPDATE_TASK_NN:
-            results = self.forward_on_tasknn(x, labels, buffer={}, **kwargs)
+            results = self.forward_on_tasknn(x, labels, **kwargs)
         elif mode == ModelMode.UPDATE_SCORE_NN:
-            results = self.forward_on_scorenn(x, labels, buffer={}, **kwargs)
+            results = self.forward_on_scorenn(x, labels, **kwargs)
         elif mode == ModelMode.COMPUTE_SCORE:
-            score = self.compute_score(x, labels, buffer={})
+            score = self.compute_score(x, labels, **kwargs)
             results = {"score": score}
         elif mode is None:
-            results = self.forward_on_tasknn(x, labels, buffer={}, **kwargs)
+            results = self.forward_on_tasknn(x, labels, **kwargs)
         else:
             raise ValueError
 

@@ -33,5 +33,6 @@ class ManhattanDistanceValueFunction(OracleValueFunction):
                 # we might have added an extra dim to mask
                 mask = mask.squeeze(1)
             distance *= mask
+            distance = torch.mean(distance, dim=-1)
 
         return -distance  # this value is higher the better so we flip the sign
