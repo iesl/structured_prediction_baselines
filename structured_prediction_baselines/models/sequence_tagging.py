@@ -11,6 +11,7 @@ from allennlp.data.vocabulary import Vocabulary
 from allennlp.models import Model
 from allennlp.modules import TimeDistributed
 from allennlp.nn import RegularizerApplicator, InitializerApplicator, util
+from allennlp.nn.util import viterbi_decode, get_lengths_from_binary_sequence_mask
 from allennlp.training.metrics import SpanBasedF1Measure, CategoricalAccuracy
 
 from structured_prediction_baselines.modules.loss import Loss
@@ -87,16 +88,129 @@ class SequenceTagging(ScoreBasedLearningModel):
         buffer: Dict,
         **kwargs: Any,
     ) -> None:
-        mask = buffer.get("mask")
-        mask = self.squeeze_y(mask)
-        assert mask is not None
         # y_hat: (batch, seq_len, num_labels)
         # labels: (batch, seq_len, num_labels) ie one-hot
         # mask: (batch, seq_len)
+        mask = buffer.get("mask")
+        mask = self.squeeze_y(mask)
+        assert mask is not None
+
+        mask_length = mask.shape[1]
+        transition_matrix = self.get_viterbi_pairwise_potentials()
+        start_transitions = self.get_start_transitions()
+        end_transitions = self.get_end_transitions()
+
+        sequence_lengths = get_lengths_from_binary_sequence_mask(mask).data.tolist()
+        if y_hat.dim() == 3:
+            predictions_list = [
+                y_hat[i].detach().cpu() for i in range(y_hat.size(0))
+            ]
+        else:
+            predictions_list = [y_hat]
+        y_pred = []
+        for predictions, length in zip(predictions_list, sequence_lengths):
+            pred_indices, _ = viterbi_decode(
+                    predictions[:length], transition_matrix, allowed_start_transitions=start_transitions, allowed_end_transitions=end_transitions
+                )
+            pred_indices = F.pad(torch.Tensor(pred_indices), (0, mask_length-len(pred_indices)))
+            pred_indices = pred_indices.reshape(1, -1)
+            pred_indices = self.convert_to_one_hot(pred_indices.to(torch.int64))
+            y_pred.append(pred_indices)
+
+        y_pred = torch.cat(y_pred, dim=0)
         labels_indices = torch.argmax(labels, dim=-1)
-        self._f1_metric(y_hat, labels_indices, mask)
+        self._f1_metric(y_pred, labels_indices, mask)
 
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
         f1_dict = self._f1_metric.get_metric(reset=reset)
 
         return {x: y for x, y in f1_dict.items() if "overall" in x}
+
+    def get_viterbi_pairwise_potentials(self):
+        """
+        Generate a matrix of pairwise transition potentials for the BIOUL labels.
+        The constraints implemented here are
+            1. I-XXX labels must be preceded by either an identical I-XXX tag or a B-XXX tag.
+            2. L-XXX labels must be preceded by either an I-XXX tag or a B-XXX tag
+            3. U-XXX labels must be preceded by either an U-XXX tag or a L-XXX tag
+            3. O-XXX labels must be preceded by either an U-XXX tag or a L-XXX tag
+            4. No continuous B-XXX or L-XXX tags.
+        In order to achieve this
+        constraint, pairs of labels which do not satisfy this constraint have a
+        pairwise potential of -inf.
+
+        # Returns
+
+        transition_matrix : `torch.Tensor`
+            A `(num_labels, num_labels)` matrix of pairwise potentials.
+        """
+        all_labels = self.vocab.get_index_to_token_vocabulary("labels")
+        num_labels = len(all_labels)
+        transition_matrix = torch.zeros([num_labels, num_labels])
+
+        for i, previous_label in all_labels.items():
+            for j, label in all_labels.items():
+                # B and L labels can not be preceded or followed by themselves
+                if label[0] == "B" or label[0] == "L":
+                    transition_matrix[j, j] = float("-inf")
+                # B labels can only be preceded by a L, U or an O tag.
+                if i != j and label[0] == "B" and not (previous_label[0] in ["L", "U", "O"]):
+                    transition_matrix[i, j] = float("-inf")
+                # I labels can only be preceded by themselves or their corresponding B tag.
+                if i != j and label[0] == "I" and not previous_label == "B" + label[1:]:
+                    transition_matrix[i, j] = float("-inf")
+                # L labels can only be preceded by their corresponding B or I tag
+                if i != j and label[0] == "L" and not (previous_label == "I" + label[1:] or previous_label == "B" + label[1:]):
+                    transition_matrix[i, j] = float("-inf")
+                # U labels can only be preceded by themselves, a L or an O tag.
+                if i != j and label[0] == "U" and not (previous_label[0] == "L" or previous_label[0] == "O"):
+                    transition_matrix[i, j] = float("-inf")
+                # O labels can only be preceded by themselves, a L or an U tag.
+                if i != j and label[0] == "O" and not (previous_label[0] == "L" or previous_label[0] == "U"):
+                    transition_matrix[i, j] = float("-inf")
+
+        return transition_matrix
+
+    def get_start_transitions(self):
+        """
+        In the BIOUL sequence, we cannot start the sequence with an I-XXX or L-XXX tag.
+        This transition sequence is passed to viterbi_decode to specify this constraint.
+
+        # Returns
+
+        start_transitions : `torch.Tensor`
+            The pairwise potentials between a START token and
+            the first token of the sequence.
+        """
+        all_labels = self.vocab.get_index_to_token_vocabulary("labels")
+        num_labels = len(all_labels)
+
+        start_transitions = torch.zeros(num_labels)
+
+        for i, label in all_labels.items():
+            if label[0] == "I" or label[0] == "L":
+                start_transitions[i] = float("-inf")
+
+        return start_transitions
+
+    def get_end_transitions(self):
+        """
+        In the BIOUL sequence, we cannot end the sequence with an I-XXX or B-XXX tag.
+        This transition sequence is passed to viterbi_decode to specify this constraint.
+
+        # Returns
+
+        end_transitions : `torch.Tensor`
+            The pairwise potentials between a END token and
+            the last token of the sequence.
+        """
+        all_labels = self.vocab.get_index_to_token_vocabulary("labels")
+        num_labels = len(all_labels)
+
+        end_transitions = torch.zeros(num_labels)
+
+        for i, label in all_labels.items():
+            if label[0] == "I" or label[0] == "B":
+                end_transitions[i] = float("-inf")
+
+        return end_transitions
