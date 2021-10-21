@@ -19,7 +19,7 @@ local ff_activation = 'softplus';
 //local ff_activation = 'softplus';
 local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
 local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
-local cross_entorpy_loss_weight = std.parseJson(std.extVar('cross_entorpy_loss_weight'));
+local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
 local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local task_temp = std.parseJson(std.extVar('task_nn_steps')); # variable for task_nn.steps
@@ -92,7 +92,7 @@ local task_nn = {
             normalize_y: true,
           },
         ],
-        loss_weights: [1.0, cross_entorpy_loss_weight],
+        loss_weights: [1.0, cross_entropy_loss_weight],
         reduction: 'mean',
       },
       cost_augmented_layer: {
