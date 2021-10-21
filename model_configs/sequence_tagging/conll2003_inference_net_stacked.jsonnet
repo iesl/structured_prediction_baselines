@@ -13,7 +13,7 @@ local num_tags = 15;
 
 local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
 local label_space_dim = ff_hidden;
-local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
+local ff_dropout = std.parseJson(std.extVar('ff_dropout_10x'))/10.0;
 //local ff_activation = std.parseJson(std.extVar('ff_activation'));
 local ff_activation = 'softplus';
 //local ff_activation = 'softplus';
