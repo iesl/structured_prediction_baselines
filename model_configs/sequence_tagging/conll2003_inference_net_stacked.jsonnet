@@ -102,9 +102,10 @@ local task_nn = {
           feedforward: {
             input_dim: 2 * num_labels,
             num_layers: ff_linear_layers,
-            activations: [ff_activation, 'linear'],
+            activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + ['linear']),
             hidden_dims: [ff_hidden for i in std.range(0, ff_linear_layers - 2)] + [num_labels],
-          },
+            dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0])
+},
         },
         normalize_y: true,
       },
