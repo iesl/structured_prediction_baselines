@@ -1,2 +1,0 @@
-formats = "notebooks///ipynb,analysis///py:percent"
-outdated_text_notebook_margin = 5.0
