@@ -18,9 +18,9 @@ local ff_dropout = std.parseJson(std.extVar('ff_dropout_10x'))/10.0;
 local ff_activation = 'softplus';
 //local ff_activation = 'softplus';
 local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
-local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
+local inference_score_weight = 1; //std.parseJson(std.extVar('inference_score_weight'));
 local cross_entropy_loss_weight = 1; //std.parseJson(std.extVar('cross_entropy_loss_weight'));
-local ff_weight_decay = 0.00001; //std.parseJson(std.extVar('ff_weight_decay'));
+local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local task_nn = {
   type: 'sequence-tagging',
