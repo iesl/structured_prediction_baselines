@@ -373,7 +373,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
 
         if labels is not None:
             self.calculate_metrics(
-                x, self.squeeze_y(labels), results["y_pred"], buffer
+                x, labels, results["y_pred"], buffer
             )
 
         return results

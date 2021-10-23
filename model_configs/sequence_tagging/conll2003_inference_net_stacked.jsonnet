@@ -110,7 +110,7 @@ local task_nn = {
         normalize_y: true,
       },
     },
-    oracle_value_function: { type: 'manhattan' },
+    oracle_value_function: { type: 'manhattan', differentiable: true},
     score_nn: {
       type: 'sequence-tagging',
       task_nn: task_nn,

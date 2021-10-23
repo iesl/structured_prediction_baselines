@@ -69,7 +69,10 @@ class SequenceTagging(ScoreBasedLearningModel):
         self,
         **kwargs: Any,
     ) -> Dict:
-        return {"mask": util.get_text_field_mask(kwargs.get("tokens"))}
+        mask = util.get_text_field_mask(kwargs.get("tokens"))
+        if mask.dim() == 1:
+            mask = mask.unsqueeze(-1)
+        return {"mask": mask}
 
     def construct_args_for_forward(self, **kwargs: Any) -> Dict:
         _forward_args = {}
@@ -92,7 +95,6 @@ class SequenceTagging(ScoreBasedLearningModel):
         # labels: (batch, seq_len, num_labels) ie one-hot
         # mask: (batch, seq_len)
         mask = buffer.get("mask")
-        mask = self.squeeze_y(mask)
         assert mask is not None
 
         mask_length = mask.shape[1]
