@@ -33,7 +33,7 @@ local task_nn = {
       },
     },
   },
-  dropout: 0.1,
+  dropout: ff_dropout,
 };
 
 {
