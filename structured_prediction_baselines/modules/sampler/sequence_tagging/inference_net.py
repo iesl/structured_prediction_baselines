@@ -140,12 +140,13 @@ class SequenceTaggingNormalizedOrContinuousSampled(SequenceTaggingNormalizedOrSa
                     -1, self.num_samples, -1, -1
                 ),  # (batch, num_samples, seq_len, num_labels)
                 std=self.std,
-            )
-        )  # (batch, num_samples, num_labels)
+            ),
+            dim=-1
+        )  # (batch, num_samples, seq_len, num_labels)
 
         if self.keep_probs:
             samples = torch.cat(
-                (samples, torch.softmax(y).unsqueeze(1)), dim=1
+                (samples, torch.softmax(y, dim=-1).unsqueeze(1)), dim=1
             )  # (batch, num_samples+1, num_labels)
 
         return samples
