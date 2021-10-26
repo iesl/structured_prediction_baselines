@@ -100,6 +100,7 @@ class SequenceTagging(ScoreBasedLearningModel):
         mask = buffer.get("mask")
         assert mask is not None
 
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
         mask_length = mask.shape[1]
         transition_matrix = self.get_viterbi_pairwise_potentials()
         start_transitions = self.get_start_transitions()
@@ -117,7 +118,7 @@ class SequenceTagging(ScoreBasedLearningModel):
             pred_indices, _ = viterbi_decode(
                     predictions[:length], transition_matrix, allowed_start_transitions=start_transitions, allowed_end_transitions=end_transitions
                 )
-            pred_indices = F.pad(torch.Tensor(pred_indices), (0, mask_length-len(pred_indices)))
+            pred_indices = F.pad(torch.Tensor(pred_indices, device=device), (0, mask_length-len(pred_indices)))
             pred_indices = pred_indices.reshape(1, -1)
             pred_indices = self.convert_to_one_hot(pred_indices.to(torch.int64))
             y_pred.append(pred_indices)
