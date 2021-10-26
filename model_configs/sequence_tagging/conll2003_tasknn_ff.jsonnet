@@ -84,7 +84,7 @@ local task_nn = {
             type: 'sequence-tagging-masked-cross-entropy',
             log_key: 'ce',
             reduction: 'none',
-            normalize_y: true,
+            normalize_y: false,
           },
         ],
         loss_weights: [cross_entropy_loss_weight],

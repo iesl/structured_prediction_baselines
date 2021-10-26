@@ -130,8 +130,8 @@ class SequenceTagging(ScoreBasedLearningModel):
 
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
         f1_dict = self._f1_metric.get_metric(reset=reset)
-        # metrics = {x: y for x, y in f1_dict.items() if "overall" in x}
-        metrics = {x: y for x, y in f1_dict.items()}
+        metrics = {x: y for x, y in f1_dict.items() if "overall" in x}
+        # metrics = {x: y for x, y in f1_dict.items()}
         metrics["accuracy"] = self._accuracy.get_metric(reset=reset)
         return metrics
 

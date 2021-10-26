@@ -30,7 +30,7 @@ class SequenceTaggingMaskedCrossEntropyWithLogitsLoss(Loss):
         buffer: Dict = None,
         **kwargs: Any,
     ) -> torch.Tensor:
-        assert self.normalize_y, "This loss expects logits"
+
         assert labels is not None
         mask = buffer.get("mask") if buffer is not None else None
 
