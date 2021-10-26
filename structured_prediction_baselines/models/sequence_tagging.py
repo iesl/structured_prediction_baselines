@@ -50,6 +50,7 @@ class SequenceTagging(ScoreBasedLearningModel):
         self._f1_metric = SpanBasedF1Measure(
             vocab, tag_namespace=label_namespace, label_encoding=label_encoding
         )
+        self._accuracy = CategoricalAccuracy()
 
     def convert_to_one_hot(self, labels: torch.Tensor) -> torch.Tensor:
         """Converts the labels to one-hot if not already"""
@@ -124,11 +125,14 @@ class SequenceTagging(ScoreBasedLearningModel):
         y_pred = torch.cat(y_pred, dim=0)
         labels_indices = torch.argmax(labels, dim=-1)
         self._f1_metric(y_pred, labels_indices, mask)
+        self._accuracy(y_pred, labels_indices, mask)
 
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
         f1_dict = self._f1_metric.get_metric(reset=reset)
-
-        return {x: y for x, y in f1_dict.items() if "overall" in x}
+        # metrics = {x: y for x, y in f1_dict.items() if "overall" in x}
+        metrics = {x: y for x, y in f1_dict.items()}
+        metrics["accuracy"] = self._accuracy.get_metric(reset=reset)
+        return metrics
 
     def get_viterbi_pairwise_potentials(self):
         """
