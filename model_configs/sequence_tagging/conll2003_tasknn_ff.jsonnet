@@ -10,13 +10,13 @@ local transformer_model = 'bert-base-uncased';
 local transformer_hidden_dim = 768;
 local max_length = 256;
 
-//local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
-//local label_space_dim = ff_hidden;
-//local ff_dropout = std.parseJson(std.extVar('ff_dropout_10x'))/10.0;
+local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
+local label_space_dim = ff_hidden;
+local ff_dropout = std.parseJson(std.extVar('ff_dropout_10x'))/10.0;
 //local ff_activation = std.parseJson(std.extVar('ff_activation'));
 local ff_activation = 'softplus';
 //local ff_activation = 'softplus';
-//local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
+local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
 local inference_score_weight = 1; //std.parseJson(std.extVar('inference_score_weight'));
 local cross_entropy_loss_weight = 1; //std.parseJson(std.extVar('cross_entropy_loss_weight'));
 local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
@@ -32,6 +32,14 @@ local task_nn = {
       },
     },
   },
+  dropout: ff_dropout,
+  feedforward: {
+    input_dim: transformer_hidden_dim,
+    num_layers: ff_linear_layers,
+    activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + [ff_activation]),
+    hidden_dims: ff_hidden,
+    dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
+  }
 };
 
 {

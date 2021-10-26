@@ -13,6 +13,7 @@ from allennlp.modules import TimeDistributed
 from allennlp.nn import RegularizerApplicator, InitializerApplicator, util
 from allennlp.nn.util import viterbi_decode, get_lengths_from_binary_sequence_mask
 from allennlp.training.metrics import SpanBasedF1Measure, CategoricalAccuracy
+from allennlp.modules.conditional_random_field import allowed_transitions
 
 from structured_prediction_baselines.modules.loss import Loss
 from structured_prediction_baselines.modules.oracle_value_function import (
@@ -45,6 +46,7 @@ class SequenceTagging(ScoreBasedLearningModel):
 
         if not label_encoding:
             raise ConfigurationError("label_encoding was not specified.")
+        self.label_encoding = label_encoding
         self._f1_metric = SpanBasedF1Measure(
             vocab, tag_namespace=label_namespace, label_encoding=label_encoding
         )
@@ -131,15 +133,6 @@ class SequenceTagging(ScoreBasedLearningModel):
     def get_viterbi_pairwise_potentials(self):
         """
         Generate a matrix of pairwise transition potentials for the BIOUL labels.
-        The constraints implemented here are
-            1. I-XXX labels must be preceded by either an identical I-XXX tag or a B-XXX tag.
-            2. L-XXX labels must be preceded by either an I-XXX tag or a B-XXX tag
-            3. U-XXX labels must be preceded by either an U-XXX tag or a L-XXX tag
-            3. O-XXX labels must be preceded by either an U-XXX tag or a L-XXX tag
-            4. No continuous B-XXX or L-XXX tags.
-        In order to achieve this
-        constraint, pairs of labels which do not satisfy this constraint have a
-        pairwise potential of -inf.
 
         # Returns
 
@@ -148,28 +141,33 @@ class SequenceTagging(ScoreBasedLearningModel):
         """
         all_labels = self.vocab.get_index_to_token_vocabulary("labels")
         num_labels = len(all_labels)
-        transition_matrix = torch.zeros([num_labels, num_labels])
-
-        for i, previous_label in all_labels.items():
-            for j, label in all_labels.items():
-                # B and L labels can not be preceded or followed by themselves
-                if label[0] == "B" or label[0] == "L":
-                    transition_matrix[j, j] = float("-inf")
-                # B labels can only be preceded by a L, U or an O tag.
-                if i != j and label[0] == "B" and not (previous_label[0] in ["L", "U", "O"]):
-                    transition_matrix[i, j] = float("-inf")
-                # I labels can only be preceded by themselves or their corresponding B tag.
-                if i != j and label[0] == "I" and not previous_label == "B" + label[1:]:
-                    transition_matrix[i, j] = float("-inf")
-                # L labels can only be preceded by their corresponding B or I tag
-                if i != j and label[0] == "L" and not (previous_label == "I" + label[1:] or previous_label == "B" + label[1:]):
-                    transition_matrix[i, j] = float("-inf")
-                # U labels can only be preceded by themselves, a L or an O tag.
-                if i != j and label[0] == "U" and not (previous_label[0] == "L" or previous_label[0] == "O"):
-                    transition_matrix[i, j] = float("-inf")
-                # O labels can only be preceded by themselves, a L or an U tag.
-                if i != j and label[0] == "O" and not (previous_label[0] == "L" or previous_label[0] == "U"):
-                    transition_matrix[i, j] = float("-inf")
+        transition_matrix = torch.ones([num_labels, num_labels])
+        transition_matrix *= float("-inf")
+        transitions = allowed_transitions(self.label_encoding, all_labels)
+        for from_label, to_label in transitions:
+            if from_label < num_labels and to_label < num_labels:
+                transition_matrix[from_label][to_label] = 0
+        # transition_matrix = transition_matrix[:num_labels, :num_labels]
+        # for i, previous_label in all_labels.items():
+        #     for j, label in all_labels.items():
+        #         # B and L labels can not be preceded or followed by themselves
+        #         if label[0] == "B" or label[0] == "L":
+        #             transition_matrix[j, j] = float("-inf")
+        #         # B labels can only be preceded by a L, U or an O tag.
+        #         if i != j and label[0] == "B" and not (previous_label[0] in ["L", "U", "O"]):
+        #             transition_matrix[i, j] = float("-inf")
+        #         # I labels can only be preceded by themselves or their corresponding B tag.
+        #         if i != j and label[0] == "I" and not previous_label == "B" + label[1:]:
+        #             transition_matrix[i, j] = float("-inf")
+        #         # L labels can only be preceded by their corresponding B or I tag
+        #         if i != j and label[0] == "L" and not (previous_label == "I" + label[1:] or previous_label == "B" + label[1:]):
+        #             transition_matrix[i, j] = float("-inf")
+        #         # U labels can only be preceded by themselves, a L or an O tag.
+        #         if i != j and label[0] == "U" and not (previous_label[0] == "L" or previous_label[0] == "O"):
+        #             transition_matrix[i, j] = float("-inf")
+        #         # O labels can only be preceded by themselves, a L or an U tag.
+        #         if i != j and label[0] == "O" and not (previous_label[0] == "L" or previous_label[0] == "U"):
+        #             transition_matrix[i, j] = float("-inf")
 
         return transition_matrix
 
