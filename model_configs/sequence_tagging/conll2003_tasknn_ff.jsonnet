@@ -124,7 +124,7 @@ local task_nn = {
   trainer: {
     type: 'gradient_descent_minimax',
     num_epochs: if test == '1' then 10 else 300,
-    grad_norm: { task_nn: 10.0 },
+    grad_norm: { task_nn: 1.0 },
     patience: 20,
     validation_metric: '+f1-measure-overall',
     cuda_device: std.parseInt(cuda_device),
@@ -141,7 +141,7 @@ local task_nn = {
       optimizers: {
         task_nn:
           {
-            lr: 0.001,
+            lr: 0.00001,
             weight_decay: ff_weight_decay,
             type: 'adamw',
           },
