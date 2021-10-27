@@ -9,26 +9,44 @@ local num_labels = dataset_metadata.num_labels;
 local transformer_model = 'bert-base-uncased';
 local transformer_hidden_dim = 768;
 local max_length = 256;
-local num_tags = 15;
 
-local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
-local label_space_dim = ff_hidden;
-local ff_dropout = std.parseJson(std.extVar('ff_dropout_10x'))/10.0;
+//local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
+//local label_space_dim = ff_hidden;
+//local ff_dropout = std.parseJson(std.extVar('ff_dropout_10x'))/10.0;
 //local ff_activation = std.parseJson(std.extVar('ff_activation'));
 local ff_activation = 'softplus';
 //local ff_activation = 'softplus';
-local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
-local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
-local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
-local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
+//local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
+local inference_score_weight = 1; //std.parseJson(std.extVar('inference_score_weight'));
+local cross_entropy_loss_weight = 1; //std.parseJson(std.extVar('cross_entropy_loss_weight'));
+local ff_weight_decay = 0.0001; //std.parseJson(std.extVar('ff_weight_decay'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
-local task_temp = std.parseJson(std.extVar('task_nn_steps')); # variable for task_nn.steps
-local task_nn_steps = (if std.toString(task_temp) == '0' then 1 else task_temp);
-local score_temp = std.parseJson(std.extVar('score_nn_steps')); # variable for score_nn.steps
-local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_temp);
 local task_nn = {
   type: 'sequence-tagging',
-  text_field_embedder: {
+//  text_field_embedder: {
+//      token_embedders: {
+//        tokens: {
+//          type: 'embedding',
+//          embedding_dim: 50,
+//          pretrained_file: 'https://allennlp.s3.amazonaws.com/datasets/glove/glove.6B.50d.txt.gz',
+//          trainable: true,
+//        },
+//        token_characters: {
+//          type: 'character_encoding',
+//          embedding: {
+//            embedding_dim: 16,
+//          },
+//          encoder: {
+//            type: 'cnn',
+//            embedding_dim: 16,
+//            num_filters: 128,
+//            ngram_filter_sizes: [3],
+//            conv_layer_activation: 'relu',
+//          },
+//        },
+//      },
+//    },
+    text_field_embedder: {
     token_embedders: {
       tokens: {
         type: 'pretrained_transformer_mismatched',
@@ -37,12 +55,35 @@ local task_nn = {
       },
     },
   },
-  dropout: 0.1,
+//    encoder: {
+//      type: 'lstm',
+//      input_size: transformer_hidden_dim,
+//      hidden_size: 400,
+//      num_layers: 2,
+//      dropout: 0.5,
+//      bidirectional: true,
+//    },
+
 };
 
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
   evaluate_on_test: true,
+//  dataset_reader: {
+//    type: 'conll2003',
+//    tag_label: 'ner',
+//    coding_scheme: 'BIOUL',
+//    token_indexers: {
+//      tokens: {
+//        type: 'single_id',
+//        lowercase_tokens: true,
+//      },
+//      token_characters: {
+//        type: 'characters',
+//        min_padding_length: 3,
+//      },
+//    },
+//  },
   dataset_reader: {
     type: 'conll2003',
     tag_label: 'ner',
@@ -79,35 +120,14 @@ local task_nn = {
         log_key: 'loss',
         constituent_losses: [
           {
-            type: 'sequence-tagging-inference',
-            log_key: 'neg_inference',
-            inference_score_weight: inference_score_weight,
-            normalize_y: true,
-            reduction: 'none',
-          },  //This loss can be different from the main loss // change this
-          {
             type: 'sequence-tagging-masked-cross-entropy',
             log_key: 'ce',
             reduction: 'none',
             normalize_y: false,
           },
         ],
-        loss_weights: [1.0, cross_entropy_loss_weight],
+        loss_weights: [cross_entropy_loss_weight],
         reduction: 'mean',
-      },
-      cost_augmented_layer: {
-        type: 'sequence-tagging-stacked',
-        seq2seq: {
-          type: 'feedforward',
-          feedforward: {
-            input_dim: 2 * num_labels,
-            num_layers: ff_linear_layers,
-            activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + ['linear']),
-            hidden_dims: [ff_hidden for i in std.range(0, ff_linear_layers - 2)] + [num_labels],
-            dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0])
-},
-        },
-        normalize_y: true,
       },
     },
     oracle_value_function: { type: 'manhattan', differentiable: true},
@@ -143,7 +163,7 @@ local task_nn = {
   trainer: {
     type: 'gradient_descent_minimax',
     num_epochs: if test == '1' then 10 else 300,
-    grad_norm: { task_nn: 10.0 },
+    grad_norm: { task_nn: 1.0 },
     patience: 20,
     validation_metric: '+f1-measure-overall',
     cuda_device: std.parseInt(cuda_device),
@@ -160,15 +180,10 @@ local task_nn = {
       optimizers: {
         task_nn:
           {
-            lr: 0.001,
+            lr: 0.00001,
             weight_decay: ff_weight_decay,
             type: 'adamw',
           },
-        score_nn: {
-          lr: 0.005,
-          weight_decay: ff_weight_decay,
-          type: 'adamw',
-        },
       },
     },
     checkpointer: {
@@ -188,6 +203,6 @@ local task_nn = {
       else []
     ),
     inner_mode: 'score_nn',
-    num_steps: { task_nn: task_nn_steps, score_nn: task_nn_steps },
+    num_steps: { task_nn: 1, score_nn: 1 },
   },
 }

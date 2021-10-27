@@ -1,0 +1,25 @@
+name: conll2003_bert_base_tasknn
+description: "Train tasknn using cross-entropy and inference score loss (as in Tu & Gimpel). The score-nn will be trained using margin based loss with cost augmented network. There is no sampling in this version"
+program: allennlp
+command:
+- ${program}
+- train_with_wandb
+- model_configs/sequence_tagging/conll2003_tasknn.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb_tags="task=ner,task_nn_loss=ce,sampler=inference_net,dataset=ner,inference_module=inference_net,inference_module=tasknn,inference_module_loss=ce,sampler=tasknn"
+- ${args}
+- --file-friendly-logging
+method: bayes
+metric:
+  goal: maximize
+  name: "validation/best_f1-measure-overall"
+
+early_terminate:
+  type: hyperband
+  min_iter: 20
+
+parameters:
+  env.ff_weight_decay:
+    values: [0.001, 0.0001, 0.00001]
+  trainer.optimizer.optimizers.task_nn.lr:
+    values: [0.001, 0.0005, 0.0001, 0.00001]

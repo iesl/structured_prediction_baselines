@@ -11,7 +11,9 @@ from allennlp.data.vocabulary import Vocabulary
 from allennlp.models import Model
 from allennlp.modules import TimeDistributed
 from allennlp.nn import RegularizerApplicator, InitializerApplicator, util
+from allennlp.nn.util import viterbi_decode, get_lengths_from_binary_sequence_mask
 from allennlp.training.metrics import SpanBasedF1Measure, CategoricalAccuracy
+from allennlp.modules.conditional_random_field import allowed_transitions
 
 from structured_prediction_baselines.modules.loss import Loss
 from structured_prediction_baselines.modules.oracle_value_function import (
@@ -24,6 +26,10 @@ from .base import ScoreBasedLearningModel
 logger = logging.getLogger(__name__)
 
 
+@Model.register(
+    "sequence-tagging-with-infnet",
+    constructor="from_partial_objects_with_shared_tasknn",
+)
 @Model.register("sequence-tagging", constructor="from_partial_objects")
 class SequenceTagging(ScoreBasedLearningModel):
     def __init__(
@@ -39,10 +45,12 @@ class SequenceTagging(ScoreBasedLearningModel):
         self.num_tags = self.vocab.get_vocab_size(label_namespace)
 
         if not label_encoding:
-            raise ConfigurationError("label_encoding was specified.")
+            raise ConfigurationError("label_encoding was not specified.")
+        self.label_encoding = label_encoding
         self._f1_metric = SpanBasedF1Measure(
             vocab, tag_namespace=label_namespace, label_encoding=label_encoding
         )
+        self._accuracy = CategoricalAccuracy()
 
     def convert_to_one_hot(self, labels: torch.Tensor) -> torch.Tensor:
         """Converts the labels to one-hot if not already"""
@@ -64,7 +72,10 @@ class SequenceTagging(ScoreBasedLearningModel):
         self,
         **kwargs: Any,
     ) -> Dict:
-        return {"mask": util.get_text_field_mask(kwargs.get("tokens"))}
+        mask = util.get_text_field_mask(kwargs.get("tokens"))
+        if mask.dim() == 1:
+            mask = mask.unsqueeze(-1)
+        return {"mask": mask}
 
     def construct_args_for_forward(self, **kwargs: Any) -> Dict:
         _forward_args = {}
@@ -77,20 +88,112 @@ class SequenceTagging(ScoreBasedLearningModel):
 
     def calculate_metrics(  # type: ignore
         self,
+        x: Any,
         labels: torch.Tensor,
         y_hat: torch.Tensor,
         buffer: Dict,
         **kwargs: Any,
     ) -> None:
-        mask = buffer.get("mask")
-        assert mask is not None
         # y_hat: (batch, seq_len, num_labels)
         # labels: (batch, seq_len, num_labels) ie one-hot
         # mask: (batch, seq_len)
+        mask = buffer.get("mask")
+        assert mask is not None
+
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        mask_length = mask.shape[1]
+        transition_matrix = self.get_viterbi_pairwise_potentials()
+        start_transitions = self.get_start_transitions()
+        end_transitions = self.get_end_transitions()
+
+        sequence_lengths = get_lengths_from_binary_sequence_mask(mask).data.tolist()
+        if y_hat.dim() == 3:
+            predictions_list = [
+                y_hat[i].detach().cpu() for i in range(y_hat.size(0))
+            ]
+        else:
+            predictions_list = [y_hat]
+        y_pred = []
+        for predictions, length in zip(predictions_list, sequence_lengths):
+            pred_indices, _ = viterbi_decode(
+                    predictions[:length], transition_matrix, allowed_start_transitions=start_transitions, allowed_end_transitions=end_transitions
+                )
+            pred_indices = F.pad(torch.Tensor(pred_indices).to(device=device), (0, mask_length-len(pred_indices)))
+            pred_indices = pred_indices.reshape(1, -1)
+            pred_indices = self.convert_to_one_hot(pred_indices.to(torch.int64))
+            y_pred.append(pred_indices)
+
+        y_pred = torch.cat(y_pred, dim=0)
         labels_indices = torch.argmax(labels, dim=-1)
-        self._f1_metric(y_hat, labels_indices, mask)
+        self._f1_metric(y_pred, labels_indices, mask)
+        self._accuracy(y_pred, labels_indices, mask)
 
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
         f1_dict = self._f1_metric.get_metric(reset=reset)
+        metrics = {x: y for x, y in f1_dict.items() if "overall" in x}
+        metrics["accuracy"] = self._accuracy.get_metric(reset=reset)
+        return metrics
 
-        return {x: y for x, y in f1_dict.items() if "overall" in x}
+    def get_viterbi_pairwise_potentials(self):
+        """
+        Generate a matrix of pairwise transition potentials for the BIOUL labels.
+
+        # Returns
+
+        transition_matrix : `torch.Tensor`
+            A `(num_labels, num_labels)` matrix of pairwise potentials.
+        """
+        all_labels = self.vocab.get_index_to_token_vocabulary("labels")
+        num_labels = len(all_labels)
+        transition_matrix = torch.ones([num_labels, num_labels])
+        transition_matrix *= float("-inf")
+        transitions = allowed_transitions(self.label_encoding, all_labels)
+        for from_label, to_label in transitions:
+            if from_label < num_labels and to_label < num_labels:
+                transition_matrix[from_label][to_label] = 0
+
+        return transition_matrix
+
+    def get_start_transitions(self):
+        """
+        In the BIOUL sequence, we cannot start the sequence with an I-XXX or L-XXX tag.
+        This transition sequence is passed to viterbi_decode to specify this constraint.
+
+        # Returns
+
+        start_transitions : `torch.Tensor`
+            The pairwise potentials between a START token and
+            the first token of the sequence.
+        """
+        all_labels = self.vocab.get_index_to_token_vocabulary("labels")
+        num_labels = len(all_labels)
+
+        start_transitions = torch.zeros(num_labels)
+
+        for i, label in all_labels.items():
+            if label[0] == "I" or label[0] == "L":
+                start_transitions[i] = float("-inf")
+
+        return start_transitions
+
+    def get_end_transitions(self):
+        """
+        In the BIOUL sequence, we cannot end the sequence with an I-XXX or B-XXX tag.
+        This transition sequence is passed to viterbi_decode to specify this constraint.
+
+        # Returns
+
+        end_transitions : `torch.Tensor`
+            The pairwise potentials between a END token and
+            the last token of the sequence.
+        """
+        all_labels = self.vocab.get_index_to_token_vocabulary("labels")
+        num_labels = len(all_labels)
+
+        end_transitions = torch.zeros(num_labels)
+
+        for i, label in all_labels.items():
+            if label[0] == "I" or label[0] == "B":
+                end_transitions[i] = float("-inf")
+
+        return end_transitions

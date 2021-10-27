@@ -106,7 +106,7 @@ class InferenceNetSampler(Sampler):
     def _get_values(
         self,
         x: Any,
-        labels: Optional[torch.Tensor],
+        labels: Optional[torch.Tensor],  # (batch, ...)
         buffer: Dict,
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
@@ -122,7 +122,7 @@ class InferenceNetSampler(Sampler):
                 torch.cat(
                     (
                         y_inf.squeeze(1),
-                        labels.to(dtype=y_inf.dtype).squeeze(1),
+                        labels.to(dtype=y_inf.dtype),
                     ),
                     dim=-1,
                 ),

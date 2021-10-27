@@ -26,11 +26,14 @@ class OracleValueFunction(Registrable):
         mask: Optional[torch.Tensor],
     ) -> Tuple[Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor]], int]:
         num_samples = y_hat.shape[1]
+        if mask is not None:
+            mask = mask.unsqueeze(1)  # we add extra dimension for num_samples here
+            mask = mask.expand(mask.shape[0], num_samples, *mask.shape[2:])
 
         return (
             labels.expand_as(y_hat).flatten(0, 1),
             y_hat.flatten(0, 1),
-            mask.expand_as(y_hat).flatten(0, 1) if mask is not None else None,
+            mask.flatten(0, 1) if mask is not None else None,
         ), num_samples
 
     def unflatten_metric(
@@ -54,7 +57,7 @@ class OracleValueFunction(Registrable):
     def compute_as_cost(
         self, labels: torch.Tensor, y_hat: torch.Tensor, **kwargs: Any
     ) -> torch.Tensor:
-        return self.upper_bound - self.__call__(labels, y_hat)
+        return self.upper_bound - self.__call__(labels, y_hat, **kwargs)
 
     @staticmethod
     def detach_tensors(*tensors: torch.Tensor) -> Iterable[torch.Tensor]:
