@@ -131,7 +131,6 @@ class SequenceTagging(ScoreBasedLearningModel):
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
         f1_dict = self._f1_metric.get_metric(reset=reset)
         metrics = {x: y for x, y in f1_dict.items() if "overall" in x}
-        # metrics = {x: y for x, y in f1_dict.items()}
         metrics["accuracy"] = self._accuracy.get_metric(reset=reset)
         return metrics
 
@@ -152,27 +151,6 @@ class SequenceTagging(ScoreBasedLearningModel):
         for from_label, to_label in transitions:
             if from_label < num_labels and to_label < num_labels:
                 transition_matrix[from_label][to_label] = 0
-        # transition_matrix = transition_matrix[:num_labels, :num_labels]
-        # for i, previous_label in all_labels.items():
-        #     for j, label in all_labels.items():
-        #         # B and L labels can not be preceded or followed by themselves
-        #         if label[0] == "B" or label[0] == "L":
-        #             transition_matrix[j, j] = float("-inf")
-        #         # B labels can only be preceded by a L, U or an O tag.
-        #         if i != j and label[0] == "B" and not (previous_label[0] in ["L", "U", "O"]):
-        #             transition_matrix[i, j] = float("-inf")
-        #         # I labels can only be preceded by themselves or their corresponding B tag.
-        #         if i != j and label[0] == "I" and not previous_label == "B" + label[1:]:
-        #             transition_matrix[i, j] = float("-inf")
-        #         # L labels can only be preceded by their corresponding B or I tag
-        #         if i != j and label[0] == "L" and not (previous_label == "I" + label[1:] or previous_label == "B" + label[1:]):
-        #             transition_matrix[i, j] = float("-inf")
-        #         # U labels can only be preceded by themselves, a L or an O tag.
-        #         if i != j and label[0] == "U" and not (previous_label[0] == "L" or previous_label[0] == "O"):
-        #             transition_matrix[i, j] = float("-inf")
-        #         # O labels can only be preceded by themselves, a L or an U tag.
-        #         if i != j and label[0] == "O" and not (previous_label[0] == "L" or previous_label[0] == "U"):
-        #             transition_matrix[i, j] = float("-inf")
 
         return transition_matrix
 
