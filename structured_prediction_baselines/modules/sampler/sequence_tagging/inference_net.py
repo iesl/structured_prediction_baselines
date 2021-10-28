@@ -78,12 +78,12 @@ class SequenceTaggingNormalizedOrSampled(InferenceNetSampler):
 
     def generate_samples(self, y: torch.Tensor) -> torch.Tensor:
         assert (
-            y.dim() == 3
-        ), "Output of inference_net should be of shape  (batch, seq_len, num_labels)"
-        # assert (
-        #     y.shape[1] == 1
-        # ), "Output of inference_net should be of shape  (batch, seq_len, num_labels)"
-        p = torch.softmax(y,dim=-1)   # (batch, seq_len, num_labels)
+            y.dim() == 4
+        ), "Output of inference_net should be of shape  (batch, 1, seq_len, num_labels)"
+        assert (
+            y.shape[1] == 1
+        ), "Output of inference_net should be of shape  (batch, 1, seq_len, num_labels)"
+        p = torch.softmax(y,dim=-1).squeeze(1)   # (batch, 1, seq_len, num_labels)
         samples = torch.transpose(
             torch.distributions.categorical.Categorical(probs=p).sample(  # type: ignore, <-- logits=y is also possible.
                 [self.num_samples]  # (num_samples, batch, seq_len)
@@ -91,7 +91,7 @@ class SequenceTaggingNormalizedOrSampled(InferenceNetSampler):
             0,
             1,
         )  # (# batch, num_samples, seq_len)
-        smaples = torch.nn.functional.one_hot(samples,y.shape[-1]) # (batch, num_samples, seq_len, num_labels)
+        samples = torch.nn.functional.one_hot(samples,y.shape[-1]) # (batch, num_samples, seq_len, num_labels)
 
         if self.keep_probs:
             samples = torch.cat(
@@ -127,16 +127,16 @@ class SequenceTaggingNormalizedOrContinuousSampled(SequenceTaggingNormalizedOrSa
 
     def generate_samples(self, y: torch.Tensor) -> torch.Tensor:
         assert (
-            y.dim() == 3
-        ), "Output of inference_net should be of shape  (batch, seq_len, num_labels)"
-        # assert (
-        #     y.shape[1] == 1
-        # ), "Output of inference_net should be of shape (batch, 1, ...)"
+            y.dim() == 4
+        ), "Output of inference_net should be of shape  (batch, 1, seq_len, num_labels)"
+        assert (
+            y.shape[1] == 1
+        ), "Output of inference_net should be of shape  (batch, 1, seq_len, num_labels)"
         # add gaussian noise
         # y.shape == (batch, seq_len, num_labels)
         samples = torch.softmax(
             torch.normal(
-                y.unsqueeze(1).expand( # (batch, 1, seq_len, num_labels)
+                y.expand( # (batch, 1, seq_len, num_labels)
                     -1, self.num_samples, -1, -1
                 ),  # (batch, num_samples, seq_len, num_labels)
                 std=self.std,
@@ -146,7 +146,7 @@ class SequenceTaggingNormalizedOrContinuousSampled(SequenceTaggingNormalizedOrSa
 
         if self.keep_probs:
             samples = torch.cat(
-                (samples, torch.softmax(y, dim=-1).unsqueeze(1)), dim=1
+                (samples, torch.softmax(y, dim=-1)), dim=1
             )  # (batch, num_samples+1, num_labels)
 
         return samples
