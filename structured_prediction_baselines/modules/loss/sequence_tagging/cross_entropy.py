@@ -13,6 +13,10 @@ from structured_prediction_baselines.modules.oracle_value_function import (
 from structured_prediction_baselines.modules.score_nn import ScoreNN
 
 
+def _normalize(y: torch.Tensor) -> torch.Tensor:
+    return torch.softmax(y, dim=-1)
+
+
 @Loss.register("sequence-tagging-masked-cross-entropy")
 class SequenceTaggingMaskedCrossEntropyWithLogitsLoss(Loss):
     def _forward(
@@ -26,12 +30,12 @@ class SequenceTaggingMaskedCrossEntropyWithLogitsLoss(Loss):
         buffer: Dict = None,
         **kwargs: Any,
     ) -> torch.Tensor:
-        assert self.normalize_y, "This loss expects logits"
+
         assert labels is not None
         mask = buffer.get("mask") if buffer is not None else None
 
         if mask is None:
-            mask = util.get_text_field_mask(x)  # (batch, seq_len, num_tags)
+            mask = util.get_text_field_mask(x)  # (batch, seq_len)
 
         assert y_hat.dim() == 4
         y_hat = y_hat.squeeze(1)  # (batch, seq_len, num_tags)
@@ -46,3 +50,6 @@ class SequenceTaggingMaskedCrossEntropyWithLogitsLoss(Loss):
         ).unsqueeze(
             1
         )  # (batch, 1)
+
+    def normalize(self, y: torch.Tensor) -> torch.Tensor:
+        return _normalize(y)

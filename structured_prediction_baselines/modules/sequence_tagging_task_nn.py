@@ -50,8 +50,8 @@ class SequenceTaggingTaskNN(TaskNN):
         if output_dim is None:
             raise ValueError("output_dim cannot be None")
 
-        self.tag_projection_layer = Linear(
-            output_dim, self.num_tags
+        self.tag_projection_layer = TimeDistributed(
+            Linear(output_dim, self.num_tags)
         )  # equivalent to Uj.b(x,t) in eq (3)
 
         if dropout:
