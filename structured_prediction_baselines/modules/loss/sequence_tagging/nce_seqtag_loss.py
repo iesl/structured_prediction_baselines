@@ -45,8 +45,8 @@ class SeqTagNCERankingLoss(NCERankingLoss):
         if not self.use_distance: # if not using distance then skip the CE computation.
             return torch.zeros([samples.shape[0], samples.shape[1]], dtype=torch.long, device=probs.device) # (batch,sample)
         
-        def softCE(prediction, target):
-            return -(target * torch.log(prediction)).sum(dim=-1).sum(dim=-1)
+        def softCE(probability, target): # taskes care of both discrete/soft target.
+            return -(target * torch.log(probability)).sum(dim=-1).sum(dim=-1)
             
         # return self.mul * torch.sum( torch.sum(
         #     self.cross_entropy(torch.log(probs), samples), #torch.log() to make the prob value to be logit.
@@ -57,22 +57,40 @@ class SeqTagNCERankingLoss(NCERankingLoss):
 
 @Loss.register("multi-label-nce-ranking-with-discrete-sampling")
 class SeqTagNCERankingLossWithDiscreteSamples(SeqTagNCERankingLoss):
+    def __init__(self, keep_probs = False, **kwargs: Any):
+        super().__init__(**kwargs)
+        self.keep_probs = keep_probs
+
     def sample(
         self,
         probs: torch.Tensor,  # (batch, 1, num_labels)
     ) -> torch.Tensor:  # (batch, num_samples, num_labels)
         """
-        Discrete sampling from the Bernoulli distribution.
+        Discrete sampling from the softmax distribution.
+        Very similar to SequenceTaggingNormalizedOrSampled.generate_samples() in inference_net.py
+        except this function gets argumnet of probability as opposed to logit in the other.
         """
-        assert probs.dim() == 3
-        p = probs.squeeze(1)  # (batch, num_labels)
+        assert (
+            probs.dim() == 4
+        ), "Output of inference_net should be of shape  (batch, 1, seq_len, num_labels)"
+        assert (
+            probs.shape[1] == 1
+        ), "Output of inference_net should be of shape  (batch, 1, seq_len, num_labels)"
+
+        p = probs.squeeze(1)   # (batch, seq_len, num_labels)
         samples = torch.transpose(
-            torch.distributions.Bernoulli(probs=p).sample(  # type: ignore
-                [self.num_samples]  # (num_samples, batch, num_labels)
+            torch.distributions.categorical.Categorical(probs=p).sample(  # type: ignore, <-- logits=y is also possible.
+                [self.num_samples]  # (num_samples, batch, seq_len)
             ),
             0,
             1,
-        )  # (batch, num_samples, num_labels)
+        )  # (# batch, num_samples, seq_len)
+        samples = torch.nn.functional.one_hot(samples,probs.shape[-1]) # (batch, num_samples, seq_len, num_labels)
+
+        if self.keep_probs:
+            samples = torch.cat(
+                (samples, probs), dim=1 #  p: (batch, 1, seq_len, num_labels)
+            )  # (batch, num_samples+1, seq_len, num_labels)
 
         return samples
 
@@ -87,26 +105,42 @@ def inverse_sigmoid(x: torch.Tensor) -> torch.Tensor:
 
 @Loss.register("multi-label-nce-ranking-with-cont-sampling")
 class SeqTagNCERankingLossWithContSamples(SeqTagNCERankingLoss):
-    def __init__(self, std: float = 1.0, **kwargs: Any):
+    def __init__(self, std: float = 1.0, keep_probs = False, **kwargs: Any):
         super().__init__(**kwargs)
         self.std = std
+        self.keep_probs = keep_probs
 
     def sample(
         self,
         probs: torch.Tensor,  # (batch, 1, num_labels)
     ) -> torch.Tensor:  # (batch, num_samples, num_labels)
         """
-        Cont sampling from by adding gaussian noise to logits
+        Cont sampling from by adding gaussian noise to logits (acquired from torch.log()).
+        Very similar to SequenceTaggingNormalizedOrContinuousSampled.generate_samples() in inference_net.py
+        except this function gets argumnet of probability as opposed to logit in the other.
         """
-        assert probs.dim() == 3
-        logits = inverse_sigmoid(probs)
-        samples = torch.sigmoid(
+        assert (
+            probs.dim() == 4
+        ), "Output of inference_net should be of shape  (batch, 1, seq_len, num_labels)"
+        assert (
+            probs.shape[1] == 1
+        ), "Output of inference_net should be of shape  (batch, 1, seq_len, num_labels)"
+        # add gaussian noise
+        # y.shape == (batch, seq_len, num_labels)
+        logits = torch.log(probs)
+        samples = torch.softmax(
             torch.normal(
-                logits.expand(
-                    -1, self.num_samples, -1
-                ),  # (batch, num_samples, num_labels)
+                logits.expand( # (batch, 1, seq_len, num_labels)
+                    -1, self.num_samples, -1, -1
+                ),  # (batch, num_samples, seq_len, num_labels)
                 std=self.std,
-            )
-        )  # (batch, num_samples, num_labels)
+            ),
+            dim=-1
+        )  # (batch, num_samples, seq_len, num_labels)
+
+        if self.keep_probs:
+            samples = torch.cat(
+                (samples, probs), dim=1
+            )  # (batch, num_samples+1, num_labels)
 
         return samples

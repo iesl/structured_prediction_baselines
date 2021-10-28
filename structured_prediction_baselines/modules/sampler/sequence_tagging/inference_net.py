@@ -77,13 +77,18 @@ class SequenceTaggingNormalizedOrSampled(InferenceNetSampler):
             return None
 
     def generate_samples(self, y: torch.Tensor) -> torch.Tensor:
+        '''
+        This function provides discrete samples drawn from the probability y.
+        Called by self.normalize() which is callend in the forward() of sampler.
+        In the forward, when this function is called, y has (batch, 1, ...)
+        '''
         assert (
             y.dim() == 4
         ), "Output of inference_net should be of shape  (batch, 1, seq_len, num_labels)"
         assert (
             y.shape[1] == 1
         ), "Output of inference_net should be of shape  (batch, 1, seq_len, num_labels)"
-        p = torch.softmax(y,dim=-1).squeeze(1)   # (batch, 1, seq_len, num_labels)
+        p = torch.softmax(y,dim=-1).squeeze(1)   # (batch, seq_len, num_labels)
         samples = torch.transpose(
             torch.distributions.categorical.Categorical(probs=p).sample(  # type: ignore, <-- logits=y is also possible.
                 [self.num_samples]  # (num_samples, batch, seq_len)
