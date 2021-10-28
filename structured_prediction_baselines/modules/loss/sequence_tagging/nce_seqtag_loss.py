@@ -8,10 +8,10 @@ import torch
 
 
 def _normalize(y: torch.Tensor) -> torch.Tensor:
-    return torch.sigmoid(y)
+    return torch.softmax(y,dim=-1)
 
 
-class MultiLabelNCERankingLoss(NCERankingLoss):
+class SeqTagNCERankingLoss(NCERankingLoss):
     def __init__(self, 
                 sign: Literal["-", "+"] = "-", 
                 use_scorenn: bool = True,
@@ -20,7 +20,7 @@ class MultiLabelNCERankingLoss(NCERankingLoss):
         super().__init__(use_scorenn, **kwargs)
         self.sign = sign
         self.mul = -1 if sign == "-" else 1
-        self.bce = torch.nn.BCELoss(reduction="none")
+        self.cross_entropy = torch.nn.CrossEntropyLoss(reduction="none") # works on logits, not prob.
         self.use_distance = use_distance
         # when self.use_scorenn=False, the sign should always be +,
         # as we want to have P_0/\sum(P_i) rather than (1/P_0) /\sum(1/P_i)
@@ -31,27 +31,32 @@ class MultiLabelNCERankingLoss(NCERankingLoss):
 
     def distance(
         self,
-        samples: torch.Tensor,  # (batch, num_samples, num_labels)
-        probs: torch.Tensor,  # (batch, num_samples, num_labels)
+        samples: torch.Tensor,  # (batch, num_samples, num_seq, num_labels)
+        probs: torch.Tensor,  # (batch, num_samples, num_seq, num_labels) # expanded
     ) -> torch.Tensor:  # (batch, num_samples)
         """
-        mul*BCE(inp=probs, target=samples). Here mul is 1 or -1. If mul = 1 the ranking loss will
-        use adjusted_score of score - BCE. (mul=-1 corresponds to standard NCE)
+        mul*CE(inp=probs, target=samples). Here mul is 1 or -1. If mul = 1 the ranking loss will
+        use adjusted_score of score - CE. (mul=-1 corresponds to standard NCE)
 
         Note:
-            Remember that BCE = -y ln(x) - (1-y) ln(1-x). Hence if samples are discrete, then BCE = -ln Pn.
+            Remember that CE = -y ln(x). Hence if samples are discrete, then CE = -ln Pn.
             So in that case sign of + in this class will result in adjusted_score = score - (- ln Pn) = score + ln Pn.
         """
-        if not self.use_distance: # if not using distance then skip the bce computation.
+        if not self.use_distance: # if not using distance then skip the CE computation.
             return torch.zeros([samples.shape[0], samples.shape[1]], dtype=torch.long, device=probs.device) # (batch,sample)
+        
+        def softCE(prediction, target):
+            return -(target * torch.log(prediction)).sum(dim=-1).sum(dim=-1)
+            
+        # return self.mul * torch.sum( torch.sum(
+        #     self.cross_entropy(torch.log(probs), samples), #torch.log() to make the prob value to be logit.
+        # dim=-1), dim=-1)  # (batch, num_samples) 
 
-        return self.mul * torch.sum(
-            self.bce(probs, samples), dim=-1
-        )  # (batch, num_samples)
+        return self.mul * softCE(probs, samples) 
 
 
 @Loss.register("multi-label-nce-ranking-with-discrete-sampling")
-class MultiLabelNCERankingLossWithDiscreteSamples(MultiLabelNCERankingLoss):
+class SeqTagNCERankingLossWithDiscreteSamples(SeqTagNCERankingLoss):
     def sample(
         self,
         probs: torch.Tensor,  # (batch, 1, num_labels)
@@ -81,7 +86,7 @@ def inverse_sigmoid(x: torch.Tensor) -> torch.Tensor:
 
 
 @Loss.register("multi-label-nce-ranking-with-cont-sampling")
-class MultiLabelNCERankingLossWithContSamples(MultiLabelNCERankingLoss):
+class SeqTagNCERankingLossWithContSamples(SeqTagNCERankingLoss):
     def __init__(self, std: float = 1.0, **kwargs: Any):
         super().__init__(**kwargs)
         self.std = std
