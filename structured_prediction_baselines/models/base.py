@@ -98,11 +98,13 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         self.evaluation_module = evaluation_module
         self.num_eval_samples = num_eval_samples
         # self.eval_only_metrics = {}
+
         if initializer is not None:
             initializer(self)
         self.logging_children.append(self.loss_fn)
         self.logging_children.append(self.sampler)
         self.logging_children.append(self.inference_module)
+
         if evaluation_module is not None:
             self.logging_children.append(self.evaluation_module)
 
@@ -169,8 +171,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
 
         if evaluation_module is not None:
             evaluation_module_ = evaluation_module.construct(
-                score_nn=score_nn,
-                oracle_value_function=oracle_value_function
+                score_nn=score_nn, oracle_value_function=oracle_value_function
             )
         else:
             evaluation_module_ = None
@@ -259,8 +260,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
 
         if evaluation_module is not None:
             evaluation_module_ = evaluation_module.construct(
-                score_nn=score_nn,
-                oracle_value_function=oracle_value_function
+                score_nn=score_nn, oracle_value_function=oracle_value_function
             )
         else:
             evaluation_module_ = None
@@ -289,16 +289,17 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         return None
 
     def convert_to_one_hot(self, labels: torch.Tensor) -> torch.Tensor:
-        """Converts the labels to one-hot if not already"""
+        """Converts the labels to one-hot if not already. Required for more complex tasks like sequence tagging."""
 
         return labels
 
     def unsqueeze_labels(self, labels: torch.Tensor) -> torch.Tensor:
-        """Unsqueeze if required"""
+        """Unsqueeze to add a samples dimension"""
 
         return labels
 
     def squeeze_y(self, y: torch.Tensor) -> torch.Tensor:
+        """Squeeze to remove the samples dimension"""
         raise NotImplementedError
 
     def initialize_buffer(
@@ -373,7 +374,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
 
         if labels is not None:
             self.calculate_metrics(
-                x, labels, results["y_pred"], buffer
+                x, labels, results["y_pred"], buffer, results
             )
 
         return results
