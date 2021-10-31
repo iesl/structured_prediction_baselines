@@ -55,7 +55,7 @@ class SeqTagNCERankingLoss(NCERankingLoss):
         return self.mul * softCE(probs, samples) 
 
 
-@Loss.register("multi-label-nce-ranking-with-discrete-sampling")
+@Loss.register("seqtag-nce-ranking-with-discrete-sampling")
 class SeqTagNCERankingLossWithDiscreteSamples(SeqTagNCERankingLoss):
     def __init__(self, keep_probs = False, **kwargs: Any):
         super().__init__(**kwargs)
@@ -103,7 +103,7 @@ def inverse_sigmoid(x: torch.Tensor) -> torch.Tensor:
     return -torch.log((1.0 / (x + 1e-13)) - 1.0 + 1e-35)
 
 
-@Loss.register("multi-label-nce-ranking-with-cont-sampling")
+@Loss.register("seqtag-nce-ranking-with-cont-sampling")
 class SeqTagNCERankingLossWithContSamples(SeqTagNCERankingLoss):
     def __init__(self, std: float = 1.0, keep_probs = False, **kwargs: Any):
         super().__init__(**kwargs)
