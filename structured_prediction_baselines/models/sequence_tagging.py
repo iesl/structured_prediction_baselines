@@ -32,7 +32,7 @@ from allennlp_models.structured_prediction.metrics.srl_eval_scorer import (
 logger = logging.getLogger(__name__)
 
 
-class SequenceTagging(ScoreBasedLearningModel):
+class SequenceTaggingModel(ScoreBasedLearningModel):
     """Abstract base class for tagging tasks like NER and SRL"""
 
     def __init__(
@@ -180,6 +180,7 @@ class SequenceTagging(ScoreBasedLearningModel):
         labels: torch.Tensor,
         y_hat: torch.Tensor,
         buffer: Dict,
+        results: Dict,
         **kwargs: Any,
     ) -> None:
         # y_hat: (batch, seq_len, num_labels)
@@ -188,7 +189,6 @@ class SequenceTagging(ScoreBasedLearningModel):
         mask = buffer.get("mask")
         assert mask is not None
         metadata = buffer.get("meta")
-        results = kwargs.pop("results")
         assert metadata is not None
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -198,7 +198,7 @@ class SequenceTagging(ScoreBasedLearningModel):
             wordpiece_tags,
             wordpiece_ids,
         ) = self.constrained_decode(
-            y_hat, mask, metadata.get("wordpiece_offsets")
+            y_hat, mask, buffer.get("wordpiece_offsets")
         )
         # call specialized computation implemented by child class
         self.calculate_metrics_for_task(  # type: ignore
@@ -282,11 +282,14 @@ class SequenceTagging(ScoreBasedLearningModel):
 
 
 @Model.register(
-    "ner-with-infnet",
+    "seal-ner",
     constructor="from_partial_objects_with_shared_tasknn",
 )
-@Model.register("ner", constructor="from_partial_objects")
-class NER(ScoreBasedLearningModel):
+@Model.register(
+    "ner-seperate-inference-and-training-network",
+    constructor="from_partial_objects",
+)
+class NERModel(SequenceTaggingModel):
     @overrides
     def instantiate_metrics(self) -> None:
         self._f1_metric = SpanBasedF1Measure(
@@ -306,6 +309,7 @@ class NER(ScoreBasedLearningModel):
         )
         _forward_args["labels"] = kwargs.pop("tags")
         _forward_args["meta"] = kwargs.pop("metadata")
+        _forward_args["buffer"]["meta"] = _forward_args["meta"]
 
         return {**_forward_args, **kwargs}
 
@@ -361,11 +365,14 @@ class NER(ScoreBasedLearningModel):
 
 
 @Model.register(
-    "srl-with-infnet",
+    "seal-srl",
     constructor="from_partial_objects_with_shared_tasknn",
 )
-@Model.register("srl", constructor="from_partial_objects")
-class SRL(ScoreBasedLearningModel):
+@Model.register(
+    "srl-seperate-inference-and-training-network",
+    constructor="from_partial_objects",
+)
+class SRLModel(SequenceTaggingModel):
     def __init__(
         self,
         srl_eval_path: Optional[str] = None,
@@ -418,12 +425,11 @@ class SRL(ScoreBasedLearningModel):
         if metadata is None:
             raise ValueError
         _forward_args["buffer"]["meta"] = metadata
-        words, verbs, offsets = zip(
-            *[(x["words"], x["verb"], x["offsets"]) for x in metadata]
-        )
-        _forward_args["buffer"]["meta"]["words"] = list(words)
-        _forward_args["buffer"]["meta"]["verb"] = list(verbs)
-        _forward_args["buffer"]["meta"]["wordpiece_offsets"] = list(offsets)
+
+        if len(metadata) > 0 and "offsets" in metadata[0]:
+            _forward_args["buffer"]["wordpiece_offsets"] = [
+                x["offsets"] for x in metadata
+            ]
 
         return {**_forward_args, **kwargs}
 
