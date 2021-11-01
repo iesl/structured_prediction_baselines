@@ -3,6 +3,8 @@ from allennlp.training.util import data_loaders_from_params
 from allennlp.common.params import Params
 import argparse
 from pathlib import Path
+from allennlp.common import util as common_util
+common_util.import_module_and_submodules('structured_prediction_baselines')
 
 
 def get_args() -> argparse.Namespace:
