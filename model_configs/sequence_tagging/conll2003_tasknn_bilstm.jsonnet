@@ -6,9 +6,9 @@ local use_wandb = (if test == '1' then false else true);
 local dataset_name = 'conll2003ner';
 local dataset_metadata = (import 'datasets.jsonnet')[dataset_name];
 local num_labels = dataset_metadata.num_labels;
-local transformer_model = 'bert-base-uncased';
-local transformer_hidden_dim = 768;
-local max_length = 256;
+//local transformer_model = 'bert-base-uncased';
+//local transformer_hidden_dim = 768;
+//local max_length = 256;
 
 //local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
 //local label_space_dim = ff_hidden;
