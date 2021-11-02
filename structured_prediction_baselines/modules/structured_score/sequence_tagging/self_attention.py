@@ -26,8 +26,9 @@ class SelfAttention(StructuredScore):
     ) -> torch.Tensor:
         mask = buffer["mask"]
         batch_size, n_samples, seq_length, _ = y.shape
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
         attention_mask = torch.BoolTensor(seq_length, seq_length).fill_(False)
-        attention_mask.to(device=y.device)
+        attention_mask = attention_mask.to(device=device)
         for i in range(seq_length):
             lower_idx, higher_idx = max(0, i - self.M), min(seq_length, i + self.M + 1)
             attention_mask[i][lower_idx:higher_idx] = True
