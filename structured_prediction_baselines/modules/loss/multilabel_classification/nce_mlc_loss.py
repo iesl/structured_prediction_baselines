@@ -36,10 +36,10 @@ class MultiLabelNCERankingLoss(NCERankingLoss):
     ) -> torch.Tensor:  # (batch, num_samples)
         """
         mul*BCE(inp=probs, target=samples). Here mul is 1 or -1. If mul = 1 the ranking loss will
-        use adjusted_score of score - BCE.
+        use adjusted_score of score - BCE. (mul=-1 corresponds to standard NCE)
 
         Note:
-            Remember that BCE = -y ln(x) - (1-y) ln(1-x). Hence of samples are discrete then BCE = -ln Pn.
+            Remember that BCE = -y ln(x) - (1-y) ln(1-x). Hence if samples are discrete, then BCE = -ln Pn.
             So in that case sign of + in this class will result in adjusted_score = score - (- ln Pn) = score + ln Pn.
         """
         if not self.use_distance: # if not using distance then skip the bce computation.
