@@ -11,20 +11,20 @@ local transformer_hidden_dim = 768;
 local max_length = 256;
 local num_tags = 15;
 
-local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
+local ff_hidden = 300; //std.parseJson(std.extVar('ff_hidden'));
 local label_space_dim = ff_hidden;
-local ff_dropout = std.parseJson(std.extVar('ff_dropout_10x'))/10.0;
+local ff_dropout = 0.2; //std.parseJson(std.extVar('ff_dropout_10x'))/10.0;
 //local ff_activation = std.parseJson(std.extVar('ff_activation'));
 local ff_activation = 'softplus';
 //local ff_activation = 'softplus';
-local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
-local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
-local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
-local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
+local ff_linear_layers = 2; //std.parseJson(std.extVar('ff_linear_layers'));
+local inference_score_weight = 1; //std.parseJson(std.extVar('inference_score_weight'));
+local cross_entropy_loss_weight = 1; //std.parseJson(std.extVar('cross_entropy_loss_weight'));
+local ff_weight_decay = 0.00001; //std.parseJson(std.extVar('ff_weight_decay'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
-local task_temp = std.parseJson(std.extVar('task_nn_steps')); # variable for task_nn.steps
+local task_temp = 1; //std.parseJson(std.extVar('task_nn_steps')); # variable for task_nn.steps
 local task_nn_steps = (if std.toString(task_temp) == '0' then 1 else task_temp);
-local score_temp = std.parseJson(std.extVar('score_nn_steps')); # variable for score_nn.steps
+local score_temp = 1; //std.parseJson(std.extVar('score_nn_steps')); # variable for score_nn.steps
 local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_temp);
 local task_nn = {
   type: 'sequence-tagging',
@@ -105,7 +105,7 @@ local task_nn = {
             activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + ['linear']),
             hidden_dims: [ff_hidden for i in std.range(0, ff_linear_layers - 2)] + [num_labels],
             dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0])
-},
+          },
         },
         normalize_y: true,
       },
@@ -115,7 +115,7 @@ local task_nn = {
       type: 'sequence-tagging',
       task_nn: task_nn,
       global_score: {
-        type: 'linear-chain',
+        type: 'self-attention',
         num_tags: num_labels,
       },
     },
@@ -160,12 +160,12 @@ local task_nn = {
       optimizers: {
         task_nn:
           {
-            lr: 0.001,
+            lr: 0.00001,
             weight_decay: ff_weight_decay,
             type: 'adamw',
           },
         score_nn: {
-          lr: 0.005,
+          lr: 0.0005,
           weight_decay: ff_weight_decay,
           type: 'adamw',
         },
