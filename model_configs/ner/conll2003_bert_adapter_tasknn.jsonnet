@@ -4,15 +4,15 @@ local cuda_device = std.extVar('CUDA_DEVICE');
 local use_wandb = (if test == '1' then false else true);
 
 local dataset_name = 'conll2003ner';
-local dataset_metadata = (import '../datasets.jsonnet')[dataset_name];
+local dataset_metadata = (import 'datasets.jsonnet')[dataset_name];
 local num_labels = dataset_metadata.num_labels;
 local transformer_model = 'bert-base-uncased';
 local transformer_hidden_dim = 768;
 local max_length = 512;
 
 local ff_activation = 'softplus';
-local cross_entropy_loss_weight = 1;
-local ff_weight_decay = std.parseJson(std.extVar('weight_decay'));
+local weight_decay = std.parseJson(std.extVar('weight_decay'));
+local tasknn_lr = std.parseJson(std.extVar('tasknn_lr'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local task_nn = {
   type: 'sequence-tagging',
@@ -108,8 +108,8 @@ local task_nn = {
       optimizers: {
         task_nn:
           {
-            lr: 0.00001,
-            weight_decay: ff_weight_decay,
+            lr: tasknn_lr,
+            weight_decay: weight_decay,
             type: 'huggingface_adamw',
           },
       },
