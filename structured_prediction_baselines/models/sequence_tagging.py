@@ -27,6 +27,7 @@ from structured_prediction_baselines.modules.score_nn import ScoreNN
 from .base import ScoreBasedLearningModel
 from allennlp_models.structured_prediction.metrics.srl_eval_scorer import (
     SrlEvalScorer,
+    DEFAULT_SRL_EVAL_PATH,
 )
 
 logger = logging.getLogger(__name__)
@@ -375,13 +376,23 @@ class NERModel(SequenceTaggingModel):
 class SRLModel(SequenceTaggingModel):
     def __init__(
         self,
-        srl_eval_path: Optional[str] = None,
+        srl_eval_path: Optional[str] = DEFAULT_SRL_EVAL_PATH,
         using_bert_encoder: bool = True,
+        decode_on_wordpieces: bool = True,
         **kwargs: Any,
     ) -> None:
+        """
+        Args:
+            srl_eval_path: Path to the perl evaluation file used by allennlp
+
+        """
         self.srl_eval_path = srl_eval_path
         self.using_bert_encoder = using_bert_encoder
+        self.decode_on_wordpieces = decode_on_wordpieces
         super().__init__(**kwargs)
+
+        if self.decode_on_wordpieces:
+            assert self.using_bert_encoder
 
     @overrides
     def instantiate_metrics(self) -> None:
@@ -411,7 +422,7 @@ class SRLModel(SequenceTaggingModel):
         # https://github.com/allenai/allennlp-models/blob/v2.5.0/allennlp_models/structured_prediction/models/srl_bert.py#L143
 
         if self.using_bert_encoder:
-            tokens["input_ids"] = kwargs.pop("verb_indicator")
+            tokens["tokens"]["type_ids"] = kwargs.pop("verb_indicator")
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! #
 
         _forward_args["x"] = tokens
@@ -426,10 +437,13 @@ class SRLModel(SequenceTaggingModel):
             raise ValueError
         _forward_args["buffer"]["meta"] = metadata
 
-        if len(metadata) > 0 and "offsets" in metadata[0]:
-            _forward_args["buffer"]["wordpiece_offsets"] = [
-                x["offsets"] for x in metadata
-            ]
+        if self.decode_on_wordpieces:
+
+            if len(metadata) > 0:
+                assert "offsets" in metadata[0]
+                _forward_args["buffer"]["wordpiece_offsets"] = [
+                    x["offsets"] for x in metadata
+                ]
 
         return {**_forward_args, **kwargs}
 
