@@ -115,8 +115,9 @@ local task_nn = {
       type: 'sequence-tagging',
       task_nn: task_nn,
       global_score: {
-        type: 'self-attention',
+        type: 'self-attention-full-sequence',
         num_tags: num_labels,
+        M: 2
       },
     },
     loss_fn: {
