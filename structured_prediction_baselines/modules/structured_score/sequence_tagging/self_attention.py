@@ -7,17 +7,31 @@ import torch
 
 @StructuredScore.register("self-attention")
 class SelfAttention(StructuredScore):
-    def __init__(self, num_tags: int, reduction: str = "max", M: int = 0, **kwargs: Any):
-        """
-        TODO: Change kwargs to take hidden size and output size
-        """
+    def __init__(self,
+                 num_tags: int,
+                 reduction: str = "max",
+                 M: int = 0,
+                 num_heads: int = 1,
+                 attention_dim: int = None,
+                 values_dim: int = None,
+                 output_dim: int = None,
+                 dropout: float = 0.1,
+                 **kwargs: Any):
         super().__init__()
         self.num_tags = num_tags
         self.reduction = reduction
         self.M = M
         assert self.M >= 0
-        # self.seq_length = seq_length
-        self.attention_layer = SelfAttentionEncoder(1, num_tags, num_tags, num_tags)
+        self.attention_dim = attention_dim or num_tags
+        self.values_dim = values_dim or self.attention_dim
+        self.attention_layer = SelfAttentionEncoder(
+            num_heads,
+            input_dim=num_tags,
+            attention_dim=self.attention_dim,
+            values_dim=self.values_dim,
+            output_projection_dim=output_dim,
+            attention_dropout_prob=dropout
+        )
 
     def forward(
         self,
@@ -62,9 +76,6 @@ class SelfAttention(StructuredScore):
 @StructuredScore.register("self-attention-full-sequence")
 class SelfAttentionFullSequence(SelfAttention):
     def __init__(self, num_tags: int, reduction: str = "max", **kwargs: Any):
-        """
-        TODO: Change kwargs to take hidden size and output size
-        """
         super().__init__(num_tags, reduction, **kwargs)
 
     def _get_attention_mask(self, batch_size: int, n_samples: int, seq_length: int, mask: torch.Tensor):
