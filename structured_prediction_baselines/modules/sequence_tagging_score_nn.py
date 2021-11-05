@@ -18,13 +18,17 @@ class SequenceTaggingScoreNN(ScoreNN):
         Args:
             y: tensor of labels of shape (batch, seq_len, tags)
         """
-        y_local = buffer.get("y_local")
+        # y_local = buffer.get("y_local")
 
-        if y_local is None:
-            y_local = self.task_nn(
-                x, buffer
-            )  # (batch, ...) of unormalized logits
-            buffer["y_local"] = y_local
+        # if y_local is None:
+        #     y_local = self.task_nn(
+        #         x, buffer
+        #     )  # (batch, ...) of unormalized logits
+        #     buffer["y_local"] = y_local
+
+        y_local = self.task_nn(
+            x, buffer
+        )  # (batch, ...) of unormalized logits
 
         mask = buffer.get("mask")
         mask = mask.unsqueeze(1)
