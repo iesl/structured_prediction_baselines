@@ -1,5 +1,7 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
 
+from allennlp.nn.util import add_positional_features
+
 from structured_prediction_baselines.modules.self_attention_encoder import SelfAttentionEncoder
 from structured_prediction_baselines.modules.structured_score.structured_score import StructuredScore
 import torch
@@ -16,6 +18,7 @@ class SelfAttention(StructuredScore):
                  values_dim: int = None,
                  output_dim: int = None,
                  dropout: float = 0.1,
+                 use_positional_encoding: bool = True,
                  **kwargs: Any):
         super().__init__()
         self.num_tags = num_tags
@@ -32,6 +35,7 @@ class SelfAttention(StructuredScore):
             output_projection_dim=output_dim,
             attention_dropout_prob=dropout
         )
+        self._use_positional_encoding = use_positional_encoding
 
     def forward(
         self,
@@ -41,10 +45,15 @@ class SelfAttention(StructuredScore):
     ) -> torch.Tensor:
         mask = buffer["mask"]
         batch_size, n_samples, seq_length, _ = y.shape
-        attention_mask = self._get_attention_mask(batch_size, n_samples, seq_length, mask)
+        attention_mask = self._get_attention_mask(n_samples, mask)
+
+        if self._use_positional_encoding:
+            attention_input = add_positional_features(y.view(batch_size * n_samples, seq_length, -1))
+        else:
+            attention_input = y.view(batch_size * n_samples, seq_length, -1)
 
         attention_output = self.attention_layer(
-            y.view(batch_size * n_samples, seq_length, -1),
+            attention_input,
             attention_mask
         )  # (batch_size * n_samples, seq_length, num_tags)
 
@@ -58,8 +67,9 @@ class SelfAttention(StructuredScore):
         # reduction = "max" (Default)
         return attention_output.amax(dim=3).sum(2)
 
-    def _get_attention_mask(self, batch_size, n_samples, seq_length, mask):
+    def _get_attention_mask(self, n_samples, mask: torch.Tensor):
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        batch_size, seq_length = mask.shape
         attention_mask = torch.BoolTensor(batch_size * n_samples, seq_length, seq_length).fill_(False)
         attention_mask = attention_mask.to(device=device)
         masked_length = mask.sum(dim=-1)
@@ -78,7 +88,8 @@ class SelfAttentionFullSequence(SelfAttention):
     def __init__(self, num_tags: int, reduction: str = "max", **kwargs: Any):
         super().__init__(num_tags, reduction, **kwargs)
 
-    def _get_attention_mask(self, batch_size: int, n_samples: int, seq_length: int, mask: torch.Tensor):
+    def _get_attention_mask(self, n_samples: int, mask: torch.Tensor):
+        batch_size, seq_length = mask.shape
         attention_mask = mask.unsqueeze(1).expand(-1, seq_length, seq_length)
         attention_mask = attention_mask.repeat(1, n_samples, 1).view(batch_size * n_samples, seq_length, seq_length)
         return attention_mask

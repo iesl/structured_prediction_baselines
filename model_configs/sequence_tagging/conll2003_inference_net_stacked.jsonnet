@@ -117,6 +117,9 @@ local task_nn = {
       global_score: {
         type: 'self-attention-full-sequence',
         num_tags: num_labels,
+        num_heads: 1,
+        attention_dim: 300,
+        output_dim: 100,
       },
     },
     loss_fn: {
