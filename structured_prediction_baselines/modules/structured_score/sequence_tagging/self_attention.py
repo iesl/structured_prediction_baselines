@@ -47,10 +47,11 @@ class SelfAttention(StructuredScore):
         batch_size, n_samples, seq_length, _ = y.shape
         attention_mask = self._get_attention_mask(n_samples, mask)
 
-        if self._use_positional_encoding:
-            attention_input = add_positional_features(y.view(batch_size * n_samples, seq_length, -1))
-        else:
-            attention_input = y.view(batch_size * n_samples, seq_length, -1)
+        # change the shape to appropriate structure for self-attention function.
+        attention_input = y.view(batch_size * n_samples, seq_length, -1)
+        if self._use_positional_encoding: # adding positional encoding.
+            attention_input = add_positional_features(attention_input)
+
 
         attention_output = self.attention_layer(
             attention_input,
