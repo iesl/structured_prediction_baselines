@@ -15,6 +15,7 @@ from allennlp.models import Model
 from structured_prediction_baselines.modules.sampler import (
     Sampler,
     SamplerContainer,
+    AppendingSamplerContainer,
 )
 from structured_prediction_baselines.common import ModelMode
 from structured_prediction_baselines.modules.sampler.inference_net import (
@@ -98,11 +99,13 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         self.evaluation_module = evaluation_module
         self.num_eval_samples = num_eval_samples
         # self.eval_only_metrics = {}
+
         if initializer is not None:
             initializer(self)
         self.logging_children.append(self.loss_fn)
         self.logging_children.append(self.sampler)
         self.logging_children.append(self.inference_module)
+
         if evaluation_module is not None:
             self.logging_children.append(self.evaluation_module)
 
@@ -169,8 +172,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
 
         if evaluation_module is not None:
             evaluation_module_ = evaluation_module.construct(
-                score_nn=score_nn,
-                oracle_value_function=oracle_value_function
+                score_nn=score_nn, oracle_value_function=oracle_value_function
             )
         else:
             evaluation_module_ = None
@@ -209,10 +211,10 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
     def from_partial_objects_with_shared_tasknn(
         cls,
         vocab: Vocabulary,
-        sampler: Lazy[SamplerContainer],
         loss_fn: Lazy[Loss],
         inference_module: Lazy[Sampler],
         task_nn: TaskNN,
+        sampler: Optional[Lazy[SamplerContainer]] = None,
         score_nn: Optional[ScoreNN] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
         evaluation_module: Optional[Lazy[Sampler]] = None,
@@ -231,16 +233,33 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         )
 
         if oracle_value_function is not None:
-            sampler_ = sampler.construct(
-                score_nn=score_nn, oracle_value_function=oracle_value_function
-            )
+            if sampler is None:
+                sampler_ = AppendingSamplerContainer(
+                    score_nn=score_nn,
+                    oracle_value_function=oracle_value_function,
+                    constituent_samplers=[],
+                    log_key="sampler",
+                )
+            else:
+                sampler_ = sampler.construct(
+                    score_nn=score_nn,
+                    oracle_value_function=oracle_value_function,
+                )
             loss_fn_ = loss_fn.construct(
                 score_nn=score_nn, oracle_value_function=oracle_value_function
             )
         else:
-            sampler_ = sampler.construct(
-                score_nn=score_nn,
-            )
+            if sampler is None:
+                sampler_ = AppendingSamplerContainer(
+                    score_nn=score_nn,
+                    constituent_samplers=[],
+                    log_key="sampler",
+                )
+            else:
+
+                sampler_ = sampler.construct(
+                    score_nn=score_nn,
+                )
             loss_fn_ = loss_fn.construct(
                 score_nn=score_nn,
             )
@@ -259,8 +278,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
 
         if evaluation_module is not None:
             evaluation_module_ = evaluation_module.construct(
-                score_nn=score_nn,
-                oracle_value_function=oracle_value_function
+                score_nn=score_nn, oracle_value_function=oracle_value_function
             )
         else:
             evaluation_module_ = None
@@ -284,21 +302,23 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         labels: torch.Tensor,  # shape: (batch, ...)
         y_hat: torch.Tensor,  # shape: (batch, ...)
         buffer: Dict,
+        results: Dict,
         **kwargs: Any,
     ) -> None:
         return None
 
     def convert_to_one_hot(self, labels: torch.Tensor) -> torch.Tensor:
-        """Converts the labels to one-hot if not already"""
+        """Converts the labels to one-hot if not already. Required for more complex tasks like sequence tagging."""
 
         return labels
 
     def unsqueeze_labels(self, labels: torch.Tensor) -> torch.Tensor:
-        """Unsqueeze if required"""
+        """Unsqueeze to add a samples dimension"""
 
         return labels
 
     def squeeze_y(self, y: torch.Tensor) -> torch.Tensor:
+        """Squeeze to remove the samples dimension"""
         raise NotImplementedError
 
     def initialize_buffer(
@@ -373,7 +393,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
 
         if labels is not None:
             self.calculate_metrics(
-                x, labels, results["y_pred"], buffer
+                x, labels, results["y_pred"], buffer, results
             )
 
         return results

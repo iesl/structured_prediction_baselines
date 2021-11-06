@@ -1,3 +1,9 @@
 {
-  conll2003ner: { dir: 'conll2003ner', files: { train: 'train.txt', val: 'val.txt', test: 'test.txt' } },
+  conll2003ner: {
+    dir_name: 'conll2003ner',
+    num_labels: 17,
+    train_file: 'train.txt',
+    validation_file: 'val.txt',
+    test_file: 'test.txt',
+  },
 }
