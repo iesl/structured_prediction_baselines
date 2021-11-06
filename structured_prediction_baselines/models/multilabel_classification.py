@@ -71,6 +71,8 @@ class MultilabelClassification(ScoreBasedLearningModel):
         labels: torch.Tensor,
         y_hat: torch.Tensor,
         buffer: Dict,
+        results: Dict,
+        **kwargs: Any,
     ) -> None:
 
         self.map(y_hat, labels)
@@ -133,8 +135,10 @@ class MultilabelClassificationWithScoreNNEvaluation(MultilabelClassification):
         labels: torch.Tensor,
         y_hat: torch.Tensor,
         buffer: Dict,
+        results: Dict,
+        **kwargs: Any,
     ) -> None:
-        super().calculate_metrics(x, labels, y_hat, buffer)
+        super().calculate_metrics(x, labels, y_hat, buffer, results)
         self.micro_map(y_hat, labels)
 
         if not self.inference_module.is_normalized:
