@@ -35,7 +35,12 @@ class SequenceTaggingMaskedCrossEntropyWithLogitsLoss(Loss):
         mask = buffer.get("mask") if buffer is not None else None
 
         if mask is None:
-            mask = util.get_text_field_mask(x)  # (batch, seq_len)
+            mask = kwargs.get("mask", None)
+
+            if mask is None:
+                mask = util.get_text_field_mask(
+                    x
+                )  # (batch, seq_len) DP: this will fail for srl model.
 
         assert y_hat.dim() == 4
         y_hat = y_hat.squeeze(1)  # (batch, seq_len, num_tags)

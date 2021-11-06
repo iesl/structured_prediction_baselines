@@ -410,6 +410,7 @@ class GradientDescentMinimaxTrainer(Trainer):
         else:
             self._num_steps = {ModelMode(k): v for k, v in num_steps.items()}
         self.inner_mode: ModelMode = ModelMode(inner_mode)
+        self.exit_code = 0
 
     def num_steps(self, mode: ModelMode) -> int:
         return self._num_steps[mode]
@@ -929,6 +930,9 @@ class GradientDescentMinimaxTrainer(Trainer):
             metrics, epoch = self._try_train()
 
             return metrics
+        except:
+            self.exit_code = 1
+            raise # re-raise the exception
         finally:
             for callback in self._callbacks:
                 callback.on_end(

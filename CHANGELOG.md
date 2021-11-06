@@ -12,6 +12,7 @@
 
 - Add original infnet setup \(Tu, Gimpel\) in the reverse order  [\#32](https://github.com/dhruvdcoder/structured_prediction_baselines/issues/32)
 - Add unnormalized score loss for training tasknn [\#30](https://github.com/dhruvdcoder/structured_prediction_baselines/issues/30)
+- Single sequence tagging base for all cases of srl and ner [\#63](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/63) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Changes to make sequence-tagging work again [\#61](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/61) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Adds SPEN Loss and configs [\#58](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/58) ([purujitgoyal](https://github.com/purujitgoyal))
 - Adapters and configs with blurb genre dataset [\#55](https://github.com/dhruvdcoder/structured_prediction_baselines/pull/55) ([dhruvdcoder](https://github.com/dhruvdcoder))
