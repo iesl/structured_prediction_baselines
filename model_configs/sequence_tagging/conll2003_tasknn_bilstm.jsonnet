@@ -6,9 +6,9 @@ local use_wandb = (if test == '1' then false else true);
 local dataset_name = 'conll2003ner';
 local dataset_metadata = (import 'datasets.jsonnet')[dataset_name];
 local num_labels = dataset_metadata.num_labels;
-local transformer_model = 'bert-base-uncased';
-local transformer_hidden_dim = 768;
-local max_length = 256;
+//local transformer_model = 'bert-base-uncased';
+//local transformer_hidden_dim = 768;
+//local max_length = 256;
 
 //local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
 //local label_space_dim = ff_hidden;
@@ -23,23 +23,37 @@ local ff_weight_decay = 0.0001; //std.parseJson(std.extVar('ff_weight_decay'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local task_nn = {
   type: 'sequence-tagging',
-    text_field_embedder: {
-    token_embedders: {
-      tokens: {
-        type: 'pretrained_transformer_mismatched',
-        model_name: transformer_model,
-        max_length: max_length,
+  text_field_embedder: {
+      token_embedders: {
+        tokens: {
+          type: 'embedding',
+          embedding_dim: 50,
+          pretrained_file: 'https://allennlp.s3.amazonaws.com/datasets/glove/glove.6B.50d.txt.gz',
+          trainable: true,
+        },
+        token_characters: {
+          type: 'character_encoding',
+          embedding: {
+            embedding_dim: 16,
+          },
+          encoder: {
+            type: 'cnn',
+            embedding_dim: 16,
+            num_filters: 128,
+            ngram_filter_sizes: [3],
+            conv_layer_activation: 'relu',
+          },
+        },
       },
     },
-  },
-//    encoder: {
-//      type: 'lstm',
-//      input_size: transformer_hidden_dim,
-//      hidden_size: 400,
-//      num_layers: 2,
-//      dropout: 0.5,
-//      bidirectional: true,
-//    },
+    encoder: {
+      type: 'lstm',
+      input_size: 50+128,
+      hidden_size: 200,
+      num_layers: 2,
+      dropout: 0.5,
+      bidirectional: true,
+    },
 
 };
 
@@ -52,9 +66,12 @@ local task_nn = {
     coding_scheme: 'BIOUL',
     token_indexers: {
       tokens: {
-        type: 'pretrained_transformer_mismatched',
-        model_name: transformer_model,
-        max_length: max_length,
+        type: 'single_id',
+        lowercase_tokens: true,
+      },
+      token_characters: {
+        type: 'characters',
+        min_padding_length: 3,
       },
     },
   },

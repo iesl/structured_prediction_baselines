@@ -105,7 +105,7 @@ local task_nn = {
             activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + ['linear']),
             hidden_dims: [ff_hidden for i in std.range(0, ff_linear_layers - 2)] + [num_labels],
             dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0])
-},
+          },
         },
         normalize_y: true,
       },
@@ -115,8 +115,11 @@ local task_nn = {
       type: 'sequence-tagging',
       task_nn: task_nn,
       global_score: {
-        type: 'linear-chain',
+        type: 'self-attention-full-sequence',
         num_tags: num_labels,
+        num_heads: 1,
+        attention_dim: 300,
+        output_dim: 100,
       },
     },
     loss_fn: {
@@ -160,12 +163,12 @@ local task_nn = {
       optimizers: {
         task_nn:
           {
-            lr: 0.001,
+            lr: 0.00001,
             weight_decay: ff_weight_decay,
             type: 'adamw',
           },
         score_nn: {
-          lr: 0.005,
+          lr: 0.0005,
           weight_decay: ff_weight_decay,
           type: 'adamw',
         },
