@@ -23,29 +23,6 @@ local ff_weight_decay = 0.0001; //std.parseJson(std.extVar('ff_weight_decay'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local task_nn = {
   type: 'sequence-tagging',
-//  text_field_embedder: {
-//      token_embedders: {
-//        tokens: {
-//          type: 'embedding',
-//          embedding_dim: 50,
-//          pretrained_file: 'https://allennlp.s3.amazonaws.com/datasets/glove/glove.6B.50d.txt.gz',
-//          trainable: true,
-//        },
-//        token_characters: {
-//          type: 'character_encoding',
-//          embedding: {
-//            embedding_dim: 16,
-//          },
-//          encoder: {
-//            type: 'cnn',
-//            embedding_dim: 16,
-//            num_filters: 128,
-//            ngram_filter_sizes: [3],
-//            conv_layer_activation: 'relu',
-//          },
-//        },
-//      },
-//    },
     text_field_embedder: {
     token_embedders: {
       tokens: {
@@ -69,21 +46,6 @@ local task_nn = {
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
   evaluate_on_test: true,
-//  dataset_reader: {
-//    type: 'conll2003',
-//    tag_label: 'ner',
-//    coding_scheme: 'BIOUL',
-//    token_indexers: {
-//      tokens: {
-//        type: 'single_id',
-//        lowercase_tokens: true,
-//      },
-//      token_characters: {
-//        type: 'characters',
-//        min_padding_length: 3,
-//      },
-//    },
-//  },
   dataset_reader: {
     type: 'conll2003',
     tag_label: 'ner',

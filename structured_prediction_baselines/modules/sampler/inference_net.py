@@ -36,6 +36,8 @@ class InferenceNetSampler(Sampler):
         self, mode: ModelMode
     ) -> Iterator[torch.nn.Parameter]:
         yield from self.inference_nn.parameters()
+        if self.cost_augmented_layer is not None:
+            yield from self.cost_augmented_layer.parameters()
 
     def __init__(
         self,

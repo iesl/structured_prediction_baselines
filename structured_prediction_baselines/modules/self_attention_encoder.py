@@ -101,7 +101,7 @@ class SelfAttentionEncoder(Seq2SeqEncoder):
 
         batch_size, timesteps, _ = inputs.size()
         if mask is None:
-            mask = inputs.new_ones(timesteps, timesteps).bool()
+            mask = inputs.new_ones(batch_size, timesteps, timesteps).bool()
 
         # Shape (batch_size, timesteps, 2 * attention_dim + values_dim)
         combined_projection = self._combined_projection(inputs)
@@ -148,7 +148,7 @@ class SelfAttentionEncoder(Seq2SeqEncoder):
         # Normalise the distributions, using the same mask for all heads.
         attention = masked_softmax(
             scaled_similarities,
-            mask.unsqueeze(0),
+            mask.repeat(1, num_heads, 1).view(batch_size * num_heads, timesteps, timesteps),
             memory_efficient=True,
         )
         attention = self._attention_dropout(attention)
