@@ -14,7 +14,6 @@ local ff_activation = 'softplus';
 local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
 local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'));
 local weight_decay = std.parseJson(std.extVar('weight_decay'));
-local tasknn_lr = std.parseJson(std.extVar('tasknn_lr'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local score_temp = std.parseJson(std.extVar('score_nn_steps')); # variable for score_nn.steps
 local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_temp);
@@ -138,7 +137,7 @@ local task_nn = {
       optimizers: {
         task_nn:
           {
-            lr: tasknn_lr,
+            lr: 0.00001,
             weight_decay: weight_decay,
             type: 'huggingface_adamw',
           },
