@@ -20,3 +20,5 @@ parameters:
     values: [0.00001, 0.0001, 0.001, 0.01, 0.1]
   env.tasknn_lr:
       values: [0.001, 0.0001, 0.0005,  0.00001, 0.00005]
+  data_loader.batch_sampler.batch_size:
+      values: [64, 32]
