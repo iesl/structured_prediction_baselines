@@ -81,7 +81,7 @@ local feature_network = {
                    dataset_metadata.test_file),
 
  vocabulary: {
-        type: 'from_files',
+          type: 'from_files',
         directory: data_dir + '/' + dataset_metadata.dir_name + '/' + 'bert_vocab'
     },
   // Model

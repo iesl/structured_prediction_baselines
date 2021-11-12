@@ -12,11 +12,11 @@ local num_input_features = dataset_metadata.input_features;
 // // common
 local ff_activation = 'softplus';
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
-local ff_linear_layers = 2;
+local ff_linear_layers = 1;
 //local weight_decay = std.parseJson(std.extVar('weight_decay'));
 local weight_decay = 0.1;
 //local dropout = std.parseJson(std.extVar('dropout_10x')) / 10.0;
-local dropout = 0.3;
+local dropout = 0.5;
 
 // // score_nn
 local transformer_model = 'bert-base-uncased';  // huggingface name of the model
@@ -31,8 +31,10 @@ local task_nn_dropout = dropout;
 local task_nn_weight_decay = weight_decay;
 //local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
 local cross_entropy_loss_weight = 1;
-//local score_loss_weight = std.parseJson(std.extVar('score_loss_weight'));
-local score_loss_weight = 3;
+local score_loss_weight = std.parseJson(std.extVar('score_loss_weight'));
+//local score_loss_weight = 3;
+local num_samples = std.parseJson(std.extVar('num_samples'));
+
 
 
 local feature_network = {
@@ -52,7 +54,7 @@ local feature_network = {
   feedforward: {
     input_dim: transformer_dim,
     num_layers: ff_linear_layers,
-    activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + [ff_activation]),
+    activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + ['linear']),
     hidden_dims: ([transformer_dim * 2 for i in std.range(0, ff_linear_layers - 2)] + [transformer_dim]),
     dropout: ([task_nn_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
   },
@@ -154,7 +156,7 @@ vocabulary: {
     loss_fn: {
       type: 'multi-label-nce-ranking-with-discrete-sampling',
       log_key: 'nce',
-      num_samples: 600,
+      num_samples: num_samples,
       sign: '-',
     },
     initializer: {
