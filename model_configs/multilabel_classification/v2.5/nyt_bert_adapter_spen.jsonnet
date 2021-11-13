@@ -111,7 +111,7 @@ vocabulary: {
           loss_fn: {
             type: 'multi-label-inference',
             oracle_cost_weight: 1.0,
-            inference_score_weight: inference_score_weight,
+            inference_score_weight: 1,
             log_key: 'margin_loss',
           },
           output_space: { type: 'multi-label-relaxed', num_labels: num_labels, default_value: 0.0 },
@@ -178,7 +178,7 @@ vocabulary: {
     loss_fn: {
       type: 'multi-label-structured-svm',
       oracle_cost_weight: 1.0,
-      perceptron_loss_weight: inference_score_weight,
+      perceptron_loss_weight: 1,
       reduction: 'mean',
       log_key: 'margin_loss',
     },
