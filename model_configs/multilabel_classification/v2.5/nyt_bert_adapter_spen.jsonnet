@@ -91,7 +91,7 @@ vocabulary: {
       type: 'gradient-based-inference-tasknn-init',
       log_key: 'sampler',
       inference_nn: {
-        type: 'multi-label-classification',
+        type: 'multi-label-text-classification',
         feature_network: feature_network,
         label_embeddings: {
           embedding_dim: transformer_dim,
@@ -125,7 +125,7 @@ vocabulary: {
       type: 'gradient-based-inference-tasknn-init',
       log_key: 'sampler',
       inference_nn: {
-        type: 'multi-label-classification',
+        type: 'multi-label-text-classification',
         feature_network: feature_network,
         label_embeddings: {
           embedding_dim: transformer_dim,
@@ -158,7 +158,7 @@ vocabulary: {
     score_nn: {
       type: 'multi-label-classification',
       task_nn: {
-        type: 'multi-label-classification',
+        type: 'multi-label-text-classification',
         feature_network: feature_network,
         label_embeddings: {
           embedding_dim: transformer_dim,
