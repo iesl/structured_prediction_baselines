@@ -94,7 +94,7 @@ vocabulary: {
         type: 'multi-label-classification',
         feature_network: feature_network,
         label_embeddings: {
-          embedding_dim: ff_hidden,
+          embedding_dim: transformer_dim,
           vocab_namespace: 'labels',
         },
       },
@@ -128,7 +128,7 @@ vocabulary: {
         type: 'multi-label-classification',
         feature_network: feature_network,
         label_embeddings: {
-          embedding_dim: ff_hidden,
+          embedding_dim: transformer_dim,
           vocab_namespace: 'labels',
         },
       },
