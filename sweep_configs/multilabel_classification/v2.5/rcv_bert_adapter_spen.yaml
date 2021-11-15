@@ -1,0 +1,28 @@
+name: rcv_bert_adapter_spen
+description: ""
+program: allennlp
+command:
+- ${program}
+- train_with_wandb
+- model_configs/multilabel_classification/v2.5/rcv_bert_adapter_spen.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb_tags=task=text_mlc,model=tasknn,inference_module=bert,dataset=nyt,sampler=bert,scorenn=bert_spen
+- ${args}
+- --file-friendly-logging
+
+method: grid
+metric:
+  goal: maximize
+  name: "validation/best_fixed_f1"
+
+parameters:
+  env.dropout_10x:
+    value: 1
+  env.gbi_lr:
+    values: [0.1, 0.05]
+  env.global_score_hidden_dim:
+    value: 600
+  env.weight_decay:
+    value: 0.1
+  trainer.optimizer.optimizers.score_nn.lr:
+    value: 0.0001
