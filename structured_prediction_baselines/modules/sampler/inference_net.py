@@ -35,6 +35,7 @@ class InferenceNetSampler(Sampler):
     def parameters_with_model_mode(
         self, mode: ModelMode
     ) -> Iterator[torch.nn.Parameter]:
+        # currently always yield parameters from TaskNN and possibly cost_augmented_layer
         yield from self.inference_nn.parameters()
         if self.cost_augmented_layer is not None:
             yield from self.cost_augmented_layer.parameters()
