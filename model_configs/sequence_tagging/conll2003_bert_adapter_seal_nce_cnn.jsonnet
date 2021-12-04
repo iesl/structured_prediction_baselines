@@ -98,7 +98,7 @@ local task_nn = {
       type: 'seqtag-nce-ranking-with-discrete-sampling', 
       reduction: 'mean',
       log_key: 'seq_nce_loss',
-      num_samples: 10,
+      num_samples: 200,
     },
     initializer: {
       regexes: [
@@ -111,7 +111,7 @@ local task_nn = {
   data_loader: {
     batch_sampler: {
       type: 'bucket',
-      batch_size: 64,  // effective batch size = batch_size*num_gradient_accumulation_steps
+      batch_size: 32,  // effective batch size = batch_size*num_gradient_accumulation_steps
       sorting_keys: ['tokens'],
     },
     num_workers: 5,

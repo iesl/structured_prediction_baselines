@@ -81,11 +81,7 @@ local task_nn = {
                    dataset_metadata.test_file),
   // Model
   model: {
-<<<<<<< HEAD
     type: 'seal-ner',
-=======
-    type: 'sequence-tagging-with-infnet',
->>>>>>> fd90a955d9edae124992ebbba14c219abe92180b
     label_encoding: 'BIOUL',
     sampler: {
       type: 'appending-container',
