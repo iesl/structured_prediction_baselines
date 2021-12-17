@@ -548,8 +548,6 @@ class CCGBankModel(ScoreBasedLearningModel):
             _forward_args["x"]
         )
         _forward_args["labels"] = kwargs.pop("tags")
-        _forward_args["meta"] = kwargs.pop("metadata")
-        _forward_args["buffer"]["meta"] = _forward_args["meta"]
 
         return {**_forward_args, **kwargs}
 
@@ -568,8 +566,6 @@ class CCGBankModel(ScoreBasedLearningModel):
         # mask: (batch, seq_len)
         mask = buffer.get("mask")
         assert mask is not None
-        metadata = buffer.get("meta")
-        assert metadata is not None
 
         labels_indices = torch.argmax(
             labels, dim=-1
@@ -577,6 +573,6 @@ class CCGBankModel(ScoreBasedLearningModel):
         self._accuracy(y_hat, labels_indices, mask)
 
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
-        metrics["accuracy"] = self._accuracy.get_metric(reset=reset)
+        metrics = {"accuracy": self._accuracy.get_metric(reset=reset)}
 
         return metrics
