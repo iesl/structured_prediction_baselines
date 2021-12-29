@@ -89,11 +89,9 @@ class SelfAttention(StructuredScore):
 @StructuredScore.register("self-attention-full-sequence")
 class SelfAttentionFullSequence(SelfAttention):
     def __init__(self, num_tags: int,
-                 input_dim: int,
-                 output_dim: int,
                  reduction: str = "max",
                  **kwargs: Any):
-        super().__init__(num_tags=num_tags, input_dim=input_dim, reduction=reduction, output_dim=output_dim, **kwargs)
+        super().__init__(num_tags=num_tags, reduction=reduction, **kwargs)
 
     def _get_attention_mask(self, n_samples: int, mask: torch.Tensor):
         batch_size, seq_length = mask.shape
