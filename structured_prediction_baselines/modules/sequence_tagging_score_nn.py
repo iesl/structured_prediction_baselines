@@ -54,7 +54,12 @@ class SequenceTaggingScoreNN(ScoreNN):
         score = None
 
         local_score = self.compute_local_score(x, y, buffer=buffer)
-
+        if self.residual_x:
+            _, n_samples, _, _ = y.shape
+            embedded_x: torch.Tensor = buffer["embedded_x"]
+            assert len(embedded_x.shape) == 3
+            embedded_x = embedded_x.unsqueeze(dim=1).repeat(1, n_samples, 1, 1)
+            y = torch.cat([y, embedded_x], dim=-1)
         global_score = self.compute_global_score(y, buffer)
 
         return local_score + global_score
