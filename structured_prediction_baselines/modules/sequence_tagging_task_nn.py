@@ -71,7 +71,7 @@ class SequenceTaggingTaskNN(TaskNN):
         buffer["mask"] = mask
 
         embedded_text_input = self.text_field_embedder(tokens)
-
+        buffer["embedded_x"] = embedded_text_input
         if self.encoder:
             encoded_text = self.encoder(embedded_text_input, mask)
         else:

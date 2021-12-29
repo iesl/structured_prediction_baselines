@@ -12,10 +12,12 @@ class ScoreNN(torch.nn.Module, Registrable):
         self,
         task_nn: TaskNN,  # (batch, ...)
         global_score: Optional[StructuredScore] = None,
+        residual_x: bool = False,
         **kwargs: Any,
     ):
         super().__init__()  # type:ignore
         self.task_nn = task_nn
+        self.residual_x = residual_x
         self.global_score = global_score
         self._dtype = self.compute_input_dtype()
 

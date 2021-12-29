@@ -6,40 +6,56 @@ local use_wandb = (if test == '1' then false else true);
 local dataset_name = 'conll2003ner';
 local dataset_metadata = (import 'datasets.jsonnet')[dataset_name];
 local num_labels = dataset_metadata.num_labels;
-local transformer_model = 'bert-base-uncased';
-local transformer_hidden_dim = 768;
-local max_length = 256;
+// local transformer_model = 'bert-base-uncased';
+// local transformer_hidden_dim = 768;
+// local max_length = 256;
 
-local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
-local label_space_dim = ff_hidden;
-local ff_dropout = std.parseJson(std.extVar('ff_dropout_10x'))/10.0;
+//local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
+//local label_space_dim = ff_hidden;
+//local ff_dropout = std.parseJson(std.extVar('ff_dropout_10x'))/10.0;
 //local ff_activation = std.parseJson(std.extVar('ff_activation'));
 local ff_activation = 'softplus';
 //local ff_activation = 'softplus';
-local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
-local inference_score_weight = 1; //std.parseJson(std.extVar('inference_score_weight'));
-local cross_entropy_loss_weight = 1; //std.parseJson(std.extVar('cross_entropy_loss_weight'));
-local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
+//local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
+local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
+local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'));
+local ff_weight_decay = 0.0001; //std.parseJson(std.extVar('ff_weight_decay'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
+local score_temp = std.parseJson(std.extVar('score_nn_steps')); # variable for score_nn.steps
+local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_temp);
 local task_nn = {
   type: 'sequence-tagging',
   text_field_embedder: {
-    token_embedders: {
-      tokens: {
-        type: 'pretrained_transformer_mismatched',
-        model_name: transformer_model,
-        max_length: max_length,
+      token_embedders: {
+        tokens: {
+          type: 'embedding',
+          embedding_dim: 50,
+          pretrained_file: 'https://allennlp.s3.amazonaws.com/datasets/glove/glove.6B.50d.txt.gz',
+          trainable: true,
+        },
+        token_characters: {
+          type: 'character_encoding',
+          embedding: {
+            embedding_dim: 16,
+          },
+          encoder: {
+            type: 'cnn',
+            embedding_dim: 16,
+            num_filters: 128,
+            ngram_filter_sizes: [3],
+            conv_layer_activation: 'relu',
+          },
+        },
       },
     },
-  },
-  dropout: ff_dropout,
-  feedforward: {
-    input_dim: transformer_hidden_dim,
-    num_layers: ff_linear_layers,
-    activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + [ff_activation]),
-    hidden_dims: ff_hidden,
-    dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
-  }
+    encoder: {
+      type: 'lstm',
+      input_size: 50+128,
+      hidden_size: 200,
+      num_layers: 2,
+      dropout: 0.5,
+      bidirectional: true,
+    },
 };
 
 {
@@ -51,9 +67,12 @@ local task_nn = {
     coding_scheme: 'BIOUL',
     token_indexers: {
       tokens: {
-        type: 'pretrained_transformer_mismatched',
-        model_name: transformer_model,
-        max_length: max_length,
+        type: 'single_id',
+        lowercase_tokens: true,
+      },
+      token_characters: {
+        type: 'characters',
+        min_padding_length: 3,
       },
     },
   },
@@ -81,13 +100,19 @@ local task_nn = {
         log_key: 'loss',
         constituent_losses: [
           {
+            type: 'sequence-tagging-score-loss', // jy: fix here.. 
+            log_key: 'neg.nce_score',
+            normalize_y: true,
+            reduction: 'none',
+          },  //This loss can be different from the main loss // change this
+          {
             type: 'sequence-tagging-masked-cross-entropy',
             log_key: 'ce',
             reduction: 'none',
             normalize_y: false,
           },
         ],
-        loss_weights: [cross_entropy_loss_weight],
+        loss_weights: [dvn_score_loss_weight, cross_entropy_loss_weight],
         reduction: 'mean',
       },
     },
@@ -96,17 +121,16 @@ local task_nn = {
       type: 'sequence-tagging',
       task_nn: task_nn,
       global_score: {
-        type: 'linear-chain',
-        num_tags: num_labels,
+        type: 'linear-chain', //type: 'linear-chain', 
+        num_tags: num_labels, 
       },
     },
     loss_fn: {
-      type: 'sequence-tagging-margin-based',
+      type: 'seqtag-nce-ranking-with-discrete-sampling', 
       reduction: 'mean',
-      oracle_cost_weight: 1.0,
-      perceptron_loss_weight: inference_score_weight,
-      log_key: 'margin_loss'
-},
+      log_key: 'seq_nce_loss',
+      num_samples: 10,
+    },
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
@@ -118,7 +142,7 @@ local task_nn = {
   data_loader: {
     batch_sampler: {
       type: 'bucket',  // bucket is only good for tasks that involve seq
-      batch_size: 16,
+      batch_size: 32,
     },
   },
   trainer: {
@@ -145,6 +169,11 @@ local task_nn = {
             weight_decay: ff_weight_decay,
             type: 'adamw',
           },
+        score_nn: {
+          lr: 0.00001,
+          weight_decay: ff_weight_decay,
+          type: 'adamw',
+        },
       },
     },
     checkpointer: {
@@ -164,6 +193,6 @@ local task_nn = {
       else []
     ),
     inner_mode: 'score_nn',
-    num_steps: { task_nn: 1, score_nn: 1 },
+    num_steps: { task_nn: 1, score_nn: score_nn_steps },
   },
 }

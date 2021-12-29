@@ -3,7 +3,11 @@ local data_dir = std.extVar('DATA_DIR');
 local cuda_device = std.extVar('CUDA_DEVICE');
 local use_wandb = (if test == '1' then false else true);
 
-local dataset_name = 'bgc';
+local dataset_name = 'rcv1';
+// local dataset_name = std.parseJson(std.extVar('dataset_name')); 
+local data_reader_name = (if std.toString(dataset_name) == 'nyt10' then 'nyt' else dataset_name); // nyt10 or bgc
+local data_reader_name = (if std.toString(dataset_name) == 'rcv1' then 'rcv' else data_reader_name); // nyt10 or rcv1
+
 local dataset_metadata = (import '../datasets.jsonnet')[dataset_name];
 local num_labels = dataset_metadata.num_labels;
 local num_input_features = dataset_metadata.input_features;
@@ -27,10 +31,7 @@ local score_nn_dropout = dropout;
 local task_nn_dropout = dropout;
 local task_nn_weight_decay = weight_decay;
 local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
-local score_loss_weight = std.parseJson(std.extVar('score_loss_weight'));
-
-
-
+local inference_score_weight = std.parseJson(std.extVar('inference_score_weight'));
 
 
 local feature_network = {
@@ -74,6 +75,7 @@ local feature_network = {
       model_name: transformer_model,
       max_length: 512,
     },
+
   },
   train_data_path: (data_dir + '/' + dataset_metadata.dir_name + '/' +
                     dataset_metadata.train_file),
@@ -81,6 +83,7 @@ local feature_network = {
                          dataset_metadata.validation_file),
   test_data_path: (data_dir + '/' + dataset_metadata.dir_name + '/' +
                    dataset_metadata.test_file),
+
 vocabulary: {
         type: 'from_files',
         directory: data_dir + '/' + dataset_metadata.dir_name + '/' + 'bert_vocab'
@@ -104,17 +107,28 @@ vocabulary: {
       },
     },
     inference_module: {
-      type: 'multi-label-basic',
+      type: 'multi-label-inference-net-normalized',
       log_key: 'inference_module',
+      cost_augmented_layer: {
+        type: 'multi-label-stacked',
+        feedforward: {
+          input_dim: 2 * num_labels,
+          num_layers: 2,
+          activations: [ff_activation, 'linear'],
+          hidden_dims: num_labels,
+        },
+        normalize_y: true,
+      },
       loss_fn: {
         type: 'combination-loss',
         log_key: 'loss',
         constituent_losses: [
           {
-            type: 'multi-label-score-loss',
-            log_key: 'neg_nce_score',
+            type: 'multi-label-inference',
+            log_key: 'neg_inference',
             normalize_y: true,
             reduction: 'none',
+            inference_score_weight: inference_score_weight,
           },  //This loss can be different from the main loss // change this
           {
             type: 'multi-label-bce',
@@ -122,11 +136,14 @@ vocabulary: {
             log_key: 'bce',
           },
         ],
-        loss_weights: [score_loss_weight, cross_entropy_loss_weight],
+        loss_weights: [1.0, cross_entropy_loss_weight],
         reduction: 'mean',
       },
+    },    
+    oracle_value_function: {
+      type: 'manhattan',
+      differentiable: true,
     },
-    oracle_value_function: { type: 'per-instance-f1', differentiable: false },
     score_nn: {
       type: 'multi-label-classification',
       task_nn: {
@@ -148,10 +165,11 @@ vocabulary: {
       },
     },
     loss_fn: {
-      type: 'multi-label-nce-ranking-with-discrete-sampling',
-      log_key: 'nce',
-      num_samples: 100,
-      sign: '-',
+      type: 'multi-label-margin-based',
+      oracle_cost_weight: 1.0,
+      perceptron_loss_weight: inference_score_weight,
+      reduction: 'mean',
+      log_key: 'margin_loss',
     },
     initializer: {
       regexes: [
