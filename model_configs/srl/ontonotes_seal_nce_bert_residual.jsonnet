@@ -102,7 +102,7 @@ local task_nn = {
       type: 'seqtag-nce-ranking-with-discrete-sampling',
       reduction: 'mean',
       log_key: 'seq_nce_loss',
-      num_samples: 10,
+      num_samples: 100,
     },
     initializer: {
       regexes: [
@@ -115,7 +115,7 @@ local task_nn = {
   data_loader: {
     batch_sampler: {
       type: 'bucket',
-      batch_size: 32,  // effective batch size = batch_size*num_gradient_accumulation_steps
+      batch_size: 16,  // effective batch size = batch_size*num_gradient_accumulation_steps
       sorting_keys: ['tokens'],
     },
     //max_instances_in_memory: if test == '1' then 10 else 1000,
@@ -123,6 +123,7 @@ local task_nn = {
   trainer: {
     type: 'gradient_descent_minimax',
     num_epochs: if test == '1' then 10 else 25,
+    num_gradient_accumulation_steps: 2,
     grad_norm: { task_nn: 1.0 },
     patience: 4,
     validation_metric: '+f1-measure-overall',
