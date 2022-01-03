@@ -33,7 +33,87 @@ from allennlp_models.structured_prediction.metrics.srl_eval_scorer import (
 logger = logging.getLogger(__name__)
 
 
+@Model.register(
+    "seal-seq-tag",
+    constructor="from_partial_objects_with_shared_tasknn",
+)
 class SequenceTaggingModel(ScoreBasedLearningModel):
+
+    def __init__(
+        self,
+        vocab: Vocabulary,
+        sampler: Sampler,
+        loss_fn: Loss,
+        label_namespace: str = "labels",
+        **kwargs: Any,
+    ):
+        super().__init__(vocab, sampler, loss_fn, **kwargs)
+        self.num_tags = self.vocab.get_vocab_size(label_namespace)
+        self.label_namespace = label_namespace
+        self.instantiate_metrics()
+
+    def instantiate_metrics(self) -> None:
+        self._accuracy = CategoricalAccuracy()
+
+    @overrides
+    def convert_to_one_hot(self, labels: torch.Tensor) -> torch.Tensor:
+        """Converts sequence labels from indices to one hot by adding a trailing dimension"""
+        labels = F.one_hot(labels, num_classes=self.num_tags)
+
+        return labels
+
+    @overrides
+    def unsqueeze_labels(self, labels: torch.Tensor) -> torch.Tensor:
+        """Unsqueeze to get the samples dimension"""
+
+        return labels.unsqueeze(1)
+
+    @overrides
+    def squeeze_y(self, y: torch.Tensor) -> torch.Tensor:
+        """Squeeze the samples dimension"""
+
+        return y.squeeze(1)
+
+    @overrides
+    def construct_args_for_forward(self, **kwargs: Any) -> Dict:
+        _forward_args = {}
+        _forward_args["buffer"] = self.initialize_buffer(**kwargs)
+        _forward_args["x"] = kwargs.pop("tokens")
+        _forward_args["buffer"]["mask"] = util.get_text_field_mask(
+            _forward_args["x"]
+        )
+        _forward_args["labels"] = kwargs.pop("tags")
+
+        return {**_forward_args, **kwargs}
+
+    @overrides
+    def calculate_metrics(  # type: ignore
+        self,
+        x: Any,
+        labels: torch.Tensor,
+        y_hat: torch.Tensor,
+        buffer: Dict,
+        results: Dict,
+        **kwargs: Any,
+    ) -> None:
+        # y_hat: (batch, seq_len, num_labels)
+        # labels: (batch, seq_len, num_labels) ie one-hot
+        # mask: (batch, seq_len)
+        mask = buffer.get("mask")
+        assert mask is not None
+
+        labels_indices = torch.argmax(
+            labels, dim=-1
+        )  # because the labels here will be one-hot but metric requires indices.
+        self._accuracy(y_hat, labels_indices, mask)
+
+    def get_metrics(self, reset: bool = False) -> Dict[str, float]:
+        metrics = {"accuracy": self._accuracy.get_metric(reset=reset)}
+
+        return metrics
+
+
+class ConstrainedSequenceTaggingModel(ScoreBasedLearningModel):
     """Abstract base class for tagging tasks like NER and SRL"""
 
     def __init__(
@@ -290,7 +370,7 @@ class SequenceTaggingModel(ScoreBasedLearningModel):
     "ner-seperate-inference-and-training-network",
     constructor="from_partial_objects",
 )
-class NERModel(SequenceTaggingModel):
+class NERModel(ConstrainedSequenceTaggingModel):
     @overrides
     def instantiate_metrics(self) -> None:
         self._f1_metric = SpanBasedF1Measure(
@@ -373,7 +453,7 @@ class NERModel(SequenceTaggingModel):
     "srl-seperate-inference-and-training-network",
     constructor="from_partial_objects",
 )
-class SRLModel(SequenceTaggingModel):
+class SRLModel(ConstrainedSequenceTaggingModel):
     def __init__(
         self,
         srl_eval_path: Optional[str] = DEFAULT_SRL_EVAL_PATH,
@@ -496,83 +576,3 @@ class SRLModel(SequenceTaggingModel):
         # we only really care about the overall metrics, so we filter for them here.
 
         return {x: y for x, y in metric_dict.items() if "overall" in x}
-
-
-@Model.register(
-    "seal-ccgbank",
-    constructor="from_partial_objects_with_shared_tasknn",
-)
-class CCGBankModel(ScoreBasedLearningModel):
-
-    def __init__(
-        self,
-        vocab: Vocabulary,
-        sampler: Sampler,
-        loss_fn: Loss,
-        label_namespace: str = "labels",
-        **kwargs: Any,
-    ):
-        super().__init__(vocab, sampler, loss_fn, **kwargs)
-        self.num_tags = self.vocab.get_vocab_size(label_namespace)
-        self.label_namespace = label_namespace
-        self.instantiate_metrics()
-
-    def instantiate_metrics(self) -> None:
-        self._accuracy = CategoricalAccuracy()
-
-    @overrides
-    def convert_to_one_hot(self, labels: torch.Tensor) -> torch.Tensor:
-        """Converts sequence labels from indices to one hot by adding a trailing dimension"""
-        labels = F.one_hot(labels, num_classes=self.num_tags)
-
-        return labels
-
-    @overrides
-    def unsqueeze_labels(self, labels: torch.Tensor) -> torch.Tensor:
-        """Unsqueeze to get the samples dimension"""
-
-        return labels.unsqueeze(1)
-
-    @overrides
-    def squeeze_y(self, y: torch.Tensor) -> torch.Tensor:
-        """Squeeze the samples dimension"""
-
-        return y.squeeze(1)
-
-    @overrides
-    def construct_args_for_forward(self, **kwargs: Any) -> Dict:
-        _forward_args = {}
-        _forward_args["buffer"] = self.initialize_buffer(**kwargs)
-        _forward_args["x"] = kwargs.pop("tokens")
-        _forward_args["buffer"]["mask"] = util.get_text_field_mask(
-            _forward_args["x"]
-        )
-        _forward_args["labels"] = kwargs.pop("tags")
-
-        return {**_forward_args, **kwargs}
-
-    @overrides
-    def calculate_metrics(  # type: ignore
-        self,
-        x: Any,
-        labels: torch.Tensor,
-        y_hat: torch.Tensor,
-        buffer: Dict,
-        results: Dict,
-        **kwargs: Any,
-    ) -> None:
-        # y_hat: (batch, seq_len, num_labels)
-        # labels: (batch, seq_len, num_labels) ie one-hot
-        # mask: (batch, seq_len)
-        mask = buffer.get("mask")
-        assert mask is not None
-
-        labels_indices = torch.argmax(
-            labels, dim=-1
-        )  # because the labels here will be one-hot but metric requires indices.
-        self._accuracy(y_hat, labels_indices, mask)
-
-    def get_metrics(self, reset: bool = False) -> Dict[str, float]:
-        metrics = {"accuracy": self._accuracy.get_metric(reset=reset)}
-
-        return metrics

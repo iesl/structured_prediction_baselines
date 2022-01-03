@@ -7,6 +7,7 @@ local data_dir = '/mnt/nfs/work1/mccallum/LDCdata/CCGBank/ccgbank_1_1/data/AUTO'
 local train_data_path = data_dir + '/ccgbank_train.auto'; // Section 02-21
 local validation_data_path = data_dir + '/ccgbank_dev.auto'; // Section 00
 local test_data_path = data_dir + '/ccgbank_test.auto'; // Section 23
+local vocab_dir = '/mnt/nfs/scratch1/wenlongzhao/SEAL/structured_prediction_baselines/data/CCGBank/bert_vocab';
 // Model
 local transformer_model = 'bert-base-uncased';
 local max_length = 512;
@@ -17,16 +18,17 @@ local task_nn = {
   text_field_embedder: {
     token_embedders: {
       transformer_indexer: { // name of the indexer
-        type: 'pretrained_transformer_mismatched',
+        type: 'pretrained_transformer_mismatched', // 'pretrained_transformer_mismatched_with_adapter'
         model_name: transformer_model,
         max_length: max_length,
+        sub_token_mode: 'avg', // set to 'first' to use the first subtoken representation
       },
     },
   },
 };
 // Training
-local weight_decay = std.parseJson(std.extVar('weight_decay')); // TODO
-local tasknn_lr = std.parseJson(std.extVar('tasknn_lr')); // TODO
+local weight_decay = std.parseJson(std.extVar('weight_decay'));
+local tasknn_lr = std.parseJson(std.extVar('tasknn_lr'));
 
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
@@ -35,12 +37,14 @@ local tasknn_lr = std.parseJson(std.extVar('tasknn_lr')); // TODO
   train_data_path: train_data_path,
   validation_data_path: validation_data_path,
   test_data_path: test_data_path,
-  // vocabulary: { // TODO
-  //   type: 'from_files',
-  //   directory: data_dir + '/' + dataset_metadata.dir_name + '/' + 'bert_vocab',
-  // },
+  vocabulary: {
+    type: 'from_files',
+    directory: vocab_dir,
+  },
   dataset_reader: {
     type: 'ccgbank',
+    tag_label: 'ccg',
+    // coding_scheme: 'BIOUL'
     token_indexers: {
       transformer_indexer: {
         type: 'pretrained_transformer_mismatched',
@@ -48,7 +52,6 @@ local tasknn_lr = std.parseJson(std.extVar('tasknn_lr')); // TODO
         max_length: max_length,
       },
     },
-    tag_label: 'ccg',
   },
   data_loader: {
     batch_sampler: {
@@ -61,8 +64,9 @@ local tasknn_lr = std.parseJson(std.extVar('tasknn_lr')); // TODO
     // start_method: 'spawn',
   },
 
-  model: { // TODO
-    type: 'seal-ccgbank',
+  model: {
+    type: 'seal-seq-tag',
+    // label_encoding: 'BIOUL',
     task_nn: task_nn,
     // sampler: {
     //   type: 'appending-container',
@@ -70,7 +74,7 @@ local tasknn_lr = std.parseJson(std.extVar('tasknn_lr')); // TODO
     //   constituent_samplers: [],
     // },
     inference_module: {
-      type: 'sequence-tagging-inference-net-normalized',
+      type: 'sequence-tagging-inference-net-normalized', // didn't use
       log_key: 'inference_module',
       loss_fn: {
         type: 'sequence-tagging-masked-cross-entropy',
@@ -138,6 +142,7 @@ local tasknn_lr = std.parseJson(std.extVar('tasknn_lr')); // TODO
           sub_callbacks: [{ type: 'log_best_validation_metrics', priority: 100 }],
           save_model_archive: false,
           watch_model: false,
+          should_log_parameter_statistics: false,
         },
       ]
       else []

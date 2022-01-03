@@ -7,9 +7,15 @@ local data_dir = '/mnt/nfs/work1/mccallum/LDCdata/CCGBank/ccgbank_1_1/data/AUTO'
 local train_data_path = data_dir + '/ccgbank_train.auto'; // Section 02-21
 local validation_data_path = data_dir + '/ccgbank_dev.auto'; // Section 00
 local test_data_path = data_dir + '/ccgbank_test.auto'; // Section 23
+local vocab_dir = '/mnt/nfs/scratch1/wenlongzhao/SEAL/structured_prediction_baselines/data/CCGBank/bert_vocab';
 // Model
+local num_labels = 1323;
 local transformer_model = 'bert-base-uncased';
 local max_length = 512;
+local attention_dim = std.parseJson(std.extVar('attention_dim'));
+local attention_dropout = std.parseJson(std.extVar('attention_dropout_10x'))/10.0;
+local cross_entropy_loss_weight = 1;
+local score_loss_weight = std.parseJson(std.extVar('score_loss_weight'));
 local ff_activation = 'softplus';
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local task_nn = {
@@ -17,16 +23,17 @@ local task_nn = {
   text_field_embedder: {
     token_embedders: {
       transformer_indexer: { // name of the indexer
-        type: 'pretrained_transformer_mismatched_with_adapter',
+        type: 'pretrained_transformer_mismatched', // 'pretrained_transformer_mismatched_with_adapter'
         model_name: transformer_model,
         max_length: max_length,
+        sub_token_mode: 'avg', // set to 'first' to use the first subtoken representation
       },
     },
   },
 };
 // Training
-local weight_decay = std.parseJson(std.extVar('weight_decay')); // TODO
-local tasknn_lr = std.parseJson(std.extVar('tasknn_lr')); // TODO
+local weight_decay = std.parseJson(std.extVar('weight_decay'));
+local tasknn_lr = std.parseJson(std.extVar('tasknn_lr'));
 
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
@@ -35,12 +42,14 @@ local tasknn_lr = std.parseJson(std.extVar('tasknn_lr')); // TODO
   train_data_path: train_data_path,
   validation_data_path: validation_data_path,
   test_data_path: test_data_path,
-  // vocabulary: { // TODO
-  //   type: 'from_files',
-  //   directory: data_dir + '/' + dataset_metadata.dir_name + '/' + 'bert_vocab',
-  // },
+  vocabulary: {
+    type: 'from_files',
+    directory: vocab_dir,
+  },
   dataset_reader: {
     type: 'ccgbank',
+    tag_label: 'ccg',
+    // coding_scheme: 'BIOUL'
     token_indexers: {
       transformer_indexer: {
         type: 'pretrained_transformer_mismatched',
@@ -48,41 +57,68 @@ local tasknn_lr = std.parseJson(std.extVar('tasknn_lr')); // TODO
         max_length: max_length,
       },
     },
-    tag_label: 'ccg',
   },
   data_loader: {
     batch_sampler: {
       type: 'bucket', // bucket is only good for tasks that involve seq
-      batch_size: 16, // effective batch size = batch_size*num_gradient_accumulation_steps
+      batch_size: 32, // effective batch size = batch_size*num_gradient_accumulation_steps
       sorting_keys: ['tokens'],
     },
-    num_workers: 5,
-    max_instances_in_memory: if test == '1' then 10 else 1000,
-    start_method: 'spawn',
+    // num_workers: 5,
+    // max_instances_in_memory: if test == '1' then 10 else 1000,
+    // start_method: 'spawn',
   },
 
-  model: { // TODO
-    type: 'seal-ccgbank',
+  model: {
+    type: 'seal-seq-tag',
+    // label_encoding: 'BIOUL',
     task_nn: task_nn,
-    // sampler: {
-    //   type: 'appending-container',
-    //   log_key: 'sampler',
-    //   constituent_samplers: [],
-    // },
+    sampler: {
+      type: 'appending-container',
+      log_key: 'sampler',
+      constituent_samplers: [],
+    },
     inference_module: {
-      type: 'sequence-tagging-inference-net-normalized',
+      type: 'sequence-tagging-inference-net-normalized', // didn't use
       log_key: 'inference_module',
       loss_fn: {
-        type: 'sequence-tagging-masked-cross-entropy',
-        log_key: 'ce',
-        reduction: 'mean',  // mean will work fine because seq-tagging-masked-ce will take care of masking
-        normalize_y: false,  // don't normalize because ce requires logits
+        type: 'combination-loss',
+        log_key: 'loss',
+        constituent_losses: [
+          {
+            type: 'sequence-tagging-score-loss', // jy: fix here..
+            log_key: 'neg.nce_score',
+            normalize_y: true,
+            reduction: 'none',
+          },  //This loss can be different from the main loss // change this
+          {
+            type: 'sequence-tagging-masked-cross-entropy',
+            log_key: 'ce',
+            reduction: 'none',
+            normalize_y: false,
+          },
+        ],
+        loss_weights: [score_loss_weight, cross_entropy_loss_weight],
+        reduction: 'mean',
       },
     },
-    // oracle_value_function: {},
-    // score_nn: {},
+    oracle_value_function: { type: 'manhattan', differentiable: true},
+    score_nn: {
+      type: 'sequence-tagging',
+      task_nn: task_nn,
+      global_score: {
+        type: 'self-attention-full-sequence',
+        num_heads: 1,
+        num_tags: num_labels,
+        attention_dim: attention_dim,
+        dropout: attention_dropout,
+      },
+    },
     loss_fn: {
-      type: 'zero',
+      type: 'seqtag-nce-ranking-with-discrete-sampling',
+      reduction: 'mean',
+      log_key: 'seq_nce_loss',
+      num_samples: 10,
     },
     initializer: {
       regexes: [
@@ -112,6 +148,11 @@ local tasknn_lr = std.parseJson(std.extVar('tasknn_lr')); // TODO
             weight_decay: weight_decay,
             type: 'huggingface_adamw',
           },
+        score_nn: {
+          lr: 0.00001,
+          weight_decay: weight_decay,
+          type: 'adamw',
+        },
       },
     },
     learning_rate_schedulers: {
@@ -138,6 +179,7 @@ local tasknn_lr = std.parseJson(std.extVar('tasknn_lr')); // TODO
           sub_callbacks: [{ type: 'log_best_validation_metrics', priority: 100 }],
           save_model_archive: false,
           watch_model: false,
+          should_log_parameter_statistics: false,
         },
       ]
       else []

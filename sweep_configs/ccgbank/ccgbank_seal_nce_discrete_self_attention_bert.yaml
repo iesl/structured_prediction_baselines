@@ -1,0 +1,55 @@
+name: ccgbank_seal_nce_discrete_self_attention_bert
+program: allennlp
+command:
+- ${program}
+- train-with-wandb
+- model_configs/ccgbank/ccgbank_seal_nce_discrete_self_attention_bert.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb-entity=score-based-learning
+- --wandb-project=seq-tag
+- --wandb-tags=task@supertag,dataset@ccgbank
+- ${args}
+- --file-friendly-logging
+description: Train tasknn using cross-entropy and energy.
+  The score-nn will be trained using NCE.
+  The samples are taken as discrete samples from the tasknn output.
+method: grid
+metric:
+  goal: maximize
+  name: validation/best_accuracy
+parameters:
+  data_loader.batch_sampler.batch_size:
+    value: 16
+  env.attention_dim:
+    values:
+    - 128
+    - 256
+  env.attention_dropout_10x:
+    values:
+    - 1
+    - 5
+  env.score_loss_weight:
+    values:
+    - 0.5
+    - 0.1
+    - 1
+    - 5
+  model.loss_fn.num_samples:
+    values:
+    - 100
+    - 200
+  trainer.optimizer.optimizers.score_nn.lr:
+    values:
+    - 1e-04
+    - 5e-05
+    - 1e-05
+  env.tasknn_lr:
+    values:
+    - 1e-04
+    - 5e-05
+    - 1e-05
+  env.weight_decay:
+    values:
+    - 1e-03
+    - 1e-04
+    - 1e-05
