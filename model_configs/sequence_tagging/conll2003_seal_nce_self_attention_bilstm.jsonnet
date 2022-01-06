@@ -18,12 +18,15 @@ local ff_activation = 'softplus';
 //local ff_activation = 'softplus';
 //local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
 local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
-local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'));
+local score_loss_weight = std.parseJson(std.extVar('score_loss_weight'));
 local attention_dim = std.parseJson(std.extVar('attention_dim'));
 local ff_weight_decay = 0.0001; //std.parseJson(std.extVar('ff_weight_decay'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local score_temp = std.parseJson(std.extVar('score_nn_steps')); # variable for score_nn.steps
 local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_temp);
+local scorenn_lr = std.parseJson(std.extVar('scorenn_lr'));
+local tasknn_lr = std.parseJson(std.extVar('tasknn_lr'));
+
 local task_nn = {
   type: 'sequence-tagging',
   text_field_embedder: {
@@ -113,7 +116,7 @@ local task_nn = {
             normalize_y: false,
           },
         ],
-        loss_weights: [dvn_score_loss_weight, cross_entropy_loss_weight],
+        loss_weights: [score_loss_weight, cross_entropy_loss_weight],
         reduction: 'mean',
       },
     },
@@ -169,12 +172,12 @@ local task_nn = {
       optimizers: {
         task_nn:
           {
-            lr: 0.00001,
+            lr: tasknn_lr,
             weight_decay: ff_weight_decay,
             type: 'adamw',
           },
         score_nn: {
-          lr: 0.00001,
+          lr: scorenn_lr,
           weight_decay: ff_weight_decay,
           type: 'adamw',
         },
