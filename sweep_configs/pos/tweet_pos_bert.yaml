@@ -1,0 +1,30 @@
+name: bs32_tweet_pos_bert
+program: allennlp
+command:
+- ${program}
+- train-with-wandb
+- model_configs/pos/tweet_pos_bert.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb-entity=score-based-learning
+- --wandb-project=seq-tag
+- --wandb-tags=task@pos,dataset@tweet
+- ${args}
+- --file-friendly-logging
+description: Train tasknn using cross-entropy.
+method: grid
+metric:
+  goal: maximize
+  name: validation/best_accuracy
+parameters:
+  data_loader.batch_sampler.batch_size:
+    value: 32
+  env.tasknn_lr:
+    values:
+    - 1e-04
+    - 5e-05
+    - 1e-05
+  env.weight_decay:
+    values:
+    - 1e-03
+    - 1e-04
+    - 1e-05
