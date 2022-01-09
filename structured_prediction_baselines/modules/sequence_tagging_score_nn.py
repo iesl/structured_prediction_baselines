@@ -25,10 +25,14 @@ class SequenceTaggingScoreNN(ScoreNN):
         #         x, buffer
         #     )  # (batch, ...) of unormalized logits
         #     buffer["y_local"] = y_local
-
-        y_local = self.task_nn(
-            x, buffer
-        )  # (batch, ...) of unormalized logits
+        if self.tag_projection_layer:
+            y_local = self.tag_projection_layer(
+                self.task_nn(x, buffer)
+            )  # (batch, ...) of unormalized logits
+        else:
+            y_local = self.task_nn(
+                x, buffer
+            )  # (batch, ...) of unormalized logits
 
         mask = buffer.get("mask")
         mask = mask.unsqueeze(1)
