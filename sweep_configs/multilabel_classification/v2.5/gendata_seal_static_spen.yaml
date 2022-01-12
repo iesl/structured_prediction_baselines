@@ -21,7 +21,7 @@ parameters:
   env.dataset_name:
     value: '[data_name]'
   env.scorenn_path:
-    value: '/mnt/nfs/work1/mccallum/scorenn/best_models/spen_energy_model_wts/[data_name]_spen'
+    value: '/mnt/nfs/work1/mccallum/scorenn/best_models/spen_energy_model_wts/[data_name]_spen/best.th'
   env.dvn_score_loss_weight:
     value: 1
   env.cross_entropy_loss_weight:
