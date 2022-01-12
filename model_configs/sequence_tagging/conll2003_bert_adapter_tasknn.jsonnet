@@ -8,38 +8,23 @@ local dataset_metadata = (import 'datasets.jsonnet')[dataset_name];
 local num_labels = dataset_metadata.num_labels;
 local transformer_model = 'bert-base-uncased';
 local transformer_hidden_dim = 768;
-local max_length = 256;
+local max_length = 512;
 
-local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
-local label_space_dim = ff_hidden;
-local ff_dropout = std.parseJson(std.extVar('ff_dropout_10x'))/10.0;
-//local ff_activation = std.parseJson(std.extVar('ff_activation'));
 local ff_activation = 'softplus';
-//local ff_activation = 'softplus';
-local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
-local inference_score_weight = 1; //std.parseJson(std.extVar('inference_score_weight'));
-local cross_entropy_loss_weight = 1; //std.parseJson(std.extVar('cross_entropy_loss_weight'));
-local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
+local weight_decay = std.parseJson(std.extVar('weight_decay'));
+local tasknn_lr = std.parseJson(std.extVar('tasknn_lr'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local task_nn = {
   type: 'sequence-tagging',
   text_field_embedder: {
     token_embedders: {
       tokens: {
-        type: 'pretrained_transformer_mismatched',
+        type: 'pretrained_transformer_mismatched_with_adapter',
         model_name: transformer_model,
         max_length: max_length,
       },
     },
   },
-  dropout: ff_dropout,
-  feedforward: {
-    input_dim: transformer_hidden_dim,
-    num_layers: ff_linear_layers,
-    activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + [ff_activation]),
-    hidden_dims: ff_hidden,
-    dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
-  }
 };
 
 {
@@ -63,50 +48,28 @@ local task_nn = {
                          dataset_metadata.validation_file),
   test_data_path: (data_dir + '/' + dataset_metadata.dir_name + '/' +
                    dataset_metadata.test_file),
+  vocabulary: {
+    type: 'from_files',
+    directory: data_dir + '/' + dataset_metadata.dir_name + '/' + 'bert_vocab',
+  },
   // Model
   model: {
     type: 'seal-ner',
     label_encoding: 'BIOUL',
-    sampler: {
-      type: 'appending-container',
-      log_key: 'sampler',
-      constituent_samplers: [],
-    },
     task_nn: task_nn,
     inference_module: {
       type: 'sequence-tagging-inference-net-normalized',
       log_key: 'inference_module',
       loss_fn: {
-        type: 'combination-loss',
-        log_key: 'loss',
-        constituent_losses: [
-          {
-            type: 'sequence-tagging-masked-cross-entropy',
-            log_key: 'ce',
-            reduction: 'none',
-            normalize_y: false,
-          },
-        ],
-        loss_weights: [cross_entropy_loss_weight],
-        reduction: 'mean',
-      },
-    },
-    oracle_value_function: { type: 'manhattan', differentiable: true},
-    score_nn: {
-      type: 'sequence-tagging',
-      task_nn: task_nn,
-      global_score: {
-        type: 'linear-chain',
-        num_tags: num_labels,
+        type: 'sequence-tagging-masked-cross-entropy',
+        log_key: 'ce',
+        reduction: 'mean',  // mean will work fine because seq-tagging-masked-ce will take care of masking
+        normalize_y: false,  // don't normalize because ce requires logits
       },
     },
     loss_fn: {
-      type: 'sequence-tagging-margin-based',
-      reduction: 'mean',
-      oracle_cost_weight: 1.0,
-      perceptron_loss_weight: inference_score_weight,
-      log_key: 'margin_loss'
-},
+      type: 'zero',  // there is no score_nn so we put a dummy zero loss
+    },
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
@@ -117,15 +80,19 @@ local task_nn = {
   },
   data_loader: {
     batch_sampler: {
-      type: 'bucket',  // bucket is only good for tasks that involve seq
-      batch_size: 16,
+      type: 'bucket',
+      batch_size: 16,  // effective batch size = batch_size*num_gradient_accumulation_steps
+      sorting_keys: ['tokens'],
     },
+    num_workers: 5,
+    max_instances_in_memory: if test == '1' then 10 else 1000,
+    start_method: 'spawn',
   },
   trainer: {
     type: 'gradient_descent_minimax',
-    num_epochs: if test == '1' then 10 else 300,
+    num_epochs: if test == '1' then 10 else 50,
     grad_norm: { task_nn: 1.0 },
-    patience: 20,
+    patience: 4,
     validation_metric: '+f1-measure-overall',
     cuda_device: std.parseInt(cuda_device),
     learning_rate_schedulers: {
@@ -133,7 +100,7 @@ local task_nn = {
         type: 'reduce_on_plateau',
         factor: 0.5,
         mode: 'max',
-        patience: 5,
+        patience: 2,
         verbose: true,
       },
     },
@@ -141,9 +108,9 @@ local task_nn = {
       optimizers: {
         task_nn:
           {
-            lr: 0.00001,
-            weight_decay: ff_weight_decay,
-            type: 'adamw',
+            lr: tasknn_lr,
+            weight_decay: weight_decay,
+            type: 'huggingface_adamw',
           },
       },
     },
@@ -159,6 +126,7 @@ local task_nn = {
           type: 'wandb_allennlp',
           sub_callbacks: [{ type: 'log_best_validation_metrics', priority: 100 }],
           save_model_archive: false,
+          watch_model: false,
         },
       ]
       else []

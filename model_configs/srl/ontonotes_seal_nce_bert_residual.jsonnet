@@ -3,59 +3,40 @@ local data_dir = std.extVar('DATA_DIR');
 local cuda_device = std.extVar('CUDA_DEVICE');
 local use_wandb = (if test == '1' then false else true);
 
-local dataset_name = 'conll2003ner';
+local dataset_name = 'ontonotes';
 local dataset_metadata = (import 'datasets.jsonnet')[dataset_name];
-local num_labels = dataset_metadata.num_labels;
+local num_labels = 130;
 local transformer_model = 'bert-base-uncased';
 local transformer_hidden_dim = 768;
-local max_length = 256;
+//local max_length = 512;
 
-local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
-local label_space_dim = ff_hidden;
-local ff_dropout = std.parseJson(std.extVar('ff_dropout_10x'))/10.0;
-//local ff_activation = std.parseJson(std.extVar('ff_activation'));
+local attention_dropout = std.parseJson(std.extVar('attention_dropout_10x'))/10.0;
+local attention_dim = std.parseJson(std.extVar('attention_dim'));
 local ff_activation = 'softplus';
-//local ff_activation = 'softplus';
-local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
-local inference_score_weight = 1; //std.parseJson(std.extVar('inference_score_weight'));
-local cross_entropy_loss_weight = 1; //std.parseJson(std.extVar('cross_entropy_loss_weight'));
-local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
+local cross_entropy_loss_weight = 1;
+local score_loss_weight = std.parseJson(std.extVar('score_loss_weight'));
+local ff_weight_decay = std.parseJson(std.extVar('weight_decay'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local task_nn = {
   type: 'sequence-tagging',
   text_field_embedder: {
     token_embedders: {
       tokens: {
-        type: 'pretrained_transformer_mismatched',
+        type: 'pretrained_transformer',  // we don't use mismatched because that is what allennlp srl model does
         model_name: transformer_model,
-        max_length: max_length,
+        //max_length: max_length,
       },
     },
   },
-  dropout: ff_dropout,
-  feedforward: {
-    input_dim: transformer_hidden_dim,
-    num_layers: ff_linear_layers,
-    activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + [ff_activation]),
-    hidden_dims: ff_hidden,
-    dropout: ([ff_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
-  }
 };
 
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
   evaluate_on_test: true,
   dataset_reader: {
-    type: 'conll2003',
-    tag_label: 'ner',
-    coding_scheme: 'BIOUL',
-    token_indexers: {
-      tokens: {
-        type: 'pretrained_transformer_mismatched',
-        model_name: transformer_model,
-        max_length: max_length,
-      },
-    },
+    type: 'srl',
+    bert_model_name: transformer_model,
+    //[if test == '1' then 'max_instances']: 100,
   },
   train_data_path: (data_dir + '/' + dataset_metadata.dir_name + '/' +
                     dataset_metadata.train_file),
@@ -63,10 +44,16 @@ local task_nn = {
                          dataset_metadata.validation_file),
   test_data_path: (data_dir + '/' + dataset_metadata.dir_name + '/' +
                    dataset_metadata.test_file),
+  vocabulary: {
+    type: 'from_files',
+    directory: data_dir + '/' + dataset_metadata.dir_name + '/' + 'bert_vocab',
+  },
   // Model
   model: {
-    type: 'seal-ner',
-    label_encoding: 'BIOUL',
+    type: 'seal-srl',
+    label_encoding: 'BIO',
+    using_bert_encoder: true,
+    decode_on_wordpieces: true,
     sampler: {
       type: 'appending-container',
       log_key: 'sampler',
@@ -81,13 +68,19 @@ local task_nn = {
         log_key: 'loss',
         constituent_losses: [
           {
+            type: 'sequence-tagging-score-loss', // jy: fix here.. 
+            log_key: 'neg.nce_score',
+            normalize_y: true,
+            reduction: 'none',
+          },  //This loss can be different from the main loss // change this
+          {
             type: 'sequence-tagging-masked-cross-entropy',
             log_key: 'ce',
             reduction: 'none',
             normalize_y: false,
           },
         ],
-        loss_weights: [cross_entropy_loss_weight],
+        loss_weights: [score_loss_weight, cross_entropy_loss_weight],
         reduction: 'mean',
       },
     },
@@ -95,18 +88,22 @@ local task_nn = {
     score_nn: {
       type: 'sequence-tagging',
       task_nn: task_nn,
+      residual_x: true,
       global_score: {
-        type: 'linear-chain',
+        type: 'self-attention-full-sequence',
+        num_heads: 1,
         num_tags: num_labels,
+        input_dim: num_labels + transformer_hidden_dim,
+        attention_dim: attention_dim,
+        dropout: attention_dropout,
       },
     },
     loss_fn: {
-      type: 'sequence-tagging-margin-based',
+      type: 'seqtag-nce-ranking-with-discrete-sampling',
       reduction: 'mean',
-      oracle_cost_weight: 1.0,
-      perceptron_loss_weight: inference_score_weight,
-      log_key: 'margin_loss'
-},
+      log_key: 'seq_nce_loss',
+      num_samples: 100,
+    },
     initializer: {
       regexes: [
         //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
@@ -117,15 +114,18 @@ local task_nn = {
   },
   data_loader: {
     batch_sampler: {
-      type: 'bucket',  // bucket is only good for tasks that involve seq
-      batch_size: 16,
+      type: 'bucket',
+      batch_size: 16,  // effective batch size = batch_size*num_gradient_accumulation_steps
+      sorting_keys: ['tokens'],
     },
+    //max_instances_in_memory: if test == '1' then 10 else 1000,
   },
   trainer: {
     type: 'gradient_descent_minimax',
-    num_epochs: if test == '1' then 10 else 300,
+    num_epochs: if test == '1' then 10 else 25,
+    num_gradient_accumulation_steps: 2,
     grad_norm: { task_nn: 1.0 },
-    patience: 20,
+    patience: 4,
     validation_metric: '+f1-measure-overall',
     cuda_device: std.parseInt(cuda_device),
     learning_rate_schedulers: {
@@ -133,7 +133,7 @@ local task_nn = {
         type: 'reduce_on_plateau',
         factor: 0.5,
         mode: 'max',
-        patience: 5,
+        patience: 2,
         verbose: true,
       },
     },
@@ -143,8 +143,13 @@ local task_nn = {
           {
             lr: 0.00001,
             weight_decay: ff_weight_decay,
-            type: 'adamw',
+            type: 'huggingface_adamw',
           },
+        score_nn: {
+          lr: 0.00001,
+          weight_decay: ff_weight_decay,
+          type: 'adamw',
+        },
       },
     },
     checkpointer: {
@@ -157,8 +162,10 @@ local task_nn = {
       if use_wandb then [
         {
           type: 'wandb_allennlp',
+          should_log_parameter_statistics: false,
           sub_callbacks: [{ type: 'log_best_validation_metrics', priority: 100 }],
           save_model_archive: false,
+          watch_model: false,
         },
       ]
       else []
