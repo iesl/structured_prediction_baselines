@@ -32,16 +32,12 @@ from structured_prediction_baselines.modules.task_nn import (
 
 @Sampler.register("inference-network")
 class InferenceNetSampler(Sampler):
-    def mark_parameters_with_model_mode(self) -> None:
-        mode = ModelMode.UPDATE_TASK_NN
-
-        for param in self.inference_nn.parameters():
-            mode.mark_parameter_with_model_mode(param)
-
     def parameters_with_model_mode(
         self, mode: ModelMode
     ) -> Iterator[torch.nn.Parameter]:
         yield from self.inference_nn.parameters()
+        if self.cost_augmented_layer is not None:
+            yield from self.cost_augmented_layer.parameters()
 
     def __init__(
         self,
@@ -112,7 +108,7 @@ class InferenceNetSampler(Sampler):
     def _get_values(
         self,
         x: Any,
-        labels: Optional[torch.Tensor],
+        labels: Optional[torch.Tensor],  # (batch, ...)
         buffer: Dict,
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
@@ -128,7 +124,7 @@ class InferenceNetSampler(Sampler):
                 torch.cat(
                     (
                         y_inf.squeeze(1),
-                        labels.to(dtype=y_inf.dtype).squeeze(1),
+                        labels.to(dtype=y_inf.dtype),
                     ),
                     dim=-1,
                 ),
@@ -145,3 +141,5 @@ class InferenceNetSampler(Sampler):
 InferenceNetSampler.register("inference-network-unnormalized")(
     InferenceNetSampler
 )
+
+Sampler.register("inference-network-unnormalized")(InferenceNetSampler)

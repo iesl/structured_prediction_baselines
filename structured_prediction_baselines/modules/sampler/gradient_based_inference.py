@@ -429,7 +429,7 @@ class GradientBasedInferenceSampler(Sampler):
         buffer: Dict,
         init_samples: torch.tensor = None,
         **kwargs: Any,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
 
         if init_samples is not None:
             init = init_samples
@@ -467,21 +467,60 @@ class GradientBasedInferenceSampler(Sampler):
                 self.stopping_criteria,
                 self.output_space.projection_function_,
             )
+        loss_values_tensor = torch.tensor(loss_values)
 
         return (
             self.get_samples_from_trajectory(
                 trajectory, loss_values_tensors, loss_values
             ),  # (batch, num_samples, ...)
-            torch.tensor(loss_values),
+            None,
+            torch.mean(loss_values_tensor),
         )
 
 
 @Sampler.register(
-    "gradient-based-inference-dynamic-init", constructor="from_partial_objects"
+    "gradient-based-inference-tasknn-init", constructor="from_partial_objects"
 )
-class GradientBasedInferenceSamplerWithDynamicInit(
-    GradientBasedInferenceSampler
-):
+class GradientBasedInferenceWithTaskNNInitSampler(Sampler):
+    def __init__(
+        self,
+        inference_nn: TaskNN,
+        gbi_sampler: GradientBasedInferenceSampler,
+        score_nn: Optional[ScoreNN] = None,
+        oracle_value_function: Optional[OracleValueFunction] = None,
+        **kwargs: Any,
+    ):
+        super().__init__(
+            score_nn=score_nn,
+            oracle_value_function=oracle_value_function,
+            **kwargs
+        )
+        self.inference_nn = inference_nn
+        self.gbi_sampler = gbi_sampler
+        self._is_normalized = self.gbi_sampler.is_normalized
+        self.logging_children.append(self.gbi_sampler)
+
+    @classmethod
+    def from_partial_objects(
+        cls,
+        inference_nn: TaskNN,
+        gbi_sampler: Lazy[GradientBasedInferenceSampler],
+        score_nn: Optional[ScoreNN] = None,
+        oracle_value_function: Optional[OracleValueFunction] = None,
+        **kwargs: Any,
+    ) -> Sampler:
+        gbi_sampler_ = gbi_sampler.construct(
+            score_nn=score_nn, oracle_value_function=oracle_value_function
+        )
+
+        return cls(
+            inference_nn=inference_nn,
+            gbi_sampler=gbi_sampler_,
+            score_nn=score_nn,
+            oracle_value_function=oracle_value_function,
+            **kwargs,
+        )
+
     def forward(
         self,
         x: Any,
@@ -490,12 +529,17 @@ class GradientBasedInferenceSamplerWithDynamicInit(
         ],  #: If given will have shape (batch, ...)
         buffer: Dict,
         **kwargs: Any,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
-        if "init" not in kwargs:
-            raise ValueError(
-                "Expect 'init: torch.Tensor' to be passed for this sampler."
-            )
-        init_ = kwargs.pop("init")
-        init = self.get_initial_output(x, labels)
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
+        init = self.inference_nn(x, buffer).unsqueeze(
+            1
+        )
+        init = torch.sigmoid(init)
+        samples, _, loss = self.gbi_sampler(x, labels, buffer, init)
+        return samples, None, loss
 
-        pass
+    @property
+    def is_normalized(self) -> bool:
+        if self._is_normalized is not None:
+            return self._is_normalized
+        else:
+            raise RuntimeError("Cannot determine the value.")

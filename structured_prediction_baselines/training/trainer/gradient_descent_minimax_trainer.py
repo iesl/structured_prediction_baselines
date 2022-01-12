@@ -410,6 +410,7 @@ class GradientDescentMinimaxTrainer(Trainer):
         else:
             self._num_steps = {ModelMode(k): v for k, v in num_steps.items()}
         self.inner_mode: ModelMode = ModelMode(inner_mode)
+        self.exit_code = 0
 
     def num_steps(self, mode: ModelMode) -> int:
         return self._num_steps[mode]
@@ -491,7 +492,6 @@ class GradientDescentMinimaxTrainer(Trainer):
         with self.no_grad_for_other_mode(mode):
             output_dict = self.model(**batch, mode=mode)
         output_dict["mode"] = mode
-
         if for_training:
             if "loss" not in output_dict:
                 raise RuntimeError(
@@ -674,13 +674,15 @@ class GradientDescentMinimaxTrainer(Trainer):
             batch_group_inner_outputs = []
             batch_group_outer_outputs = []
 
-            assert len(batch_group) <= 1
             num_inner_steps = self.num_steps(self.inner_mode)
             num_outer_steps = self.num_steps(self.inner_mode.flip())
-
             for outer_step in range(num_outer_steps):
 
                 for inner_step in range(num_inner_steps):
+                    # Check if optmizer for this mode is present
+
+                    if self.inner_mode.value not in self.optimizer:
+                        break
                     # we need to zero_grad before each optimization step.
                     self.optimizer.zero_grad(
                         opt_key=self.inner_mode.value, set_to_none=True
@@ -697,6 +699,11 @@ class GradientDescentMinimaxTrainer(Trainer):
                     )  # log avg inner loss
                     train_inner_loss += batch_group_inner_loss
                 # outer step
+                # Check if optmizer for this mode is present
+
+                if self.inner_mode.flip().value not in self.optimizer:
+                    continue
+
                 self.optimizer.zero_grad(
                     opt_key=self.inner_mode.flip().value, set_to_none=True
                 )
@@ -923,6 +930,9 @@ class GradientDescentMinimaxTrainer(Trainer):
             metrics, epoch = self._try_train()
 
             return metrics
+        except:
+            self.exit_code = 1
+            raise # re-raise the exception
         finally:
             for callback in self._callbacks:
                 callback.on_end(

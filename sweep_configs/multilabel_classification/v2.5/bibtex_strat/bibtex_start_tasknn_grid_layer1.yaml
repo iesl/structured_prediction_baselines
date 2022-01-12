@@ -1,0 +1,42 @@
+name: bibtex_strat_tasknn
+description: "Train tasknn using cross-entropy only"
+program: allennlp
+command:
+- ${program}
+- train_with_wandb
+- model_configs/multilabel_classification/v2.5/gendata_tasknn.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb_tags="task=mlc,model=tasknn,sampler=none,dataset=bibtex_strat,inference_module=tasknn,sampler=none,ref=7tvr5xhg"
+- ${args}
+- --file-friendly-logging
+method: grid
+metric:
+  goal: maximize
+  name: "validation/best_fixed_f1"
+
+early_terminate:
+  type: hyperband
+  min_iter: 20
+
+parameters:
+  env.dataset_name:
+    value: 'bibtex_strat'
+  env.cross_entropy_loss_weight:
+    value: 1.0
+  env.ff_dropout_10x: 
+    value: 0
+  env.ff_hidden:
+    values: [200,300,400,500]
+  env.ff_linear_layers:
+    value: 1
+  env.ff_weight_decay:
+    value: 0.00001
+  trainer.optimizer.optimizers.task_nn.lr:
+    values: [0.01,0.005,0.0001]
+  # scoreNN not really used in this swep.
+  env.dvn_score_loss_weight:
+    value: 0.0
+  env.global_score_hidden_dim:
+    value: 200
+  trainer.optimizer.optimizers.score_nn.lr:
+    value: 0.001

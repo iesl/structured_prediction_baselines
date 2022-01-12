@@ -167,18 +167,16 @@ class MarginBasedLoss(Loss):
             labels is not None
         )  # if you call this loss, labels cannot be None
 
-        if y_cost_aug is None:
-            y_cost_aug = torch.zeros_like(y_hat)
-        elif self.normalize_y:  # y_cost_aug is not None
-            y_cost_aug = self.normalize(y_cost_aug)
-
-        if self.normalize_y:
-            y_hat = self.normalize(y_hat)
         ground_truth_score = self.score_nn(
             x, labels.to(dtype=y_hat.dtype), buffer
         )
         inference_score = self.score_nn(x, y_hat, buffer)
-        cost_aug_score = self.score_nn(x, y_cost_aug, buffer)
+
+        if y_cost_aug is None:
+            y_cost_aug = y_hat
+            cost_aug_score = torch.zeros_like(inference_score)
+        else:
+            cost_aug_score = self.score_nn(x, y_cost_aug, buffer)
 
         oracle_cost: torch.Tensor = self.oracle_value_function.compute_as_cost(
             labels, y_cost_aug, mask=buffer.get("mask")
@@ -239,15 +237,14 @@ class InferenceLoss(MarginBasedLoss):
         return loss_unreduced
 
 
-class InferenceScoreLoss(MarginBasedLoss):
+class StructuredSVMLoss(MarginBasedLoss):
     """
-    The class exclusively outputs score value (loss) for the given "y_hat" to train the parameters of the
-    task-nn in the inference net.
+        The class outputs structured SVM (SSVM) Loss
+        Equation 8 in "Structured Prediction Energy Networks".
     """
 
-    def __init__(self, inference_score_weight: float = 1.0, **kwargs: Any):
+    def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
-        self.inference_score_weight = inference_score_weight
 
     def _forward(
         self,
@@ -260,15 +257,19 @@ class InferenceScoreLoss(MarginBasedLoss):
         buffer: Dict,
         **kwargs: Any,
     ) -> torch.Tensor:
+        y_inf = y_hat
+        y_cost_aug = y_hat_extra
         assert buffer is not None
+        (
+            oracle_cost,
+            cost_augmented_inference_score,
+            inference_score,
+            ground_truth_score,
+        ) = self._get_values(x, labels, y_inf, y_cost_aug, buffer)
 
-        if self.normalize_y:
-            y_hat = self.normalize(y_hat)
-
-        # TODO: log inference score values
-        loss_unreduced = -self.inference_score_weight * self.score_nn(
-            x, y_hat, buffer
+        loss_unreduced = torch.relu(
+                oracle_cost * (1 / self.oracle_cost_weight)
+                - (ground_truth_score - inference_score)
         )
-        # the minus sign turns this into argmin objective
 
         return loss_unreduced

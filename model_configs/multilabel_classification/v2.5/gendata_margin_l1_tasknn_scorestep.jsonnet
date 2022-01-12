@@ -11,7 +11,7 @@ local num_input_features = dataset_metadata.input_features;
 // model variables
 local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
 local label_space_dim = ff_hidden;
-local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
+local ff_dropout = std.parseJson(std.extVar('ff_dropout_10x')) / 10.0;
 local ff_activation = 'softplus';
 local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
 local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
@@ -190,6 +190,7 @@ local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_tem
         {
           type: 'wandb_allennlp',
           sub_callbacks: [{ type: 'log_best_validation_metrics', priority: 100 }],
+          save_model_archive: false,
         },
       ]
       else []
