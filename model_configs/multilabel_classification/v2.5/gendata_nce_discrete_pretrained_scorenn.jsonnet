@@ -170,8 +170,10 @@ local scorenn_path = std.parseJson(std.extVar('scorenn_path'));
       if use_wandb then [
         {
           type: 'wandb_allennlp',
+          should_log_parameter_statistics: false,
           sub_callbacks: [{ type: 'log_best_validation_metrics', priority: 100 }],
           save_model_archive: false,
+          watch_model: false,
         },
       ]
       else []
