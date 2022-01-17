@@ -1,0 +1,45 @@
+name: test_tweet_pos_seal_nce_discrete_self_attention_bilstm
+program: allennlp
+command:
+- ${program}
+- train-with-wandb
+- model_configs/pos/tweet_pos_seal_nce_discrete_self_attention_bilstm.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb-entity=score-based-learning
+- --wandb-project=seq-tag
+- --wandb-tags=task@pos,dataset@tweet,tasknn@bilstm
+- ${args}
+- --file-friendly-logging
+description: Train tasknn using cross-entropy and energy.
+  The score-nn will be trained using NCE.
+  The samples are taken as discrete samples from the tasknn output.
+method: bayes
+metric:
+  goal: maximize
+  name: validation/best_accuracy
+parameters:
+  data_loader.batch_sampler.batch_size:
+    value: 32
+  env.attention_dim:
+    value: 250
+  env.attention_dropout_10x:
+    distribution: q_uniform
+    max: 5.49
+    min: 0.5
+  env.score_loss_weight:
+    distribution: log_uniform
+    max: 2.3
+    min: -6.9
+  model.loss_fn.num_samples:
+    distribution: constant
+    value: 600
+  trainer.optimizer.optimizers.score_nn.lr:
+    distribution: log_uniform
+    max: -4.5
+    min: -11.5
+  env.tasknn_lr:
+    distribution: log_uniform
+    max: -4.5
+    min: -12.5
+  env.weight_decay:
+    value: 1e-04

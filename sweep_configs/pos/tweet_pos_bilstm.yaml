@@ -1,0 +1,34 @@
+name: tweet_pos_bilstm
+program: allennlp
+command:
+- ${program}
+- train-with-wandb
+- model_configs/pos/tweet_pos_bilstm.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb-entity=score-based-learning
+- --wandb-project=seq-tag
+- --wandb-tags=task@pos,dataset@tweet,tasknn@bilstm
+- ${args}
+- --file-friendly-logging
+description: Train tasknn using cross-entropy.
+method: bayes
+metric:
+  goal: maximize
+  name: validation/best_accuracy
+parameters:
+  data_loader.batch_sampler.batch_size:
+    distribution: categorical
+    values:
+      - 32
+      - 64
+      - 100
+  env.tasknn_lr:
+    distribution: log_uniform
+    max: -4.5
+    min: -12.5
+  env.weight_decay:
+    distribution: categorical
+    values:
+    - 1e-03
+    - 1e-04
+    - 1e-05

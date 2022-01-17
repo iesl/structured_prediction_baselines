@@ -11,24 +11,19 @@ from allennlp.data.vocabulary import Vocabulary
 from allennlp.models import Model
 from allennlp.modules import TimeDistributed
 from allennlp.nn import RegularizerApplicator, InitializerApplicator, util
-from allennlp.nn.util import (
-    viterbi_decode,
-    get_lengths_from_binary_sequence_mask,
-)
-from allennlp.training.metrics import SpanBasedF1Measure, CategoricalAccuracy
-from allennlp.modules.conditional_random_field import allowed_transitions
+from allennlp.nn.util import viterbi_decode, get_lengths_from_binary_sequence_mask
 
+from allennlp.training.metrics import CategoricalAccuracy, FBetaMeasure, SpanBasedF1Measure
+from allennlp_models.structured_prediction.metrics.srl_eval_scorer import SrlEvalScorer, DEFAULT_SRL_EVAL_PATH
+from structured_prediction_baselines.metrics import SequenceExactMatch
+
+from allennlp.modules.conditional_random_field import allowed_transitions
 from structured_prediction_baselines.modules.loss import Loss
-from structured_prediction_baselines.modules.oracle_value_function import (
-    OracleValueFunction,
-)
+from structured_prediction_baselines.modules.oracle_value_function import OracleValueFunction
 from structured_prediction_baselines.modules.sampler import Sampler
 from structured_prediction_baselines.modules.score_nn import ScoreNN
 from .base import ScoreBasedLearningModel
-from allennlp_models.structured_prediction.metrics.srl_eval_scorer import (
-    SrlEvalScorer,
-    DEFAULT_SRL_EVAL_PATH,
-)
+
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +49,9 @@ class SequenceTaggingModel(ScoreBasedLearningModel):
 
     def instantiate_metrics(self) -> None:
         self._accuracy = CategoricalAccuracy()
+        self._token_per_tag_f1 = FBetaMeasure() if self.num_tags < 30 else None
+        self._token_f1 = FBetaMeasure(average='micro')
+        self._seq_exact_match = SequenceExactMatch()
 
     @overrides
     def convert_to_one_hot(self, labels: torch.Tensor) -> torch.Tensor:
@@ -106,9 +104,20 @@ class SequenceTaggingModel(ScoreBasedLearningModel):
             labels, dim=-1
         )  # because the labels here will be one-hot but metric requires indices.
         self._accuracy(y_hat, labels_indices, mask)
+        if self._token_per_tag_f1:
+            self._token_per_tag_f1(y_hat, labels_indices, mask)
+        self._token_f1(y_hat, labels_indices, mask)
+        self._seq_exact_match(y_hat, labels_indices, mask)
 
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
-        metrics = {"accuracy": self._accuracy.get_metric(reset=reset)}
+        metrics = self._token_f1.get_metric(reset=reset)
+        if self._token_per_tag_f1:
+            token_per_tag_f1 = self._token_per_tag_f1.get_metric(reset=reset)
+            for metric in token_per_tag_f1:
+                for i in range(len(token_per_tag_f1[metric])):
+                    metrics[f"tag_{i}_{metric}"] = token_per_tag_f1[metric][i]
+        metrics["accuracy"] = self._accuracy.get_metric(reset=reset)
+        metrics["seq_exact_match"] = self._seq_exact_match.get_metric(reset=reset)
 
         return metrics
 

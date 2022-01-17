@@ -20,3 +20,4 @@ from .multilabel_classification_ndcg import (
 from .multilabel_classification_rbo import (
     MultilabelClassificationRankBiasedOverlap
 )
+from .sequence_exact_match import SequenceExactMatch
