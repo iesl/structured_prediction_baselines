@@ -24,8 +24,8 @@ local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local score_temp = std.parseJson(std.extVar('score_nn_steps')); # variable for score_nn.steps
 local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_temp);
-local scorenn_lr = std.parseJson(std.extVar('scorenn_lr'));
-local tasknn_lr = std.parseJson(std.extVar('tasknn_lr'));
+local score_nn_lr = std.parseJson(std.extVar('score_nn_lr'));
+local task_nn_lr = std.parseJson(std.extVar('task_nn_lr'));
 
 local task_nn = {
   type: 'sequence-tagging',
@@ -184,12 +184,12 @@ local task_nn = {
       optimizers: {
         task_nn:
           {
-            lr: tasknn_lr,
+            lr: task_nn_lr,
             weight_decay: ff_weight_decay,
             type: 'adamw',
           },
         score_nn: {
-          lr: scorenn_lr,
+          lr: score_nn_lr,
           weight_decay: ff_weight_decay,
           type: 'adamw',
         },

@@ -30,7 +30,7 @@ parameters:
     distribution: log_uniform
     min: -12.5
     max: -4.5
-  env.score_nn.lr:
+  env.score_nn_lr:
     distribution: log_uniform
     min: -11.5
     max: -4.5
