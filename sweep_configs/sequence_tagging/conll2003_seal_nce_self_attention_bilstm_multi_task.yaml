@@ -3,7 +3,7 @@ program: allennlp
 command:
 - ${program}
 - train-with-wandb
-- model_configs/sequence_tagging/conll2003_seal_nce_self_attention_bilstm.jsonnet
+- model_configs/sequence_tagging/conll2003_seal_nce_self_attention_bilstm_multi_task.jsonnet
 - --include-package=structured_prediction_baselines
 - --wandb_tags="mode=multi_task,task=seqtag,model=nce,sampler=nce_discrete_samples,dataset=conll2003,inference_module=inference_net,inference_module=tasknn,structured_score=self_attention"
 - ${args}
