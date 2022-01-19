@@ -20,15 +20,17 @@ early_terminate:
 parameters:
   env.cross_entropy_loss_weight:
     value: 1.0
+  env.ff_weight_decay:
+    value: 1e-5
   env.score_loss_weight:
     distribution: log_uniform
     min: -6.9
     max: 2.3
-  trainer.optimizer.optimizers.task_nn.lr:
+  env.task_nn_lr:
     distribution: log_uniform
     min: -12.5
     max: -4.5
-  trainer.optimizer.optimizers.score_nn.lr:
+  env.score_nn.lr:
     distribution: log_uniform
     min: -11.5
     max: -4.5
