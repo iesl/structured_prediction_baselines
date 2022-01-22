@@ -1,4 +1,4 @@
-// Run Id: on1xrsr2
+// Run Id: lvkj2k2p
 
 {
     "dataset_reader": {
@@ -85,12 +85,12 @@
                         0.1,
                         0
                     ],
-                    "hidden_dims": 500,
+                    "hidden_dims": 400,
                     "input_dim": 500,
                     "num_layers": 2
                 },
                 "label_embeddings": {
-                    "embedding_dim": 500,
+                    "embedding_dim": 400,
                     "vocab_namespace": "labels"
                 }
             }
@@ -106,12 +106,12 @@
                     0.1,
                     0
                 ],
-                "hidden_dims": 500,
+                "hidden_dims": 400,
                 "input_dim": 500,
                 "num_layers": 2
             },
             "label_embeddings": {
-                "embedding_dim": 500,
+                "embedding_dim": 400,
                 "vocab_namespace": "labels"
             }
         }
@@ -165,7 +165,7 @@
                 },
                 "task_nn": {
                     "type": "adamw",
-                    "lr": 0.0032809112886852776,
+                    "lr": 0.0029213362747376455,
                     "weight_decay": 1e-05
                 }
             }
