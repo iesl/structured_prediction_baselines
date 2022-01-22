@@ -6,63 +6,7 @@
         "num_labels": 174
     },
     "model": {
-        "type": "multi-label-classification-with-infnet-and-scorenn-evaluation",
-        "evaluation_module": {
-            "type": "indexed-container",
-            "constituent_samplers": [
-                {
-                    "gradient_descent_loop": {
-                        "optimizer": {
-                            "lr": 0.1,
-                            "type": "sgd",
-                            "weight_decay": 0
-                        }
-                    },
-                    "log_key": "tasknn_gbi",
-                    "loss_fn": {
-                        "log_key": "neg.dvn_score",
-                        "reduction": "none",
-                        "type": "multi-label-dvn-score"
-                    },
-                    "output_space": {
-                        "default_value": 0,
-                        "num_labels": 174,
-                        "type": "multi-label-relaxed"
-                    },
-                    "sample_picker": {
-                        "type": "best"
-                    },
-                    "stopping_criteria": 20,
-                    "type": "gradient-based-inference"
-                },
-                {
-                    "gradient_descent_loop": {
-                        "optimizer": {
-                            "lr": 0.1,
-                            "type": "sgd",
-                            "weight_decay": 0
-                        }
-                    },
-                    "log_key": "random_gbi",
-                    "loss_fn": {
-                        "log_key": "neg.dvn_score",
-                        "reduction": "none",
-                        "type": "multi-label-dvn-score"
-                    },
-                    "output_space": {
-                        "default_value": 0,
-                        "num_labels": 174,
-                        "type": "multi-label-relaxed"
-                    },
-                    "sample_picker": {
-                        "type": "best"
-                    },
-                    "stopping_criteria": 20,
-                    "type": "gradient-based-inference"
-                }
-            ],
-            "log_key": "evaluation"
-        },
+        "type": "multi-label-classification-with-infnet",
         "inference_module": {
             "type": "multi-label-inference-net-normalized",
             "log_key": "inference_module",
