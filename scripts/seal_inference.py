@@ -28,13 +28,16 @@ parser.add_argument('--model_dir', type=str,
 parser.add_argument('--data_dir', type=str,
                     help='path to the directory containing the data directory which holds all the datasets', required=True)
 parser.add_argument('--output_file', type=str,
-                    help='file name will be appended with val and test and saved as csv files')
+                    help='file name will be appended with val and test and saved as csv files', required=True)
+parser.add_argument('--output_dir', type=str,
+                    help='path to the directory to save output files', required=True)
 
 args = parser.parse_args()
 
 data_dir = args.data_dir
-val_output_file_name = args.output_file + "_val.csv"
-test_output_file_name = args.output_file + "_test.csv"
+output_dir = args.output_dir
+val_output_file = output_dir + '/' + args.output_file + "_val.csv"
+test_output_file = output_dir + '/' + args.output_file + "_test.csv"
 model_dir = args.model_dir  # path to the directory containing config, model weights and vocab
 config_file = os.path.join(model_dir, "config.json")
 vocabulary_dir = os.path.join(model_dir, "vocabulary")
@@ -81,7 +84,7 @@ for batch in val_generator_tqdm:
         val_pred.append(batch_pred)
 
 val_pred = torch.cat(val_pred, dim=0)
-np.savetxt(val_output_file_name, val_pred.data.cpu().numpy())
+np.savetxt(val_output_file, val_pred.data.cpu().numpy())
 
 test_generator_tqdm = Tqdm.tqdm(test_data_loader)
 test_pred = []
@@ -93,4 +96,4 @@ for batch in test_generator_tqdm:
         test_pred.append(batch_pred)
 
 test_pred = torch.cat(test_pred, dim=0)
-np.savetxt(test_output_file_name, test_pred.data.cpu().numpy())
+np.savetxt(test_output_file, test_pred.data.cpu().numpy())
