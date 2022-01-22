@@ -24,12 +24,11 @@ local ff_weight_decay = std.parseJson(std.extVar('ff_weight_decay'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local score_temp = std.parseJson(std.extVar('score_nn_steps')); # variable for score_nn.steps
 local score_nn_steps = (if std.toString(score_temp) == '0' then 1 else score_temp);
-local score_nn_lr = std.parseJson(std.extVar('score_nn_lr'));
-local task_nn_lr = std.parseJson(std.extVar('task_nn_lr'));
+local scorenn_lr = std.parseJson(std.extVar('scorenn_lr'));
+local tasknn_lr = std.parseJson(std.extVar('tasknn_lr'));
 
 local task_nn = {
   type: 'sequence-tagging',
-  project_onto_tags: false,
   text_field_embedder: {
       token_embedders: {
         tokens: {
@@ -89,7 +88,7 @@ local task_nn = {
                    dataset_metadata.test_file),
   // Model
   model: {
-    type: 'seal-ner-multi-task',
+    type: 'seal-ner',
     label_encoding: 'BIOUL',
     sampler: {
       type: 'appending-container',
@@ -120,26 +119,17 @@ local task_nn = {
         loss_weights: [score_loss_weight, cross_entropy_loss_weight],
         reduction: 'mean',
       },
-      tag_projection_layer: {
-        input_dim: 400,
-        num_layers: 1,
-        activations: 'linear',
-        hidden_dims: num_labels
-      },
     },
     oracle_value_function: { type: 'manhattan', differentiable: true},
     score_nn: {
       type: 'sequence-tagging',
-      tag_projection_layer: {
-        input_dim: 400,
-        num_layers: 1,
-        activations: 'linear',
-        hidden_dims: num_labels
-      },
+      task_nn: task_nn,
+      residual_x: true,
       global_score: {
         type: 'self-attention-full-sequence',
         num_heads: 1,
         num_tags: num_labels,
+        input_dim: 50+128+17,
         attention_dim: attention_dim,
         dropout: attention_dropout,
       },
@@ -148,7 +138,7 @@ local task_nn = {
       type: 'seqtag-nce-ranking-with-discrete-sampling',
       reduction: 'mean',
       log_key: 'seq_nce_loss',
-      num_samples: 10,
+      num_samples: 100,
     },
     initializer: {
       regexes: [
@@ -184,12 +174,12 @@ local task_nn = {
       optimizers: {
         task_nn:
           {
-            lr: task_nn_lr,
+            lr: tasknn_lr,
             weight_decay: ff_weight_decay,
             type: 'adamw',
           },
         score_nn: {
-          lr: score_nn_lr,
+          lr: scorenn_lr,
           weight_decay: ff_weight_decay,
           type: 'adamw',
         },
