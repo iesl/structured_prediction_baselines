@@ -75,25 +75,27 @@ vocab = loaded_model.vocab
 dev_data_loader.index_with(vocab)
 test_data_loader.index_with(vocab)
 val_generator_tqdm = Tqdm.tqdm(dev_data_loader)
-val_pred = []
+val_labels = []
 for batch in val_generator_tqdm:
     with torch.no_grad():
         batch = util.move_to_device(batch, device=device)
-        batch['labels'] = None
-        batch_pred = loaded_model(**batch, mode=None)['y_pred']
-        val_pred.append(batch_pred)
+        batch_labels = batch['labels']
+        # batch['labels'] = None
+        # batch_pred = loaded_model(**batch, mode=None)['y_pred']
+        val_labels.append(batch_labels)
 
-val_pred = torch.cat(val_pred, dim=0)
-np.savetxt(val_output_file, val_pred.data.cpu().numpy())
+val_labels = torch.cat(val_labels, dim=0)
+np.savetxt(val_output_file, val_labels.data.cpu().numpy())
 
 test_generator_tqdm = Tqdm.tqdm(test_data_loader)
-test_pred = []
+test_labels = []
 for batch in test_generator_tqdm:
     with torch.no_grad():
         batch = util.move_to_device(batch, device=device)
-        batch['labels'] = None
-        batch_pred = loaded_model(**batch, mode=None)['y_pred']
-        test_pred.append(batch_pred)
+        batch_labels = batch['labels']
+        # batch['labels'] = None
+        # batch_pred = loaded_model(**batch, mode=None)['y_pred']
+        test_labels.append(batch_labels)
 
-test_pred = torch.cat(test_pred, dim=0)
-np.savetxt(test_output_file, test_pred.data.cpu().numpy())
+test_labels = torch.cat(test_labels, dim=0)
+np.savetxt(test_output_file, test_labels.data.cpu().numpy())
