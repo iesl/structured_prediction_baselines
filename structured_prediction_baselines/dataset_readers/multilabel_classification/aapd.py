@@ -30,8 +30,8 @@ class InstanceFields(TypedDict):
     labels: MultiLabelField  #: types
 
 
-@DatasetReader.register("rcv")
-class RCV(BlurbGenreReader):
+@DatasetReader.register("aapd")
+class AAPD(BlurbGenreReader):
     def example_to_fields(
         self,
         text: str,
