@@ -61,7 +61,7 @@ local feature_network = {
   evaluate_on_test: true,
   // Data
   dataset_reader: {
-    type: 'bgc',
+    type: 'aapd',
     //[if test == '1' then 'max_instances']: 100,
     token_indexers: {
       x: {
