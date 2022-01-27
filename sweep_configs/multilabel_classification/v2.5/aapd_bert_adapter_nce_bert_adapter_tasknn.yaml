@@ -1,9 +1,9 @@
 command:
 - ${program}
-- train_with_wandb
+- train-with-wandb
 - model_configs/multilabel_classification/v2.5/aapd_bert_adapter_nce_bert_adapter_tasknn.jsonnet
 - --include-package=structured_prediction_baselines
-- --wandb_tags="task=text_mlc,model=tasknn,sampler=inference_net,dataset=aapd,inference_module=inference_net,inference_module=tasknn,sampler=tasknn,scorenn=bert_nce"
+- --wandb-tags="task=text_mlc,model=tasknn,sampler=inference_net,dataset=aapd,inference_module=inference_net,inference_module=tasknn,sampler=tasknn,scorenn=bert_nce"
 - ${args}
 - --file-friendly-logging
 description: Scorenn consisting of bert adapter trained using nce objective with tasknn

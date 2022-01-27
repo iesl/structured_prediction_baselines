@@ -3,10 +3,10 @@ description: "BERT adapter tasknn trained using using only cross entropy"
 program: allennlp
 command:
 - ${program}
-- train_with_wandb
+- train-with-wandb
 - model_configs/multilabel_classification/v2.5/aapd_bert_adapter_tasknn.jsonnet
 - --include-package=structured_prediction_baselines
-- --wandb_tags="task=text_mlc,model=tasknn,sampler=tasknn,dataset=aapd,inference_module=tasknn,inference_module=tasknn,sampler=tasknn,scorenn=none"
+- --wandb-tags="task=text_mlc,model=tasknn,sampler=tasknn,dataset=aapd,inference_module=tasknn,inference_module=tasknn,sampler=tasknn,scorenn=none"
 - ${args}
 - --file-friendly-logging
 
