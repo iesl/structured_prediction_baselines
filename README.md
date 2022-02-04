@@ -15,9 +15,9 @@ From allennlp v2.5, additional steps are required:
 ```
 pip install --upgrade allennlp==2.5.0
 ```
-Install wandb allennlp, if you wish to use wandb.
+Install wandb allennlp to experiment with  wandb (if not already installed):
 ```
-pip install wandb-allennlp
+pip install wandb_allennlp
 ```
 # Running the models
 
@@ -75,6 +75,10 @@ pip install wandb-allennlp
     ```
     export TEST=0
     python slurm_wandb_agent.py <sweep_id> -p baselines -e score-based-learning --num-jobs 5 -f --edit-sbatch --edit-srun
+#SBATCH --exclude=node084,node029,node083,node030,node095
+#SBATCH --exclude=node084,node029,node083,node030,node095
+#SBATCH --exclude=node084,node029,node083,node030,node095
+#SBATCH --exclude=node084,node029,node083,node030,node095
     ```
 
     You can use `squeue` to see the running agents on nodes. You can rerun this command to start more agents.
