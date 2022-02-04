@@ -14,9 +14,11 @@ Implements baselines for tasks like POS tagging, NER and SRL.
 From allennlp v2.5, additional steps are required: 
 ```
 pip install --upgrade allennlp==2.5.0
-pip install --upgrade git+https://github.com/dhruvdcoder/wandb-allennlp.git@feat/convert-to-plugin
 ```
-
+Install wandb allennlp, if you wish to use wandb.
+```
+pip install wandb-allennlp
+```
 # Running the models
 
 1. Download datasets
