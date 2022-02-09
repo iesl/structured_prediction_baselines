@@ -21,7 +21,7 @@ local transformer_dim = 768;
 local transformer_vocab_size = 30522;
 local score_nn_weight_decay = weight_decay;
 local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
-local score_nn_dropout = std.parseJson(std.extVar('score_nn_dropout_10x')) / 10.0;;
+local score_nn_dropout = std.parseJson(std.extVar('score_nn_dropout_10x')) / 10.0;
 // // task_nn
 local task_nn_dropout = std.parseJson(std.extVar('task_nn_dropout_10x')) / 10.0;
 local task_nn_weight_decay = weight_decay;
