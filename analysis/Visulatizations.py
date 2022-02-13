@@ -19,6 +19,7 @@ if not path in sys.path: sys.path.append(path)
 
 # %%
 import torch
+from pathlib import Path
 from allennlp.models import Model
 from allennlp.common import Params
 from allennlp.common import util as common_util
@@ -43,6 +44,7 @@ from structured_prediction_baselines.common import ModelMode
 # # Load model, dataset-reader, data and vocab
 
 # %%
+dataset_name = 'expr_fun'
 serialization_dir = "../.allennlp_models/dvn_model_wts/expr_fun_dvn/"  # path to the directory containing config, model weights and vocab
 config_file = os.path.join(serialization_dir, "config.json")
 vocabulary_dir = os.path.join(serialization_dir, "vocabulary")
@@ -170,11 +172,6 @@ def compute_global_score_values(model, dim1, dim2, rmin=-0.5, rmax=1.5, n=100, s
 # %%
 Y0, Y1, z = compute_global_score_values(loaded_model, 46, 280, rmin=-0.5, rmax=1.5,  n=200, sigmoid=False)
 
-# %%
-# How to get indices for various labels? Uncomment the following code and make appropriate changes.
-#print(vocab.get_token_index('18.01', namespace='labels'))
-#print(vocab.get_token_index('18', namespace='labels'))
-
 
 # %%
 def compute_grad_2d(model, dim1, dim2, inner_loop=100, outer_loop=100):
@@ -208,7 +205,65 @@ def compute_grad_2d(model, dim1, dim2, inner_loop=100, outer_loop=100):
 
 
 # %%
+# How to get indices for various labels? Uncomment the following code and make appropriate changes.
+# Related
+related_indices = [(vocab.get_token_index(yi, namespace='labels'), vocab.get_token_index(yk, namespace='labels')) for yi, yk in [
+    ('18.01', '18'), 
+    ('01.01', '01'), 
+    ('18.02.01', '18.02'), 
+    ('16.01', '16'), 
+    ('10.01', '10'),
+    ('01.05', '01')]]
+print(related_indices)
+
+
+# %%
+# Generate and save plots
+base_path = Path('/Users/dhruveshpatel/Downloads/scorenn-paper-assets/')
+for yi, yk in related_indices:
+    # yi \implies yk
+    x2,y2,z2 = compute_grad_2d(loaded_model, yk , yi, inner_loop=100, outer_loop=10,)
+    cm = plt.cm.get_cmap('RdYlBu')
+    sc = plt.scatter(x2, y2, c=z2, cmap=cm)
+    cb = plt.colorbar(sc,shrink=0.7, aspect=20*0.7)
+    cb.ax.set_title(r"$\frac{\partial E_\Theta^{g}}{\partial y_k}$", fontsize=20)
+    plt.ylabel(r"$y_k$", fontsize=15)
+    plt.xlabel(r"$y_i$", fontsize=15)
+    plt.savefig(base_path / f'grads_positive_rel_{dataset_name}_{yi}_{yk}.pdf')
+    plt.show()    
+
+# %%
+# Generate and save plots
+# How to get indices for various labels? Uncomment the following code and make appropriate changes.
+# Related
+un_related_indices = [(vocab.get_token_index(yi, namespace='labels'), vocab.get_token_index(yk, namespace='labels')) for yi, yk in [
+    ('32.01', '30.01'), 
+    ('20.01', '01.01.03.05'),
+    ('01.01.03.05', '18.02.01.01'),
+    ('01.01.03.05', '18.02'),
+    ('01.01.03.05', '16.21.15'),
+    ('30.05', '01.01.03.05')
+    ]]
+print(un_related_indices)
+base_path = Path('/Users/dhruveshpatel/Downloads/scorenn-paper-assets/')
+for yi, yk in un_related_indices:
+    # yi \implies yk
+    x2,y2,z2 = compute_grad_2d(loaded_model, yk , yi, inner_loop=100, outer_loop=10,)
+    cm = plt.cm.get_cmap('RdYlBu')
+    sc = plt.scatter(x2, y2, c=z2, cmap=cm)
+    cb = plt.colorbar(sc,shrink=0.7, aspect=20*0.7)
+    cb.ax.set_title(r"$\frac{\partial E_\Theta^{g}}{\partial y_k}$", fontsize=20)
+    plt.ylabel(r"$y_k$", fontsize=15)
+    plt.xlabel(r"$y_i$", fontsize=15)
+    plt.savefig(base_path / f'grads_positive_no_rel_{dataset_name}_{yi}_{yk}.pdf')
+    plt.show()    
+
+# %% [markdown]
+# # Rough work
+
+# %%
 #plt.rcParams['text.usetex'] = True
+
 x2,y2,z2 = compute_grad_2d(loaded_model, 55, 45, inner_loop=100, outer_loop=10,)
 cm = plt.cm.get_cmap('RdYlBu')
 sc = plt.scatter(x2, y2, c=z2, cmap=cm)
@@ -228,7 +283,7 @@ cb = plt.colorbar(sc,shrink=0.7, aspect=20*0.7)
 cb.ax.set_title(r"$\frac{\partial E_\Theta^{g}}{\partial y_k}$", fontsize=20)
 plt.ylabel(r"$y_k$", fontsize=15)
 plt.xlabel(r"$y_i$", fontsize=15)
-plt.savefig('/Users/dhruveshpatel/Downloads/scorenn-paper-assets/grads_positive_rel.pdf')
+plt.savefig('/Users/dhruveshpatel/Downloads/scorenn-paper-assets/grads_positive_rel_{}.pdf')
 plt.show()
 
 # %%
@@ -336,8 +391,8 @@ plt.show()
 print(vocab.get_token_index('02.01', namespace='labels'))
 print(vocab.get_token_index('02.01.01', namespace='labels'))
 
-print(vocab.get_token_from_index(2, namespace='labels'))
-print(vocab.get_token_from_index(7, namespace='labels'))
+print(vocab.get_token_from_index(21, namespace='labels'))
+print(vocab.get_token_from_index(55, namespace='labels'))
 
 # %%
 yk = 2
