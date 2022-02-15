@@ -15,12 +15,14 @@ class StructuredScore(torch.nn.Module, Registrable):
         self,
         task_nn:Optional[TaskNN] = None
         ):
+        super().__init__() 
         self.task_nn = task_nn
         
     def forward(
         self,
         y: torch.Tensor,
         buffer: Dict,
+        x: Optional[torch.Tensor] = None, 
         **kwargs: Any,
     ) -> torch.Tensor:
         """
@@ -50,11 +52,11 @@ class StructuredScoreContainer(StructuredScore):
     ) -> torch.Tensor:
         if x is not None:
             total_energy: torch.Tensor = self.constituent_energies[0](
-                y, buffer, **kwargs
+                y, buffer, x, **kwargs
             )
         else:
             total_energy: torch.Tensor = self.constituent_energies[0](
-                y, buffer, x, **kwargs
+                y, buffer, **kwargs
             )
 
         for energy in self.constituent_energies[1:]:

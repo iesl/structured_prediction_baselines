@@ -48,7 +48,7 @@ class ScoreNN(torch.nn.Module, Registrable):
     ) -> Optional[torch.Tensor]:
         if self.global_score is not None:
             if x is not None:
-                return self.global_score(y, buffer, **kwargs)
+                return self.global_score(y, buffer, x=x, **kwargs)
             else:
                 return self.global_score(y, buffer, **kwargs)
         else:
@@ -70,12 +70,8 @@ class ScoreNN(torch.nn.Module, Registrable):
 
         if local_score is not None:
             score = local_score
-
-        global_score = self.compute_global_score(y, buffer, x=x, **kwargs)  # type: ignore
         
-        # print("Computed global score")
-        # print(global_score)
-        # exit()
+        global_score = self.compute_global_score(y, buffer, x=x, **kwargs)  # type: ignore
 
         if global_score is not None:
             if score is not None:
