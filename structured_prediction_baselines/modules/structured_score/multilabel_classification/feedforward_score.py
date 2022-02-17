@@ -5,6 +5,7 @@ from structured_prediction_baselines.modules.structured_score import (
 from allennlp.data.vocabulary import Vocabulary
 from allennlp.modules.feedforward import FeedForward
 from allennlp.common.lazy import Lazy
+from allennlp.nn.activations import Activation
 from structured_prediction_baselines.modules.task_nn import TaskNN
 import torch
 import torch.nn.functional as F
@@ -36,7 +37,6 @@ class MultilabelClassificationFeedforwardStructuredScore(StructuredScore):
             hidden, self.projection_vector
         )  # unormalized (batch, num_samples)
         return score
-    
 
 @StructuredScore.register("multi-label-feedforward-global-v1")
 class MultilabelClassificationFeedforwardStructuredScoreGlobalv1(StructuredScore):
@@ -45,12 +45,14 @@ class MultilabelClassificationFeedforwardStructuredScoreGlobalv1(StructuredScore
     """
     def __init__(
         self,
-        feedforward: FeedForward,
+        feedforward1: FeedForward,
+        feedforward2: FeedForward,
         task_nn: TaskNN
     ):
         super().__init__(task_nn=task_nn)  # type:ignore
-        self.feedforward = feedforward
-        hidden_dim = self.feedforward.get_output_dim()  # type:ignore
+        self.feedforward1 = feedforward1
+        self.feedforward2 = feedforward2
+        hidden_dim = self.feedforward2.get_output_dim()  # type:ignore
         self.projection_vector = torch.nn.Parameter(
             torch.normal(0.0, math.sqrt(2.0 / hidden_dim), (hidden_dim,))
         )  # c2 -> shape (hidden_dim,)
@@ -63,21 +65,23 @@ class MultilabelClassificationFeedforwardStructuredScoreGlobalv1(StructuredScore
         **kwargs: Any,
     ) -> torch.Tensor:
         
-        # x_representation.shape: (B, L)
-        x_representation = self.task_nn(x)
-        batch_size , num_labels = x_representation.shape
+        # x_representation.shape: (batch, D1)
+        x_representation = self.task_nn(x, return_hidden_representation = True)        
+        batch_size , x_hidden_dim = x_representation.shape
 
-        # y.shape: (B, S, L)
+        # y.shape: (batch, num_samples, num_labels)
         batch_size, num_samples, num_labels = y.shape
+        # y_representation.shape: (batch, N, D2)
+        y_representation = self.feedforward1(y)
 
-        # x_expanded_dim.shape: (B, 1, L)
+        # x_expanded_dim.shape: (batch, 1, D1)
         x_expanded_dim = x_representation.unsqueeze(1)
-        # x_broadcasted.shape: (B, S, L)
-        x_broadcasted = x_expanded_dim.broadcast_to(batch_size, num_samples, num_labels)
-        # x_concat_y.shape: (B, S, 2L)
-        x_concat_y = torch.cat((x_broadcasted, y),-1)
+        # x_broadcasted.shape: (batch, num_samples, D1)
+        x_broadcasted = x_expanded_dim.broadcast_to(batch_size, num_samples, x_hidden_dim)
+        # x_concat_y.shape: (batch, num_samples, D1+D2)
+        x_concat_y = torch.cat((x_broadcasted, y_representation),-1)
 
-        hidden = self.feedforward(x_concat_y)  # (batch, num_samples, hidden_dim)
+        hidden = self.feedforward2(x_concat_y)  # (batch, num_samples, hidden_dim)
         score = torch.nn.functional.linear(
             hidden, self.projection_vector
         )  # unormalized (batch, num_samples)
@@ -93,13 +97,14 @@ class MultilabelClassificationFeedforwardStructuredScoreGlobalv2(StructuredScore
         self,
         feedforward: FeedForward,
         task_nn: TaskNN,
-        task_nn_hidden_dim: int
+        num_labels: int,
+        activation: Activation
     ):
         super().__init__(task_nn=task_nn)  # type:ignore
         self.feedforward = feedforward
-        self.task_nn_hidden_dim = task_nn_hidden_dim
-        self.hidden_dim = self.feedforward.get_output_dim() // task_nn_hidden_dim
-        
+        self.num_labels = num_labels
+        self.activation = activation
+        self.hidden_dim = self.feedforward.get_output_dim() // num_labels
         self.projection_vector = torch.nn.Parameter(
             torch.normal(0.0, math.sqrt(2.0 / self.hidden_dim), (self.hidden_dim,))
         )  # c2 -> shape (hidden_dim,)
@@ -111,12 +116,18 @@ class MultilabelClassificationFeedforwardStructuredScoreGlobalv2(StructuredScore
         x: Optional[torch.Tensor] = None, 
         **kwargs: Any,
     ) -> torch.Tensor:
-        x_representation = self.task_nn(x)
+        # x_representation.shape: (batch, D)
+        x_representation = self.task_nn(x, return_hidden_representation = True)
+        # y.shape : (batch, num_samples, num_labels)
         batch_size, num_samples, num_labels = y.shape
+        # y_transposed.shape : (batch, L, num_samples)
         y_transposed = torch.transpose(y, 1,2)
+        # M_x.shape: (batch, H, num_labels)
         M_x = self.feedforward(x_representation).view(batch_size, self.hidden_dim, num_labels)
+        # Mx_y.shape: (batch, num_samples, H)
         Mx_y = torch.bmm(M_x, y_transposed).transpose(1,2)
-        Mx_y = F.softplus(Mx_y)
+        Mx_y = self.activation(Mx_y)
+        # score.shape: (batch, num_samples)
         score = torch.nn.functional.linear(
             Mx_y, self.projection_vector
         )  # unormalized (batch, num_samples)
@@ -136,6 +147,7 @@ class MultilabelClassificationFeedforwardStructuredScoreGlobalv3(StructuredScore
         super().__init__(task_nn=task_nn)  # type:ignore
         self.feedforward1 = feedforward1
         self.feedforward2 = feedforward2
+        assert self.feedforward1.get_output_dim() == self.feedforward2.get_output_dim()
         self.hidden_dim = self.feedforward1.get_output_dim()
 
     def forward(
@@ -145,8 +157,7 @@ class MultilabelClassificationFeedforwardStructuredScoreGlobalv3(StructuredScore
         x: Optional[torch.Tensor] = None, 
         **kwargs: Any,
     ) -> torch.Tensor:
-        x_representation = self.feedforward2(self.task_nn(x))
-        print(f'x_representation.shape: {x_representation.shape}')
+        x_representation = self.feedforward2(self.task_nn(x, return_hidden_representation = True))
         batch_size, num_samples, num_labels = y.shape
         hidden = self.feedforward1(y)  # (batch, num_samples, hidden_dim)
         score = torch.sum(x_representation.unsqueeze(1) * hidden,2)
