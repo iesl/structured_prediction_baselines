@@ -94,14 +94,17 @@ class MiniMaxOptimizer(Optimizer, MutableMapping):
             MODE_LITERALS_TYPE,
             Lazy[Optimizer],
         ],
-        parameter_groups: ParameterGroupsType = None,
+        parameter_groups: Dict[
+            MODE_LITERALS_TYPE,
+            ParameterGroupsType
+        ] = None,
     ):
         # split the parameters and assign them to the correct optimizer
         # Note: If a parameter does not have the model_mode attribute set,
         # then that parameter will not be assigned to any optimizer
 
-        if parameter_groups is not None:
-            raise ConfigurationError("parameter_groups are not supported.")
+        # if parameter_groups is not None:
+        #     raise ConfigurationError("parameter_groups are not supported.")
         unassigned_params = []
         named_params_: Dict[
             MODE_LITERALS_TYPE,
@@ -142,7 +145,8 @@ class MiniMaxOptimizer(Optimizer, MutableMapping):
 
         self.optimizers = {
             mode_name: lazy_optimizer.construct(
-                model_parameters=named_params_[mode_name]
+                model_parameters=named_params_[mode_name],
+                parameter_groups=parameter_groups.get(mode_name)
             )
             for mode_name, lazy_optimizer in optimizers.items()
         }
