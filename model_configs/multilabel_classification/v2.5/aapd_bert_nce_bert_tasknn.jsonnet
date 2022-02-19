@@ -12,30 +12,22 @@ local num_input_features = dataset_metadata.input_features;
 // // common
 local ff_activation = 'softplus';
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
-local ff_linear_layers = 1;
-//local weight_decay = std.parseJson(std.extVar('weight_decay'));
-local weight_decay = 0.1;
-//local dropout = std.parseJson(std.extVar('dropout_10x')) / 10.0;
-local dropout = 0.5;
+local ff_linear_layers = 2;
+local weight_decay = std.parseJson(std.extVar('weight_decay'));
+local dropout = std.parseJson(std.extVar('dropout_10x')) / 10.0;
 
 // // score_nn
 local transformer_model = 'bert-base-uncased';  // huggingface name of the model
 local transformer_dim = 768;
 local transformer_vocab_size = 30522;
 local score_nn_weight_decay = weight_decay;
-//local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
-local global_score_hidden_dim = 600;
-local score_nn_dropout = dropout;
+local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
 // // task_nn
-local task_nn_dropout = dropout;
 local task_nn_weight_decay = weight_decay;
-//local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
-local cross_entropy_loss_weight = 1;
+local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
+// // loss_fn
+local cross_entropy_loss_weight = 1; //std.parseJson(std.extVar('cross_entropy_loss_weight'));
 local score_loss_weight = std.parseJson(std.extVar('score_loss_weight'));
-//local score_loss_weight = 3;
-local num_samples = std.parseJson(std.extVar('num_samples'));
-
-
 
 local feature_network = {
   text_field_embedder: {
@@ -55,8 +47,8 @@ local feature_network = {
     input_dim: transformer_dim,
     num_layers: ff_linear_layers,
     activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + ['linear']),
-    hidden_dims: ([transformer_dim * 2 for i in std.range(0, ff_linear_layers - 2)] + [transformer_dim]),
-    dropout: ([task_nn_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
+    hidden_dims: ff_hidden,
+    dropout: ([dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
   },
 };
 
@@ -105,7 +97,7 @@ vocabulary: {
       type: 'multi-label-text-classification',
       feature_network: feature_network,
       label_embeddings: {
-        embedding_dim: transformer_dim,
+        embedding_dim: ff_hidden,
         vocab_namespace: 'labels',
       },
     },
@@ -139,7 +131,7 @@ vocabulary: {
         type: 'multi-label-text-classification',
         feature_network: feature_network,
         label_embeddings: {
-          embedding_dim: transformer_dim,
+          embedding_dim: ff_hidden,
           vocab_namespace: 'labels',
         },
       },
@@ -206,6 +198,11 @@ vocabulary: {
           type: 'huggingface_adamw',
         },
       },
+      "parameter_groups": {
+                "score_nn": [
+                    [["score_nn.task_nn"], {"lr": 1e-5}]
+                ],
+            }
     },
     checkpointer: {
       keep_most_recent_by_count: 1,
