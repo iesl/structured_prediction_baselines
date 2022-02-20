@@ -148,7 +148,7 @@ vocabulary: {
     loss_fn: {
       type: 'multi-label-nce-ranking-with-discrete-sampling',
       log_key: 'nce',
-      num_samples: num_samples,
+      num_samples: 600,
       sign: '-',
     },
     initializer: {
