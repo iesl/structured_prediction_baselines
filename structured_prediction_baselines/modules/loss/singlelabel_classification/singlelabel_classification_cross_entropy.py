@@ -21,9 +21,7 @@ class SinglelabelCELoss(Loss):
             **kwargs: Any,
     ) -> torch.Tensor:
         assert labels is not None
-        loss = self.loss_fn(y_hat.squeeze(1),
-                            torch.argmax(labels.squeeze(1), dim=-1),
-                            reduce=False).unsqueeze(1)  # (batch, 1,)
+        loss = self.loss_fn(y_hat.squeeze(1), labels.squeeze(-1), reduce=False)  # (batch,)
 
         self._loss_values.append(float(torch.mean(loss)))
 

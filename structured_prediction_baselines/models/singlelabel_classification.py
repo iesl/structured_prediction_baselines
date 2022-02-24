@@ -59,7 +59,7 @@ class SinglelabelClassification(ScoreBasedLearningModel):
         else:
             y_hat_n = y_hat
 
-        self.accuracy(y_hat_n, torch.argmax(labels, dim=-1))
+        self.accuracy(y_hat_n, labels)
 
     def get_true_metrics(self, reset: bool = False) -> Dict[str, float]:
         metrics = {

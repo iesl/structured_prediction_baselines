@@ -29,7 +29,7 @@ from allennlp.data.fields import (
     ArrayField,
     ListField,
     MetadataField,
-    MultiLabelField,
+    LabelField,
 )
 from allennlp.data.instance import Instance
 from allennlp.data.token_indexers import TokenIndexer
@@ -45,7 +45,7 @@ class InstanceFields(TypedDict):
     """Contents which form an instance"""
 
     x: TextField  #:
-    labels: MultiLabelField  #: types
+    labels: LabelField  #: types
 
 
 @DatasetReader.register("trec")
@@ -120,7 +120,7 @@ class TrecReader(DatasetReader):
         x = TextField(
             self._tokenizer.tokenize(text),
         )
-        labels = MultiLabelField([label_coarse])
+        labels = LabelField(label_coarse)
 
         return {
             "x": x,
