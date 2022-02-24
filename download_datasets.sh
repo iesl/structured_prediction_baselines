@@ -109,6 +109,13 @@ tar -xzvf spo_GO.tar.gz
 rm spo_GO.tar.gz
 cd ../..
 
+#TREC
+mkdir -p data/trec
+cd data/trec
+gdown "https://drive.google.com/uc?id=1uptxwHDL8suhVXt85Q6-7qu5ORNYoHXb"
+tar -xzvf trec.tar.gz
+rm trec.tar.gz
+cd ../..
 
 
 
