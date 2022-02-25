@@ -115,7 +115,7 @@ local transformer_dim = 768;
     grad_norm: { task_nn: 1.0 },
     num_gradient_accumulation_steps: 16,  // effective batch size = batch_size*num_gradient_accumulation_steps
     patience: 5,
-    validation_metric: '+fixed_f1',
+    validation_metric: '+accuracy',
     cuda_device: std.parseInt(cuda_device),
     learning_rate_schedulers: {
       task_nn: {

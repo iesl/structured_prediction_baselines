@@ -4,9 +4,6 @@ from overrides import overrides
 
 import torch
 from allennlp.models import Model
-from structured_prediction_baselines.metrics import (
-    SinglelabelClassificationF1,
-)
 from allennlp.training.metrics import CategoricalAccuracy
 
 from .base import ScoreBasedLearningModel
@@ -35,7 +32,6 @@ class SinglelabelClassification(ScoreBasedLearningModel):
     ) -> None:
         super().__init__(**kwargs)
         # metrics
-        self.f1 = SinglelabelClassificationF1()
         self.accuracy = CategoricalAccuracy()
 
     @overrides
@@ -63,12 +59,10 @@ class SinglelabelClassification(ScoreBasedLearningModel):
         else:
             y_hat_n = y_hat
 
-        self.f1(y_hat_n, labels)
         self.accuracy(y_hat_n, torch.argmax(labels, dim=-1))
 
     def get_true_metrics(self, reset: bool = False) -> Dict[str, float]:
         metrics = {
-            "fixed_f1": self.f1.get_metric(reset),
             "accuracy": self.accuracy.get_metric(reset),
         }
 
