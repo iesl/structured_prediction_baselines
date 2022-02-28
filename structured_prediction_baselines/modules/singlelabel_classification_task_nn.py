@@ -1,8 +1,9 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
 from .task_nn import TaskNN, CostAugmentedLayer, TextEncoder
 from allennlp.modules.feedforward import FeedForward
-from allennlp.data.vocabulary import Vocabulary
 from allennlp.modules.token_embedders.embedding import Embedding
+from allennlp.data import Vocabulary, TextFieldTensors
+
 import torch.nn as nn
 import torch
 import numpy as np
@@ -30,7 +31,7 @@ class SinglelabelTaskNN(TaskNN):
 
     def forward(
         self,
-        x: torch.Tensor,
+        x: Union[torch.Tensor, TextFieldTensors],
         buffer: Optional[Dict] = None,
         **kwargs: Any,
     ) -> torch.Tensor:

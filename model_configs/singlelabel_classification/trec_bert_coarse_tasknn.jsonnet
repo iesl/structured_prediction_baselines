@@ -5,8 +5,9 @@ local cuda_device = std.extVar('CUDA_DEVICE');
 local use_wandb = (if test == '1' then false else true);
 
 local dataset_name = 'trec';
+local label_granularity = 'coarse';
 local dataset_metadata = (import './datasets.jsonnet')[dataset_name];
-local num_labels = dataset_metadata.num_labels;
+local num_labels = dataset_metadata.num_labels[label_granularity];
 local num_input_features = dataset_metadata.input_features;
 
 // model variables
@@ -25,6 +26,7 @@ local transformer_dim = 768;
   // Data
   dataset_reader: {
     type: dataset_name,
+    granularity: label_granularity,
     [if test == '1' then 'max_instances']: 100,
     token_indexers: {
       x: {
@@ -37,7 +39,6 @@ local transformer_dim = 768;
       model_name: transformer_model,
       max_length: 512,
     },
-
   },
   train_data_path: (data_dir + '/' + dataset_metadata.dir_name + '/' +
                     dataset_metadata.train_file),
@@ -88,16 +89,15 @@ local transformer_dim = 768;
       log_key: 'inference_module',
       loss_fn: {
         type: 'single-label-ce',
-//        reduction: 'mean',
-        log_key: 'xent',
+        reduction: 'mean',
+        log_key: 'cross_entropy',
       },
     },
-    oracle_value_function: { type: 'per-instance-f1', differentiable: false },
+    oracle_value_function: null,  // { type: 'per-instance-f1', differentiable: false }
     score_nn: null,  // no score nn for basic tasknn model
     loss_fn: { type: 'zero' },
     initializer: {
       regexes: [
-        //[@'.*_feedforward._linear_layers.0.weight', {type: 'normal'}],
         [@'.*feedforward._linear_layers.*weight', (if std.member(['tanh', 'sigmoid'], ff_activation) then { type: 'xavier_uniform', gain: gain } else { type: 'kaiming_uniform', nonlinearity: 'relu' })],
         [@'.*feedforward._linear_layers.*bias', { type: 'zero' }],
       ],
@@ -148,6 +148,8 @@ local transformer_dim = 768;
           type: 'wandb_allennlp',
           sub_callbacks: [{ type: 'log_best_validation_metrics', priority: 100 }],
           save_model_archive: false,
+          // watch_model: false,
+          should_log_parameter_statistics: false,
         },
       ]
       else []

@@ -14,7 +14,7 @@ class SinglelabelCELoss(Loss):
     def _forward(
             self,
             x: Any,
-            labels: Optional[torch.Tensor],  # (batch, 1, num_labels)
+            labels: Optional[torch.Tensor],  # (batch, 1)
             y_hat: torch.Tensor,  # (batch, 1, num_labels)
             y_hat_extra: Optional[torch.Tensor],
             buffer: Optional[Dict] = None,

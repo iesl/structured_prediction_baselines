@@ -8,6 +8,7 @@ from typing import (
     cast,
     Optional,
     Iterable,
+    Literal,
 )
 import sys
 import itertools
@@ -25,9 +26,6 @@ import json
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 from allennlp.data.fields import (
     TextField,
-    Field,
-    ArrayField,
-    ListField,
     MetadataField,
     LabelField,
 )
@@ -44,30 +42,29 @@ logger = logging.getLogger(__name__)
 class InstanceFields(TypedDict):
     """Contents which form an instance"""
 
-    x: TextField  #:
-    labels: LabelField  #: types
+    x: TextField
+    label: LabelField
 
 
 @DatasetReader.register("trec")
-class TrecReader(DatasetReader):
+class TRECReader(DatasetReader):
     """
     Single-label classification `dataset <https://cogcomp.seas.upenn.edu/Data/QA/QC/>`.
 
-    The output of this DatasetReader follows :class:`MultiInstanceEntityTyping`.
     """
 
     def __init__(
         self,
         tokenizer: Tokenizer,
         token_indexers: Dict[str, TokenIndexer],
-        # use_transitive_closure: bool = False,
+        granularity: Literal["coarse", "fine"] = "fine",
         **kwargs: Any,
     ) -> None:
         """
         Arguments:
             tokenizer: The tokenizer to be used.
             token_indexers: The token_indexers to be used--one per embedder. Will usually be only one.
-            # use_transitive_closure: use types_extra
+            granularity: The level of granularity to be used for the labels.
             **kwargs: Parent class args.
                 `Reference <https://github.com/allenai/allennlp/blob/master/allennlp/data/dataset_readers/dataset_reader.py>`_
 
@@ -79,7 +76,7 @@ class TrecReader(DatasetReader):
         )
         self._tokenizer = tokenizer
         self._token_indexers = token_indexers
-        # self._use_transitive_closure = use_transitive_closure
+        self._granularity = granularity
 
     def example_to_fields(
         self,
@@ -100,12 +97,12 @@ class TrecReader(DatasetReader):
             label_fine: fine-grained label
             idx: unique id
             meta: None
-            **kwargs: TODO
+            **kwargs: unused
 
         Returns:
             Dictionary of fields with the following entries:
                 x: contains the question text
-                labels: contains the coarse-grained label
+                label: contains the class label (fine or coarse)
 
         """
 
@@ -113,18 +110,23 @@ class TrecReader(DatasetReader):
             meta = {}
 
         meta["text"] = text
-        meta["label_coarse"] = label_coarse
-        meta["label_fine"] = label_fine
+        meta["label"] = {
+            "coarse": label_coarse,
+            "fine": label_fine
+        }
         meta["idx"] = idx
 
         x = TextField(
             self._tokenizer.tokenize(text),
         )
-        labels = LabelField(label_coarse)
+        label_text = label_coarse
+        if self._granularity == "fine":
+            label_text += f"_{label_fine}"  # Prepend with coarse to distinguish between multiple fine "other" labels
+        label = LabelField(label_text)
 
         return {
             "x": x,
-            "labels": labels,
+            "label": label,
         }
 
     def text_to_instance(  # type:ignore

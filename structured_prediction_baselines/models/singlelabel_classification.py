@@ -35,6 +35,15 @@ class SinglelabelClassification(ScoreBasedLearningModel):
         self.accuracy = CategoricalAccuracy()
 
     @overrides
+    def construct_args_for_forward(self, **kwargs: Any) -> Dict:
+        _forward_args = {}
+        _forward_args["buffer"] = self.initialize_buffer(**kwargs)
+        _forward_args["x"] = kwargs.pop("x")
+        _forward_args["labels"] = kwargs.pop("label")
+
+        return {**_forward_args, **kwargs}
+
+    @overrides
     def unsqueeze_labels(self, labels: torch.Tensor) -> torch.Tensor:
         return labels.unsqueeze(1)
 
