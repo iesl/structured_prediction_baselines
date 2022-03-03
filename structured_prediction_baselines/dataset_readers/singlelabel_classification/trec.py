@@ -57,7 +57,7 @@ class TRECReader(DatasetReader):
         self,
         tokenizer: Tokenizer,
         token_indexers: Dict[str, TokenIndexer],
-        granularity: Literal["coarse", "fine"] = "fine",
+        granularity: Literal["coarse", "fine"] = "coarse",
         **kwargs: Any,
     ) -> None:
         """
@@ -123,11 +123,13 @@ class TRECReader(DatasetReader):
         if self._granularity == "fine":
             label_text += f"_{label_fine}"  # Prepend with coarse to distinguish between multiple fine "other" labels
         label = LabelField(label_text)
-
-        return {
+        fields = {
             "x": x,
             "label": label,
         }
+        if self._granularity == "fine":
+            fields["label_coarse"] = LabelField(label_coarse, label_namespace="coarse_labels")
+        return fields
 
     def text_to_instance(  # type:ignore
         self,
