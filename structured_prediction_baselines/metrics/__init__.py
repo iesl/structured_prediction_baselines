@@ -20,3 +20,6 @@ from .multilabel_classification_ndcg import (
 from .multilabel_classification_rbo import (
     MultilabelClassificationRankBiasedOverlap
 )
+from .singlelabel_classification_pairwise_difference import (
+    SinglelabelClassificationPairwiseDifference
+)
