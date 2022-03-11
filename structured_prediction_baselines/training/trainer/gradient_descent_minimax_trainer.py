@@ -61,163 +61,16 @@ from allennlp.training.gradient_descent_trainer import (
 from allennlp.training.callbacks import TrainerCallback
 from allennlp.training import util as training_util
 from structured_prediction_baselines.models.base import ScoreBasedLearningModel
-from structured_prediction_baselines.common import ModelMode
+from structured_prediction_baselines.common import ModelMode, OptimizerMode
 from collections.abc import MutableMapping
+
+from structured_prediction_baselines.training.optimizer.minimax_optimizer import MiniMaxOptimizer
 
 logger = logging.getLogger(__name__)
 
 MODE_LITERALS_TYPE = Literal[
     ModelMode.UPDATE_TASK_NN.value, ModelMode.UPDATE_SCORE_NN.value
 ]
-
-
-@Optimizer.register("minimax")
-class MiniMaxOptimizer(Optimizer, MutableMapping):
-    """
-    Holds multiple optimizers as dictionary with string keys.
-    Each it behaves as `torch.optim.Optimizer` but all the methods take in
-    an extra parameter `opt_key` (aka `model_mode`) to identify the optimizer to act upon.
-
-
-    Although we inherit from `MultiOptimizer` we do not assign parameters like `MultiOptimizer`.
-    `MultiOptimizer` assigns parameters to individual optimizers by looking for `optimizer_name` key
-    in the parameter group values. We will instead assign parameters by querying the model for appropriate parameters.
-
-    Note:
-        We are skipping the complex parameter grouping logic for now. It can be implemented if needed.
-    """
-
-    def __init__(
-        self,
-        model_parameters: List[Tuple[str, torch.nn.Parameter]],
-        optimizers: Dict[
-            MODE_LITERALS_TYPE,
-            Lazy[Optimizer],
-        ],
-        parameter_groups: Dict[
-            MODE_LITERALS_TYPE,
-            ParameterGroupsType
-        ] = None,
-    ):
-        # split the parameters and assign them to the correct optimizer
-        # Note: If a parameter does not have the model_mode attribute set,
-        # then that parameter will not be assigned to any optimizer
-
-        # if parameter_groups is not None:
-        #     raise ConfigurationError("parameter_groups are not supported.")
-        unassigned_params = []
-        named_params_: Dict[
-            MODE_LITERALS_TYPE,
-            List[Tuple[str, torch.nn.Parameter]],
-        ] = defaultdict(list)
-
-        for n, p in model_parameters:
-            if not ModelMode.hasattr_model_mode(p):
-                unassigned_params.append(n)
-
-                continue
-            mode_name = ModelMode.getattr_model_mode(p).value
-
-            if mode_name not in optimizers:
-                unassigned_params.append(n)
-
-                continue
-            mode_name_: MODE_LITERALS_TYPE = cast(
-                MODE_LITERALS_TYPE, mode_name
-            )  # no runtime effect
-            named_params_[mode_name_].append((n, p))
-
-        logger.info("Optimizer assignements are as follows.")
-
-        for mode_name, params in named_params_.items():
-            logger.info(
-                f"Following parameters have been assigned to the {mode_name} optimizer"
-            )
-
-            for n, p in params:
-                logger.info(f"{n}")
-        logger.info(
-            "Following parameters have not been assigned to any optimizer, hence will not be updated"
-        )
-
-        for n in unassigned_params:
-            logger.info(f"{n}")
-
-        self.optimizers = {
-            mode_name: lazy_optimizer.construct(
-                model_parameters=named_params_[mode_name],
-                parameter_groups=parameter_groups.get(mode_name)
-            )
-            for mode_name, lazy_optimizer in optimizers.items()
-        }
-
-        super().__init__([v for k, v in model_parameters], {})
-
-    def __getitem__(self, key: MODE_LITERALS_TYPE) -> torch.optim.Optimizer:
-        return self.optimizers[key]
-
-    def __setitem__(
-        self, key: MODE_LITERALS_TYPE, value: torch.optim.Optimizer
-    ) -> None:
-        self.optimizers[key] = value
-
-    def __delitem__(self, key: MODE_LITERALS_TYPE) -> None:
-        del self.optimizers[key]
-
-    def __iter__(self) -> Iterator[torch.optim.Optimizer]:
-        return iter(self.optimizers)
-
-    def __len__(self) -> int:
-        return len(self.optimizers)
-
-    def zero_grad(
-        self, opt_key: Optional[str] = None, set_to_none: bool = False
-    ) -> None:
-        if opt_key is not None:
-            self.optimizers[opt_key].zero_grad(set_to_none=set_to_none)
-        else:
-            for k, v in self.optimizers.items():
-                v.zero_grad(set_to_none=set_to_none)
-
-    def step(
-        self,
-        opt_key: Optional[str] = None,
-        closure: Optional[Dict[str, Callable]] = None,
-    ) -> None:
-        if opt_key is not None:
-            self.optimizers[opt_key].step(closure=closure)
-        else:
-            for k, v in self.optimizers.items():
-                v.step(closure=closure[k] if closure is not None else None)
-
-    def state_dict(self) -> Dict:
-        """
-        Creates an object `optimizer_state_dict`, which is a dictionary mapping an optimizer key to its
-        `state_dict`. This dictionary is used as the value for 'optimizer' in the 'training_states' dictionary in
-        the `gradient_descent` `Trainer`, e.g.
-        ```
-        "optimizer" : {
-            "optimizer1": `optimizer1_state_dict`,
-            "optimizer2": `optimizer2_state_dict`
-        }.
-        ```
-        """
-        optimizer_state_dict = {
-            f"{optimizer_key}_optimizer": optimizer.state_dict()
-            for optimizer_key, optimizer in self.optimizers.items()
-        }
-
-        return optimizer_state_dict
-
-    def load_state_dict(self, training_state: Dict[str, Any]) -> None:
-        """
-        Loads each optimizer's `state_dict`.
-        """
-
-        for optimizer_key, optimizer in self.optimizers.items():
-            optimizer.load_state_dict(
-                training_state[f"{optimizer_key}_optimizer"]
-            )
 
 
 class ChecksForGradientDescentMiniMaxTrainer(TrainerCallback):
@@ -340,7 +193,7 @@ class GradientDescentMinimaxTrainer(Trainer):
 
         if self._validation_data_loader is not None:
             self._validation_data_loader.set_target_device(self.cuda_device)
-        self.optimizer = optimizer
+        self.optimizer: MiniMaxOptimizer = optimizer
 
         if patience is None:  # no early stopping
             if validation_data_loader is not None:
@@ -546,7 +399,7 @@ class GradientDescentMinimaxTrainer(Trainer):
                 self._learning_rate_schedulers[mode.value].step_batch(
                     self._total_batches_completed + 1
                 )
-        self.optimizer.step(opt_key=mode.value)
+        self.optimizer.step(model_mode=mode.value)
 
         return batch_group_loss, batch_group_outputs
 
@@ -689,7 +542,7 @@ class GradientDescentMinimaxTrainer(Trainer):
                         break
                     # we need to zero_grad before each optimization step.
                     self.optimizer.zero_grad(
-                        opt_key=self.inner_mode.value, set_to_none=True
+                        model_mode=self.inner_mode.value, set_to_none=True
                     )
                     (
                         batch_group_inner_loss_,
@@ -709,7 +562,7 @@ class GradientDescentMinimaxTrainer(Trainer):
                     continue
 
                 self.optimizer.zero_grad(
-                    opt_key=self.inner_mode.flip().value, set_to_none=True
+                    model_mode=self.inner_mode.flip().value, set_to_none=True
                 )
                 (
                     batch_group_outer_loss_,

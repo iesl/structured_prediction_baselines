@@ -18,7 +18,7 @@ import torch
 from allennlp.common.lazy import Lazy
 from allennlp.modules import FeedForward
 from allennlp.training.optimizers import Optimizer
-from structured_prediction_baselines.common import ModelMode
+from structured_prediction_baselines.common import ModelMode, OptimizerMode
 from structured_prediction_baselines.modules.loss import Loss
 from structured_prediction_baselines.modules.oracle_value_function import (
     OracleValueFunction,
@@ -42,6 +42,15 @@ class InferenceNetSampler(Sampler):
         if self.tag_projection_layer is not None:
             yield from self.tag_projection_layer.parameters()
 
+    def _parameters_with_optimizer_mode(self):
+        self.inference_nn.mark_parameters_with_optimizer_mode()
+        if self.cost_augmented_layer is not None:
+            for param in self.cost_augmented_layer.parameters():
+                OptimizerMode.NON_FEATURE_NET.mark_parameter_with_optimizer_mode(param)
+        if self.tag_projection_layer is not None:
+            for param in self.tag_projection_layer.parameters():
+                OptimizerMode.NON_FEATURE_NET.mark_parameter_with_optimizer_mode(param)
+
     def __init__(
         self,
         loss_fn: Loss,
@@ -63,6 +72,7 @@ class InferenceNetSampler(Sampler):
         self.loss_fn = loss_fn
         self.tag_projection_layer = tag_projection_layer
 
+        self._parameters_with_optimizer_mode()
         self.logging_children.append(self.loss_fn)
 
     @property

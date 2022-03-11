@@ -57,6 +57,9 @@ class Sampler(LoggingMixin, torch.nn.Module, Registrable):
     ) -> Iterator[torch.nn.Parameter]:
         yield from []
 
+    def _parameters_with_optimizer_mode(self):
+        raise NotImplementedError
+
     def __init__(
         self,
         score_nn: Optional[ScoreNN] = None,
@@ -153,6 +156,10 @@ class BasicSampler(Sampler):
         super().__init__(**kwargs)
         self.inference_nn = inference_nn
         self.loss_fn = loss_fn
+        self._parameters_with_optimizer_mode()
+
+    def _parameters_with_optimizer_mode(self):
+        self.inference_nn.mark_parameters_with_optimizer_mode()
 
     def parameters_with_model_mode(
         self, mode: ModelMode

@@ -1,3 +1,4 @@
+import contextlib
 from typing import List, Tuple, Union, Dict, Any, Optional
 from allennlp.common.registrable import Registrable
 import torch
@@ -30,6 +31,7 @@ class Loss(LoggingMixin, torch.nn.Module, Registrable):
         oracle_value_function: Optional[OracleValueFunction] = None,
         reduction: Optional[str] = "sum",
         normalize_y: bool = False,
+        score_nn_grad: bool = True,
         **kwargs: Any,
     ):
         """
@@ -48,6 +50,7 @@ class Loss(LoggingMixin, torch.nn.Module, Registrable):
             )
         self.reduction = reduction
         self.normalize_y = normalize_y
+        self.score_nn_grad_state = score_nn_grad
         # we will use empty string to log the main loss value
         self.logging_buffer[""] = LoggedScalarScalar()
 
@@ -111,6 +114,29 @@ class Loss(LoggingMixin, torch.nn.Module, Registrable):
                 2. (,), ie a scaler loss if reduction is sum or mean
         """
         raise NotImplementedError
+
+    @contextlib.contextmanager
+    def _score_nn_grad(self, state: bool = True):
+        if not state:
+            # switch off the gradients for score_nn and cache their requires_grad
+            assert self.score_nn is not None
+            score_nn_requires_grad_map = {
+                name: param.requires_grad
+                for name, param in self.score_nn.named_parameters()
+            }
+            try:
+                # first switch off all.
+
+                for p in self.score_nn.parameters():
+                    p.requires_grad_(False)
+                yield
+            finally:
+                # set the requires_grad back for score nn
+
+                for n, p in self.score_nn.named_parameters():  # type: ignore
+                    p.requires_grad_(score_nn_requires_grad_map[n])
+        else:
+            yield
 
 
 @Loss.register("zero")

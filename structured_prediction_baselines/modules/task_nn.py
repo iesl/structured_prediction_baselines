@@ -15,10 +15,14 @@ import torch
 class TaskNN(torch.nn.Module, Registrable):
     """Base class for creating feature representation for any task.
 
-    Inheriting classes should override the `foward` method.
+    Inheriting classes should override the `forward` and '_mark_parameters_with_optimizer_mode' method.
     """
 
-    pass
+    def mark_parameters_with_optimizer_mode(self):
+        """
+         Mark parameters with the optimizer mode or 'FEATURE_NET' or 'NON_FEATURE_NET'
+        """
+        raise NotImplementedError
 
 
 class CostAugmentedLayer(torch.nn.Module, Registrable):

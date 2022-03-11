@@ -238,6 +238,9 @@ class BestSamplePicker(SamplePicker):
     "gradient-based-inference", constructor="from_partial_objects"
 )
 class GradientBasedInferenceSampler(Sampler):
+    def _parameters_with_optimizer_mode(self):
+        pass
+
     def __init__(
         self,
         gradient_descent_loop: GradientDescentLoop,
@@ -499,6 +502,9 @@ class GradientBasedInferenceWithTaskNNInitSampler(Sampler):
         self.gbi_sampler = gbi_sampler
         self._is_normalized = self.gbi_sampler.is_normalized
         self.logging_children.append(self.gbi_sampler)
+
+    def _parameters_with_optimizer_mode(self):
+        pass
 
     @classmethod
     def from_partial_objects(

@@ -13,21 +13,21 @@ local num_labels = dataset_metadata.num_labels;
 local ff_activation = 'softplus';
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local ff_linear_layers = 2;
-local weight_decay = std.parseJson(std.extVar('weight_decay'));
-local dropout = std.parseJson(std.extVar('dropout_10x')) / 10.0;
+local weight_decay = 1; //std.parseJson(std.extVar('weight_decay'));
+local dropout = 0.1; //std.parseJson(std.extVar('dropout_10x')) / 10.0;
 
 // // score_nn
 local transformer_model = 'bert-base-uncased';  // huggingface name of the model
 local transformer_dim = 768;
 local transformer_vocab_size = 30522;
 local score_nn_weight_decay = weight_decay;
-local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_dim'));
+local global_score_hidden_dim = 100; //std.parseJson(std.extVar('global_score_hidden_dim'));
 local score_nn_dropout = dropout;
 // // task_nn
 local task_nn_dropout = dropout;
 local task_nn_weight_decay = weight_decay;
-local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
-local score_loss_weight = std.parseJson(std.extVar('score_loss_weight'));
+local cross_entropy_loss_weight = 1; //std.parseJson(std.extVar('cross_entropy_loss_weight'));
+local score_loss_weight = 1; //std.parseJson(std.extVar('score_loss_weight'));
 
 
 
@@ -115,6 +115,7 @@ vocabulary: {
             log_key: 'neg_nce_score',
             normalize_y: true,
             reduction: 'none',
+            score_nn_grad: false,
           },  //This loss can be different from the main loss // change this
           {
             type: 'multi-label-bce',
@@ -188,16 +189,26 @@ vocabulary: {
       },
     },
     optimizer: {
-      optimizers: {  // have only tasknn optmizer
+      type: 'minimax_multimodal',
+      optimizers: {
         task_nn: {
-          lr: 1e-5,
-          weight_decay: task_nn_weight_decay,
-          type: 'huggingface_adamw',
+          feature_net: {
+            lr: 1e-5,
+            weight_decay: task_nn_weight_decay,
+            type: 'huggingface_adamw',
+          },
+          non_feature_net: {
+            lr: 1e-5,
+            weight_decay: task_nn_weight_decay,
+            type: 'huggingface_adamw',
+          }
         },
         score_nn: {
-          lr: 5e-5,
-          weight_decay: score_nn_weight_decay,
-          type: 'huggingface_adamw',
+          full: {
+            lr: 5e-5,
+            weight_decay: score_nn_weight_decay,
+            type: 'huggingface_adamw',
+          }
         },
       },
     },
