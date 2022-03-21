@@ -9,7 +9,7 @@ local validation_data_path = data_dir + '/weizmann_horse_val.npy';
 local test_data_path = data_dir + '/weizmann_horse_test.npy';
 local batch_size = std.parseInt(std.extVar('batch_size'));
 // Model
-local task_nn = {type: 'weizmann-horse-seg',};
+local task_nn = {type: 'weizmann-horse-seg-s',}; // predict single channel logits
 
 {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
@@ -34,7 +34,7 @@ local task_nn = {type: 'weizmann-horse-seg',};
       type: 'weizmann-horse-seg-inference-net',
       log_key: 'inference_module',
       loss_fn: {
-        type: 'weizmann-horse-seg-ce',
+        type: 'weizmann-horse-seg-bce', // bce for single channel logits
         reduction: 'mean',
         normalize_y: false,
         log_key: 'ce',

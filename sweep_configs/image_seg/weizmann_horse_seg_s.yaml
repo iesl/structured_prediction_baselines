@@ -1,16 +1,16 @@
-name: weizmann_horse_seg
+name: weizmann_horse_seg_s
 program: allennlp
 command:
 - ${program}
 - train-with-wandb
-- model_configs/image_seg/weizmann_horse_seg.jsonnet
+- model_configs/image_seg/weizmann_horse_seg_s.jsonnet
 - --include-package=structured_prediction_baselines
 - --wandb-entity=score-based-learning
 - --wandb-project=segmentation
 - --wandb-tags=task@image_seg,dataset@weizmann_horse
 - ${args}
 - --file-friendly-logging
-description: Train tasknn using cross-entropy.
+description: Train tasknn using binary-cross-entropy, tasknn predicts single channel logits.
 method: bayes
 metric:
   goal: maximize

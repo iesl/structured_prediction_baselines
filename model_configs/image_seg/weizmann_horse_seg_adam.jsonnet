@@ -4,10 +4,11 @@ local test = std.extVar('TEST');  // a test run with small dataset
 local use_wandb = (if test == '1' then false else true);
 // Data
 local data_dir = '/mnt/nfs/scratch1/wenlongzhao/SEAL/structured_prediction_baselines/data/weizmann_horse';
-local train_data_path = data_dir + '/weizmann_horse_trainval.npy';
+local train_data_path = data_dir + '/weizmann_horse_train.npy';
 local validation_data_path = data_dir + '/weizmann_horse_val.npy';
 local test_data_path = data_dir + '/weizmann_horse_test.npy';
 local batch_size = std.parseInt(std.extVar('batch_size'));
+local eval_cropping = std.parseJson(std.extVar('eval_cropping'));
 // Model
 local task_nn = {type: 'weizmann-horse-seg',};
 
@@ -20,7 +21,7 @@ local task_nn = {type: 'weizmann-horse-seg',};
   test_data_path: test_data_path,
   vocabulary: {type: 'empty',},
   dataset_reader: {type: 'weizmann-horse-seg', cropping: 'random',},
-  validation_dataset_reader: {type: 'weizmann-horse-seg',},
+  validation_dataset_reader: {type: 'weizmann-horse-seg', cropping: eval_cropping},
   data_loader: {
     batch_size: batch_size,
     max_instances_in_memory: batch_size, // so that cropping happens every time
@@ -39,6 +40,7 @@ local task_nn = {type: 'weizmann-horse-seg',};
         normalize_y: false,
         log_key: 'ce',
       },
+      eval_loss_fn: (if eval_cropping == 'thirty_six' then {type: 'zero'} else null), // zero loss during eval
     },
     loss_fn: {type: 'zero'},
   },
@@ -53,12 +55,12 @@ local task_nn = {type: 'weizmann-horse-seg',};
     patience: 20,
     validation_metric: '+seg_iou',
 
+    grad_norm: { task_nn: 10.0, score_nn: 10.0 },
     optimizer: {
       optimizers: {
         task_nn: {
-            type: 'sgd',
+            type: 'adam',
             lr: 0.1,
-            momentum: 0.9,
             weight_decay: 0.0001,
           },
       },

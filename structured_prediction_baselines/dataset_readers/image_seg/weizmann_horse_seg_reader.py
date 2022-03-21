@@ -18,9 +18,9 @@ def thirty_six_crop(img, size=24):
     https://pytorch.org/docs/master/_modules/torchvision/transforms/functional.html
     """
     crops = []
-    for i in [0, 2, 3, 4, 5, 8]:
-        for j in [0, 2, 3, 4, 5, 8]:
-            crops.append(img.crop((i, j, i + size, j + size)))
+    for h in [0, 2, 3, 4, 6, 8]:
+        for w in [0, 2, 3, 4, 6, 8]:
+            crops.append(img.crop((w, h, w+size, h+size))) # notice that w comes first
     return crops
 
 @DatasetReader.register("weizmann-horse-seg")
@@ -43,9 +43,7 @@ class WeizmannHorseSegReader(DatasetReader):
             raw_image = self.transform(raw_image) # This will scale from 0-255 to 0-1
             mask = self.transform(np.expand_dims(mask*255, axis=2))
 
-            if self.cropping is None:
-                image = TF.to_tensor(raw_image)
-            elif self.cropping == "thirty_six":
+            if self.cropping == "thirty_six":
                 image = thirty_six_crop(raw_image)
                 transform_test = transforms.Compose(
                     [transforms.Lambda(lambda crops: torch.stack([transforms.ToTensor()(crop) for crop in crops]))]
@@ -55,13 +53,15 @@ class WeizmannHorseSegReader(DatasetReader):
                 i, j, h, w = transforms.RandomCrop.get_params(raw_image, output_size=(24, 24))
                 image = TF.to_tensor(TF.crop(raw_image, i, j, h, w)) # (3, 24, 24)
                 mask = TF.crop(mask, i, j, h, w)
+            else:
+                image = TF.to_tensor(raw_image)
 
             raw_image = TF.to_tensor(raw_image)
             mask = TF.to_tensor(mask) >= 0.5 # make sure we binarize to integers 0 and 1
 
             yield Instance({
                 'raw_image': ArrayField(raw_image), # (3, 32, 32)
-                'image': ArrayField(image), # None (3, 32, 32), thirty_six (36, 3, 24, 24), random (3, 24, 24)
-                'mask': ArrayField(mask), # None or thirty_six (1, 32, 32), random (1, 24, 24)
+                'image': ArrayField(image), # random (3, 24, 24); None (3, 32, 32), thirty_six (36, 3, 24, 24)
+                'mask': ArrayField(mask), # random (1, 24, 24); None (1, 32, 32), thirty_six (1, 32, 32)
             })
 

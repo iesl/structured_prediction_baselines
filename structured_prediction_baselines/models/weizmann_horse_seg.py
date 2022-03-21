@@ -32,17 +32,11 @@ class WeizmannHorseSegModel(ScoreBasedLearningModel):
 
     @overrides
     def unsqueeze_labels(self, labels: torch.Tensor) -> torch.Tensor:
-        """Unsqueeze to get the samples dimension"""
-
-        return labels
-        # return labels.unsqueeze(-4) # last three dimensions are image dimensions
+        return labels.unsqueeze(-4) # (b, n=1, c=1, h, w)
 
     @overrides
     def squeeze_y(self, y: torch.Tensor) -> torch.Tensor:
-        """Squeeze the samples dimension"""
-
         return y
-        # return y.squeeze(-4) # last three dimensions are image dimensions
 
     @overrides
     def construct_args_for_forward(self, **kwargs: Any) -> Dict:
@@ -56,13 +50,13 @@ class WeizmannHorseSegModel(ScoreBasedLearningModel):
     def calculate_metrics(
         self,
         x: Any,
-        labels: torch.Tensor,  # model ground truth, shape: (batch, ...)
-        y_hat: torch.Tensor,  # model prediction, shape: (batch, ...)
+        labels: torch.Tensor, # (b, )
+        y_hat: torch.Tensor,
         buffer: Dict,
         results: Dict,
         **kwargs: Any,
     ) -> None:
-        self._seg_iou(y_hat.detach(), labels.long()) # TODO detach
+        self._seg_iou(y_hat.detach(), labels.long())
 
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
         return {"seg_iou": self._seg_iou.get_metric(reset=reset)}

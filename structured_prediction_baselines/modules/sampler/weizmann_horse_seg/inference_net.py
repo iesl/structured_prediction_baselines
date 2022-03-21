@@ -6,6 +6,7 @@ from structured_prediction_baselines.modules.sampler import (
 )
 import torch
 import torch.nn.functional as F
+from structured_prediction_baselines.modules.loss import Loss
 from structured_prediction_baselines.modules.score_nn import ScoreNN
 from structured_prediction_baselines.modules.oracle_value_function import (
     OracleValueFunction,
@@ -19,26 +20,65 @@ from structured_prediction_baselines.modules.sequence_tagging_task_nn import (
 @InferenceNetSampler.register("weizmann-horse-seg-inference-net")
 class WeizmannHorseSegInferenceNetSampler(InferenceNetSampler):
 
+    def __init__(self, eval_loss_fn: Loss = None, **kwargs: Any):
+        super(WeizmannHorseSegInferenceNetSampler, self).__init__(**kwargs)
+        self.eval_loss_fn = eval_loss_fn
+
+    @property
+    def is_normalized(self) -> bool:
+        return True
+
+    def normalize(self, y: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
+        if y is None:
+            return None
+
+        if self.thirty_six_crops:
+            y = y.view(-1, 36, *y.size()[-3:])
+
+        if y.size()[-3] == 1: # (b, c=1, h, w)
+            return torch.sigmoid(y)
+        elif y.size()[-3] == 2: # (b, c=2, h, w)
+            return torch.softmax(y, dim=-3) # keep channels, argmax during IoU metric calculation
+        else:
+            raise
+
     def forward(
         self,
-        x: Any,
-        labels: Optional[torch.Tensor],  # (batch, ...)
+        x: Any, # train (b, 3, 24, 24); test: None (b, 3, 32, 32) or thirty_six (b, 36, 3, 24, 24)
+        labels: Optional[torch.Tensor],  # (b, c=1, h, w)
         buffer: Dict,
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
-        output = self.inference_nn(x)
 
-        n, c, h, w = output.size()
-        log_p = F.log_softmax(output, dim=1)
-        # prediction (pick higher probability after log softmax)
-        pred = torch.argmax(log_p, dim=1) # (n, h, w)
+        self.thirty_six_crops = False
+        if len(x.size()) == 5:
+            assert x.size()[1] == 36
+            x = x.view(-1, *x.size()[-3:])
+            self.thirty_six_crops = True
 
-        log_p = log_p.transpose(1, 2).transpose(2, 3)
-        labels = labels.transpose(1, 2).transpose(2, 3)
-        log_p = log_p[labels.repeat(1, 1, 1, c) >= 0]
-        log_p = log_p.view(-1, c) # (n*h*w, c)
-        labels = labels[labels >= 0] # (n*h*w,)
-        loss = F.nll_loss(log_p, labels.long())
+        y_hat = self.inference_nn(x) # (b, c=1 or 2, h, w) unnormalized logits
+        print("max value in logits from tasknn", y_hat.max())
 
-        return pred, None, loss
+        if self.cost_augmented_layer is None or labels is None:
+            y_cost_aug = None
+        else:
+            y_cost_aug = self.cost_augmented_layer(
+                torch.cat((y_hat, labels.to(dtype=y_hat.dtype)), dim=-1), buffer,
+            )
 
+        # thirty_six_crops which is a type of evaluation
+        if self.thirty_six_crops:
+            assert self.eval_loss_fn is not None
+            loss = self.eval_loss_fn(x, labels, y_hat, y_cost_aug, buffer)
+        else: # x.size()[-1] == 32 or
+            loss = self.loss_fn(x, labels, y_hat, y_cost_aug, buffer)
+
+        return (
+                   self.normalize(y_hat), # (b, c=1 or 2, h, w) or (b, 36, c=1 or 2, h, w)
+                   self.normalize(y_cost_aug),
+                   loss
+        )
+
+    @property
+    def different_training_and_eval(self) -> bool:
+        return False
