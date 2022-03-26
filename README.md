@@ -14,9 +14,11 @@ Implements baselines for tasks like POS tagging, NER and SRL.
 From allennlp v2.5, additional steps are required: 
 ```
 pip install --upgrade allennlp==2.5.0
-pip install --upgrade git+https://github.com/dhruvdcoder/wandb-allennlp.git@feat/convert-to-plugin
 ```
-
+Install wandb allennlp to experiment with  wandb (if not already installed):
+```
+pip install wandb_allennlp
+```
 # Running the models
 
 1. Download datasets
@@ -47,7 +49,7 @@ pip install --upgrade git+https://github.com/dhruvdcoder/wandb-allennlp.git@feat
         ```
         export TEST=1
         export CUDA_DEVICE=-1
-        allennlp train <path_to_config> -s <path to serialization dir> --include_package structure_prediction_baselines
+        allennlp train <path_to_config> -s <path to serialization dir> --include_package structured_prediction_baselines
         ```
 
         2. With output to wandb (see [creating account and login into wandb](https://docs.wandb.ai/quickstart#2-create-account) for details on getting started with wandb.)
@@ -55,7 +57,7 @@ pip install --upgrade git+https://github.com/dhruvdcoder/wandb-allennlp.git@feat
         ```
         export TEST=0
         export CUDA_DEVICE=-1
-        wandb_allennlp --subcommand=train --config_file=model_configs/<path_to_config_file> --include-package=structured_prediction_baselines --wandb_run_name=<some_informative_name_for_run>  --wandb_project structure_prediction_baselines --wandb_entity score-based-learning --wandb_tags=baselines,as_reported
+        wandb_allennlp --subcommand=train --config_file=model_configs/<path_to_config_file> --include-package=structured_prediction_baselines --wandb_run_name=<some_informative_name_for_run>  --wandb_project structured_prediction_baselines --wandb_entity score-based-learning --wandb_tags=baselines,as_reported
         ```
 
 4. Running hyperparameter sweeps
