@@ -18,7 +18,7 @@ class SegIoU(Metric):
         self.total_count = 0.0
 
     def __call__(self, y_pred: torch.Tensor, y_true: torch.Tensor):
-        assert len(y_pred.size()) in [4, 5] # (b, 1 or 2, h, w) or (b, 36, 1 or 2, h, w)
+        assert len(y_pred.size()) in [4, 5] # (b, 1 or 2, h, w) or (b, 36, 1 or 2, h, w), no num_sample dim
         assert len(y_true.size()) == 4 # (b, 1, h, w)
         self.total_count += y_true.shape[0]
 
@@ -43,6 +43,8 @@ class SegIoU(Metric):
 
         if y_pred.size()[-3] > 1:
             y_pred = torch.argmax(y_pred, dim=-3)
+        else:
+            y_pred = y_pred > 0.5
         y_pred = y_pred.view(-1, y_pred.size()[-2] * y_pred.size()[-1]) # (b, h*w)
         y_true = y_true.view(-1, y_true.size()[-2] * y_true.size()[-1]) # (b, h*w)
         intersect = torch.sum(torch.min(y_pred, y_true), dim=-1)

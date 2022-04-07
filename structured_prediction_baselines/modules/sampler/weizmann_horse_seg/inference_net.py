@@ -52,29 +52,28 @@ class WeizmannHorseSegInferenceNetSampler(InferenceNetSampler):
 
         self.thirty_six_crops = False
         if len(x.size()) == 5:
-            assert x.size()[1] == 36
-            x = x.view(-1, *x.size()[-3:])
+            assert x.size()[1] == 36 # (b, 36, 3, 24, 24)
+            x = x.view(-1, *x.size()[-3:]) # (b*36, 3, 24, 24)
             self.thirty_six_crops = True
 
         y_hat = self.inference_nn(x) # (b, c=1 or 2, h, w) unnormalized logits
-        print("max value in logits from tasknn", y_hat.max())
+        print("infnet inference module, max value in logits from tasknn", y_hat.max())
 
-        if self.cost_augmented_layer is None or labels is None:
-            y_cost_aug = None
-        else:
-            y_cost_aug = self.cost_augmented_layer(
-                torch.cat((y_hat, labels.to(dtype=y_hat.dtype)), dim=-1), buffer,
-            )
+        # if self.cost_augmented_layer is None or labels is None:
+        #     y_cost_aug = None
+        # else:
+        #     y_cost_aug = self.cost_augmented_layer(
+        #         torch.cat((y_hat, labels.to(dtype=y_hat.dtype)), dim=-1), buffer,
+        #     )
 
-        # thirty_six_crops which is a type of evaluation
-        if self.thirty_six_crops:
+        if self.thirty_six_crops or x.size()[-1] == 32: # evaluation
             assert self.eval_loss_fn is not None
             loss = self.eval_loss_fn(x, labels, y_hat, y_cost_aug, buffer)
-        else: # x.size()[-1] == 32 or
+        else: # train
             loss = self.loss_fn(x, labels, y_hat, y_cost_aug, buffer)
 
         return (
-                   self.normalize(y_hat), # (b, c=1 or 2, h, w) or (b, 36, c=1 or 2, h, w)
+                   self.normalize(y_hat), # (b, c=1 or 2, h, w) or (b, 36, c=1 or 2, 24, 24), no num_sample dim
                    self.normalize(y_cost_aug),
                    loss
         )

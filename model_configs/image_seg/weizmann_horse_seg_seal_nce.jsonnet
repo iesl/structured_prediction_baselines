@@ -4,10 +4,12 @@ local test = std.extVar('TEST');  // a test run with small dataset
 local use_wandb = (if test == '1' then false else true);
 // Data
 local data_dir = '/mnt/nfs/scratch1/wenlongzhao/SEAL/structured_prediction_baselines/data/weizmann_horse';
-local train_data_path = data_dir + '/weizmann_horse_trainval.npy';
+local train_data_path = data_dir + '/weizmann_horse_train.npy';
 local validation_data_path = data_dir + '/weizmann_horse_val.npy';
 local test_data_path = data_dir + '/weizmann_horse_test.npy';
 local batch_size = std.parseInt(std.extVar('batch_size'));
+// local eval_cropping = std.extVar('eval_cropping'); // uncomment if environment variable
+local eval_cropping = std.parseJson(std.extVar('eval_cropping')); // TODO uncomment if from yaml
 // Model
 local task_nn = {type: 'weizmann-horse-seg',};
 // Training
@@ -22,7 +24,7 @@ local score_loss_weight = std.parseJson(std.extVar('score_loss_weight'));
   test_data_path: test_data_path,
   vocabulary: {type: 'empty',},
   dataset_reader: {type: 'weizmann-horse-seg', cropping: 'random',},
-  validation_dataset_reader: {type: 'weizmann-horse-seg',},
+  validation_dataset_reader: {type: 'weizmann-horse-seg', cropping: eval_cropping},
   data_loader: {
     batch_size: batch_size,
     max_instances_in_memory: batch_size, // so that cropping happens every time
@@ -38,39 +40,43 @@ local score_loss_weight = std.parseJson(std.extVar('score_loss_weight'));
       constituent_samplers: [],
     },
     inference_module: {
-      type: 'weizmann-horse-seg-inference-net', // TODO
+      type: 'weizmann-horse-seg-inference-net',
       log_key: 'inference_module',
       loss_fn: {
         type: 'combination-loss',
         log_key: 'loss',
         constituent_losses: [
           {
-            type: 'sequence-tagging-score-loss', // jy: fix here..
-            log_key: 'neg.nce_score',
+            type: 'weizmann-horse-seg-score-loss',
             normalize_y: true,
             reduction: 'none',
-          },  //This loss can be different from the main loss // change this
+            log_key: 'neg.nce_score',
+          },
           {
-            type: 'sequence-tagging-masked-cross-entropy', // TODO placeholder, not use
-            log_key: 'ce',
+            type: 'weizmann-horse-seg-ce',
             reduction: 'none',
             normalize_y: false,
+            log_key: 'ce',
           },
         ],
         loss_weights: [score_loss_weight, 1],
         reduction: 'mean',
       },
+      eval_loss_fn: (if eval_cropping == 'thirty_six' then {type: 'zero'} else null), // zero loss during eval
     },
-    oracle_value_function: {type: 'seg-iou', differentiable: true},
+    // oracle_value_function: {type: 'seg-iou', differentiable: true},
     score_nn: {
       type: 'weizmann-horse-seg',
       task_nn: task_nn,
     },
-    loss_fn: { TODO
-      type: 'seqtag-nce-ranking-with-discrete-sampling',
+    loss_fn: {
+      type: 'weizmann-horse-seg-nce-ranking-with-discrete-sampling',
+      log_key: 'nce_loss',
+      normalize_y: true,
+      num_samples: 20,
+      sign: '-',
       reduction: 'mean',
-      log_key: 'seq_nce_loss',
-      num_samples: 10,
+      use_distance: false,
     },
   },
 
@@ -84,18 +90,17 @@ local score_loss_weight = std.parseJson(std.extVar('score_loss_weight'));
     patience: 20,
     validation_metric: '+seg_iou',
 
+    grad_norm: { task_nn: 10.0, score_nn: 10.0 },
     optimizer: {
       optimizers: {
         task_nn: {
-            type: 'sgd',
+            type: 'adam',
             lr: 0.1,
-            momentum: 0.9,
             weight_decay: 0.0001,
           },
         score_nn: {
-          type: 'sgd',
+          type: 'adam',
           lr: 0.1,
-          momentum: 0.9,
           weight_decay: 0.0001,
         },
       },

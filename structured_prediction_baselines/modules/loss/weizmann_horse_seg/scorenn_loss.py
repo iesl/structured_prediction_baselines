@@ -44,7 +44,7 @@ class WeizmannHorseSegNCERankingLoss(NCERankingLoss):
         samples = samples.view(*samples.size()[:-3], -1)
         probs = probs.view(*probs.size()[:-3], -1)
         loss = torch.sum(self.bce(probs, samples), dim=-1)
-        print("bce", loss.max(), loss.min())
+        print("nce -lnPn", loss.max(), loss.min())
 
         return self.mul * loss  # (b, 1+n)
 

@@ -1,5 +1,5 @@
 // Setup
-local cuda_device = std.extVar('CUDA_DEVICE');
+local cuda_device = std.parseInt(std.extVar('CUDA_DEVICE'));
 local test = std.extVar('TEST');  // a test run with small dataset
 local use_wandb = (if test == '1' then false else true);
 // Data
@@ -99,7 +99,7 @@ local tasknn_lr = std.parseJson(std.extVar('tasknn_lr'));
 
   trainer: {
     type: 'gradient_descent_minimax',
-    cuda_device: std.parseInt(cuda_device),
+    cuda_device: cuda_device,
     inner_mode: 'score_nn',
 
     num_epochs: if test == '1' then 5 else 50,

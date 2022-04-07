@@ -8,7 +8,8 @@ local train_data_path = data_dir + '/weizmann_horse_train.npy';
 local validation_data_path = data_dir + '/weizmann_horse_val.npy';
 local test_data_path = data_dir + '/weizmann_horse_test.npy';
 local batch_size = std.parseInt(std.extVar('batch_size'));
-local eval_cropping = std.parseJson(std.extVar('eval_cropping'));
+// local eval_cropping = std.extVar('eval_cropping'); // uncomment if environment variable
+local eval_cropping = std.parseJson(std.extVar('eval_cropping')); // TODO uncomment if from yaml
 // Model
 local task_nn = {type: 'weizmann-horse-seg',};
 

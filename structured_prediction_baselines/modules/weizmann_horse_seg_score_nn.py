@@ -28,13 +28,13 @@ class WeizmannHorseSegScoreNN(ScoreNN):
     def forward(self, x: torch.Tensor, y: torch.Tensor, buffer: Any = None) -> torch.Tensor:
         """
         :param x: (b, 3, 24, 24)
-        :param y: (b, 1+n, 1, 24, 24) for scorenn training and (b, 1, 24, 24) during tasknn training
-        :return: (b, 1+n) for scorenn training and (b,) during tasknn training
+        :param y: (b, n or 1+n, 1, 24, 24) for scorenn training; (b, 1, 24, 24) during tasknn training or DVN inference
+        :return: (b, n or 1+n) for scorenn training and (b,) during tasknn training
         """
         size_prefix = y.size()[:-3]
         if len(y.size()) > 4: # scorenn training
             x = x.unsqueeze(-4) # (b, 1, 3, 24, 24)
-            x = x.repeat(*((1,)*len(x.size()[:-4])), y.size()[-4], *((1,)*len(x.size()[-3:]))) # (b, 1+n, 3, 24, 24)
+            x = x.repeat(*((1,)*len(x.size()[:-4])), y.size()[-4], *((1,)*len(x.size()[-3:]))) # (b, n or 1+n, 3, 24, 24)
             x = x.view(-1, *x.size()[-3:])
             y = y.view(-1, *y.size()[-3:])
 
@@ -48,9 +48,5 @@ class WeizmannHorseSegScoreNN(ScoreNN):
         z = F.relu(self.fc1(z))
         z = self.dropout(z)
         z = F.relu(self.fc2(z))
-        z = self.fc3(z).squeeze(-1)
-        return z.view(*size_prefix) # (b, 1+n) for scorenn training and (b,) during tasknn training
-        # print("z", z.size(), z.max(), z.min(), z.mean())
-        # z = torch.sigmoid(z.view(*size_prefix))
-        # print("z", z.size(), z.max(), z.min(), z.mean())
-        # return z # (b, 1+n) for scorenn training and (b,) during tasknn training
+        z = self.fc3(z)
+        return z.view(*size_prefix) # (b, n or 1+n) for scorenn training and (b,) during tasknn training

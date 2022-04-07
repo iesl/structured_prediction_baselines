@@ -14,6 +14,7 @@ from .base import ScoreBasedLearningModel
 logger = logging.getLogger(__name__)
 
 
+@Model.register("weizmann-horse-seg", constructor="from_partial_objects")
 @Model.register("seal-weizmann-horse-seg", constructor="from_partial_objects_with_shared_tasknn")
 class WeizmannHorseSegModel(ScoreBasedLearningModel):
 
