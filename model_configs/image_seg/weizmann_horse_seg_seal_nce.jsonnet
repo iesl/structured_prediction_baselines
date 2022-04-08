@@ -54,8 +54,8 @@ local score_loss_weight = std.parseJson(std.extVar('score_loss_weight'));
           },
           {
             type: 'weizmann-horse-seg-ce',
-            reduction: 'none',
             normalize_y: false,
+            reduction: 'none',
             log_key: 'ce',
           },
         ],

@@ -47,15 +47,15 @@ local score_loss_weight = std.parseJson(std.extVar('score_loss_weight'));
         log_key: 'loss',
         constituent_losses: [
           {
-            type: 'weizmann-horse-seg-score-loss',
+            type: 'weizmann-horse-seg-dvn-score-loss',
             normalize_y: true,
             reduction: 'none',
-            log_key: 'neg.nce_score',
+            log_key: 'neg.dvn_score',
           },
           {
             type: 'weizmann-horse-seg-ce',
-            reduction: 'none',
             normalize_y: false,
+            reduction: 'none',
             log_key: 'ce',
           },
         ],
@@ -64,19 +64,16 @@ local score_loss_weight = std.parseJson(std.extVar('score_loss_weight'));
       },
       eval_loss_fn: (if eval_cropping == 'thirty_six' then {type: 'zero'} else null), // zero loss during eval
     },
-    // oracle_value_function: {type: 'seg-iou', differentiable: true},
+    oracle_value_function: {type: 'seg-iou', differentiable: true},
     score_nn: {
       type: 'weizmann-horse-seg',
       task_nn: task_nn,
     },
     loss_fn: {
-      type: 'weizmann-horse-seg-nce-ranking-with-discrete-sampling',
-      log_key: 'nce_loss',
+      type: 'weizmann-horse-seg-dvn-bce',
+      log_key: 'dvn_bce',
       normalize_y: true,
-      num_samples: 20,
-      sign: '-',
       reduction: 'mean',
-      use_distance: false,
     },
   },
 

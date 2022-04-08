@@ -57,7 +57,7 @@ class WeizmannHorseSegInferenceNetSampler(InferenceNetSampler):
             self.thirty_six_crops = True
 
         y_hat = self.inference_nn(x) # (b, c=1 or 2, h, w) unnormalized logits
-        print("infnet inference module, max value in logits from tasknn", y_hat.max())
+        # print("infnet inference module, max value in logits from tasknn", y_hat.max())
 
         if self.cost_augmented_layer is None or labels is None:
             y_cost_aug = None

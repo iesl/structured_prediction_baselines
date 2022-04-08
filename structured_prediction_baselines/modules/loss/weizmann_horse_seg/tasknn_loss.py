@@ -76,6 +76,29 @@ class WeizmannHorseSegCELoss(Loss):
         return metrics
 
 
+@Loss.register("weizmann-horse-seg-dvn-score-loss")
+class WeizmannHorseSegDVNScoreLoss(DVNScoreLoss):
+    """
+    Non-DVN setup where score is not bounded in [0,1],
+    however the only thing we need is score from scoreNN,
+    so it's better to share with DVNScoreLoss.
+    """
+
+    def normalize(self, y: torch.Tensor) -> torch.Tensor:
+        if y.size()[-3] == 1:  # (b, c=1, h, w)
+            return torch.sigmoid(y)
+        elif y.size()[-3] == 2:  # (b, c=2, h, w)
+            return torch.softmax(y, dim=-3)[..., 1, :, :].unsqueeze(-3) # only the horse channel
+        else:
+            raise
+
+    def compute_loss(
+            self,
+            predicted_score: torch.Tensor,  # (b, n)
+    ) -> torch.Tensor:
+        return -torch.sigmoid(predicted_score)
+
+
 @Loss.register("weizmann-horse-seg-score-loss")
 class WeizmannHorseSegScoreLoss(DVNScoreLoss):
     """
