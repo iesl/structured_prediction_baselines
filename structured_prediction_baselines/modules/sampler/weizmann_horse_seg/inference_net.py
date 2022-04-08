@@ -59,12 +59,12 @@ class WeizmannHorseSegInferenceNetSampler(InferenceNetSampler):
         y_hat = self.inference_nn(x) # (b, c=1 or 2, h, w) unnormalized logits
         print("infnet inference module, max value in logits from tasknn", y_hat.max())
 
-        # if self.cost_augmented_layer is None or labels is None:
-        #     y_cost_aug = None
-        # else:
-        #     y_cost_aug = self.cost_augmented_layer(
-        #         torch.cat((y_hat, labels.to(dtype=y_hat.dtype)), dim=-1), buffer,
-        #     )
+        if self.cost_augmented_layer is None or labels is None:
+            y_cost_aug = None
+        else:
+            y_cost_aug = self.cost_augmented_layer(
+                torch.cat((y_hat, labels.to(dtype=y_hat.dtype)), dim=-1), buffer,
+            )
 
         if self.thirty_six_crops or x.size()[-1] == 32: # evaluation
             assert self.eval_loss_fn is not None
