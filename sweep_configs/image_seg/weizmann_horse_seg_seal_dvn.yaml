@@ -35,6 +35,10 @@ parameters:
     max: 9.99
     min: 1.0
     q: 2.0
+  trainer.num_steps.task_nn:
+    distribution: int_uniform
+    max: 10
+    min: 1
   trainer.optimizer.optimizers.score_nn.lr:
     distribution: log_uniform_values
     max: 0.02
