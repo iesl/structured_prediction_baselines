@@ -10,7 +10,7 @@ from typing import (
     Callable,
     Iterator,
     cast,
-    Literal,
+    Literal, Union,
 )
 
 import torch
@@ -207,10 +207,7 @@ class MiniMaxMultimodalOptimizer(MiniMaxOptimizer, MutableMapping):
             model_parameters: List[Tuple[str, torch.nn.Parameter]],
             optimizers: Dict[
                 MODE_LITERALS_TYPE,
-                Dict[
-                    OPTIMIZER_LITERALS_TYPE,
-                    Lazy[Optimizer]
-                ],
+                Lazy[Optimizer],
             ],
             shared_feature_net: bool = False,
             parameter_groups: ParameterGroupsType = None,
@@ -234,15 +231,14 @@ class MiniMaxMultimodalOptimizer(MiniMaxOptimizer, MutableMapping):
         for n, p in model_parameters:
             if not ModelMode.hasattr_model_mode(p):
                 unassigned_params.append(n)
-
                 continue
             mode_name = ModelMode.getattr_model_mode(p).value
             optimizer_mode = OptimizerMode.getattr_optimizer_mode(p).value
-
-            if mode_name not in optimizers:
+            optimizer_key = self.join_optimizer_key(mode_name, optimizer_mode)
+            if optimizer_key not in optimizers and mode_name not in optimizers:
                 unassigned_params.append(n)
-
                 continue
+
             mode_name_: MODE_LITERALS_TYPE = cast(
                 MODE_LITERALS_TYPE, mode_name
             )  # no runtime effect
@@ -272,18 +268,17 @@ class MiniMaxMultimodalOptimizer(MiniMaxOptimizer, MutableMapping):
         self.optimizers: Dict[
             MODE_LITERALS_TYPE,
             Dict[OPTIMIZER_LITERALS_TYPE, Optimizer]
-        ] = {}
+        ] = defaultdict(dict)
 
-        for mode_name in optimizers.keys():
-            print(mode_name)
-            mode_optimizers = optimizers[mode_name]
-            print(mode_optimizers)
-            self.optimizers[mode_name] = {
-                optimizer_mode: lazy_optimizer.construct(
-                    model_parameters=named_params_[mode_name][optimizer_mode]
+        for key, lazy_optimizer in optimizers.items():
+            mode_name, optimizer_mode = self.split_optimizer_key(key)
+            if optimizer_mode == OptimizerMode.FULL.value:
+                optimizer_parameters_ = sum(named_params_[mode_name].values(), [])
+            else:
+                optimizer_parameters_ = named_params_[mode_name][optimizer_mode]
+            self.optimizers[mode_name][optimizer_mode] = lazy_optimizer.construct(
+                    model_parameters=optimizer_parameters_
                 )
-                for optimizer_mode, lazy_optimizer in mode_optimizers.items()
-            }
 
         if shared_feature_net:
             self.optimizers[ModelMode.UPDATE_SCORE_NN.value][OptimizerMode.FEATURE_NET.value] = self.optimizers[ModelMode.UPDATE_TASK_NN.value][OptimizerMode.FEATURE_NET.value]
@@ -291,8 +286,10 @@ class MiniMaxMultimodalOptimizer(MiniMaxOptimizer, MutableMapping):
         super().__init__([v for k, v in model_parameters], {})
 
     def __getitem__(self, key: MODE_LITERALS_TYPE,
-                    opt_key: OPTIMIZER_LITERALS_TYPE = OptimizerMode.FULL.value) -> torch.optim.Optimizer:
-        return self.optimizers[key][opt_key]
+                    opt_key: OPTIMIZER_LITERALS_TYPE = None) -> Union[Dict[Any, Optimizer], Optimizer]:
+        if opt_key:
+            return self.optimizers[key][opt_key]
+        return self.optimizers[key]
 
     def __setitem__(
             self, key: MODE_LITERALS_TYPE, value: torch.optim.Optimizer,
@@ -362,3 +359,20 @@ class MiniMaxMultimodalOptimizer(MiniMaxOptimizer, MutableMapping):
                 optimizer.load_state_dict(
                     training_state[f"{model_mode}_{optimizer_key}_optimizer"]
                 )
+
+    @staticmethod
+    def join_optimizer_key(mode_name: str, optimizer_mode: str):
+        if optimizer_mode == "full":
+            return mode_name
+
+        return '_'.join([mode_name, optimizer_mode])
+
+    @staticmethod
+    def split_optimizer_key(optimizer_key: str):
+        split_keys = optimizer_key.split("_")
+        if len(split_keys) == 2:
+            return optimizer_key, OptimizerMode.FULL.value
+
+        mode_name = '_'.join(split_keys[:2])
+        optimizer_mode = '_'.join(split_keys[2:])
+        return mode_name, optimizer_mode

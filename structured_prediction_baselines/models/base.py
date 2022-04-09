@@ -117,8 +117,8 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         if self.score_nn is not None:
             for param in self.score_nn.parameters():
                 mode.mark_parameter_with_model_mode(param)
-        mode = ModelMode.UPDATE_TASK_NN
 
+        mode = ModelMode.UPDATE_TASK_NN
         if inference_module is not None:
             for param in self.inference_module.parameters_with_model_mode(
                 mode

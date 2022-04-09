@@ -534,7 +534,6 @@ class GradientDescentMinimaxTrainer(Trainer):
             num_inner_steps = self.num_steps(self.inner_mode)
             num_outer_steps = self.num_steps(self.inner_mode.flip())
             for outer_step in range(num_outer_steps):
-
                 for inner_step in range(num_inner_steps):
                     # Check if optmizer for this mode is present
 

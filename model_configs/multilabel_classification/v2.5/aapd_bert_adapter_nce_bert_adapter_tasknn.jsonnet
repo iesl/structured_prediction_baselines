@@ -94,7 +94,6 @@ vocabulary: {
       log_key: 'sampler',
       constituent_samplers: [],
     },
-
     task_nn: {
       type: 'multi-label-text-classification',
       feature_network: feature_network,
@@ -179,37 +178,33 @@ vocabulary: {
     patience: 4,
     validation_metric: '+fixed_f1',
     cuda_device: std.parseInt(cuda_device),
-    learning_rate_schedulers: {
-      task_nn: {
-        type: 'reduce_on_plateau',
-        factor: 0.5,
-        mode: 'max',
-        patience: 1,
-        verbose: true,
-      },
-    },
+//    learning_rate_schedulers: {
+//      task_nn: {
+//        type: 'reduce_on_plateau',
+//        factor: 0.5,
+//        mode: 'max',
+//        patience: 1,
+//        verbose: true,
+//      },
+//    },
     optimizer: {
       type: 'minimax_multimodal',
       optimizers: {
-        task_nn: {
-          feature_net: {
-            lr: 1e-5,
-            weight_decay: task_nn_weight_decay,
-            type: 'huggingface_adamw',
-          },
-          non_feature_net: {
-            lr: 1e-5,
-            weight_decay: task_nn_weight_decay,
-            type: 'huggingface_adamw',
-          }
+        task_nn_feature_net: {
+          lr: 1e-5,
+          weight_decay: task_nn_weight_decay,
+          type: 'huggingface_adamw',
+        },
+        task_nn_non_feature_net: {
+          lr: 1e-5,
+          weight_decay: task_nn_weight_decay,
+          type: 'huggingface_adamw',
         },
         score_nn: {
-          full: {
-            lr: 5e-5,
-            weight_decay: score_nn_weight_decay,
-            type: 'huggingface_adamw',
-          }
-        },
+          lr: 5e-5,
+          weight_decay: score_nn_weight_decay,
+          type: 'huggingface_adamw',
+        }
       },
     },
     checkpointer: {
