@@ -48,6 +48,14 @@ class MiniMaxOptimizer(Optimizer, MutableMapping, Registrable):
 
     default_implementation = "minimax"
 
+    @staticmethod
+    def join_optimizer_key(mode_name: str, optimizer_mode: str = None):
+        return mode_name
+
+    @staticmethod
+    def split_optimizer_key(optimizer_key: str):
+        return optimizer_key
+
 
 @MiniMaxOptimizer.register("minimax")
 class MiniMaxDefaultOptimizer(MiniMaxOptimizer, MutableMapping):
@@ -276,6 +284,10 @@ class MiniMaxMultimodalOptimizer(MiniMaxOptimizer, MutableMapping):
                 optimizer_parameters_ = sum(named_params_[mode_name].values(), [])
             else:
                 optimizer_parameters_ = named_params_[mode_name][optimizer_mode]
+
+            if not optimizer_parameters_:
+                logger.warning(f"{mode_name} {optimizer_mode} optimizer did not receive any optimizer params. Skipping the optimizer.")
+                continue
             self.optimizers[mode_name][optimizer_mode] = lazy_optimizer.construct(
                     model_parameters=optimizer_parameters_
                 )
@@ -361,8 +373,8 @@ class MiniMaxMultimodalOptimizer(MiniMaxOptimizer, MutableMapping):
                 )
 
     @staticmethod
-    def join_optimizer_key(mode_name: str, optimizer_mode: str):
-        if optimizer_mode == "full":
+    def join_optimizer_key(mode_name: str, optimizer_mode: str = None):
+        if optimizer_mode is None or optimizer_mode == "full":
             return mode_name
 
         return '_'.join([mode_name, optimizer_mode])

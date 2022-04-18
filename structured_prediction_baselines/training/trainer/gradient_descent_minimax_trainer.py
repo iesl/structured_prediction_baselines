@@ -395,10 +395,11 @@ class GradientDescentMinimaxTrainer(Trainer):
         batch_grad_norm = self.rescale_gradients(mode)
 
         if self._learning_rate_schedulers:
-            if mode.value in self._learning_rate_schedulers:
-                self._learning_rate_schedulers[mode.value].step_batch(
-                    self._total_batches_completed + 1
-                )
+            for key in self._learning_rate_schedulers.keys():
+                if mode.value in key:
+                    self._learning_rate_schedulers[key].step_batch(
+                        self._total_batches_completed + 1
+                    )
         self.optimizer.step(model_mode=mode.value)
 
         return batch_group_loss, batch_group_outputs
@@ -1194,18 +1195,28 @@ class GradientDescentMinimaxTrainer(Trainer):
             if moving_average is None
             else moving_average.construct(parameters=parameters)
         )
-        learning_rate_schedulers_ = (
-            None
-            if learning_rate_schedulers is None
-            else {
-                name: sch.construct(
-                    optimizer=optimizer_[name],
-                    num_epochs=num_epochs,
-                    num_steps_per_epoch=batches_per_epoch,
-                )
-                for name, sch in learning_rate_schedulers.items()
-            }
-        )
+
+        if learning_rate_schedulers is None:
+            learning_rate_schedulers_ = None
+        else:
+            learning_rate_schedulers_ = {}
+            for model_mode, sch in learning_rate_schedulers.items():
+                if isinstance(optimizer_[model_mode], dict):
+                    for optimizer_mode, opt in optimizer_[model_mode].items():
+                        learning_rate_schedulers_[
+                            optimizer_.join_optimizer_key(model_mode, optimizer_mode)
+                        ] = sch.construct(
+                            optimizer=opt,
+                            num_epochs=num_epochs,
+                            num_steps_per_epoch=batches_per_epoch
+                        )
+                else:
+                    learning_rate_schedulers_[model_mode] = sch.construct(
+                        optimizer=optimizer_[model_mode],
+                        num_epochs=num_epochs,
+                        num_steps_per_epoch=batches_per_epoch
+                    )
+
         momentum_schedulers_ = (
             None
             if momentum_schedulers is None
