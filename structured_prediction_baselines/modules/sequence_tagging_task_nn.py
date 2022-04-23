@@ -101,6 +101,9 @@ class SequenceTaggingTaskNN(TaskNN):
 
         return encoded_text  # shape (batch, sequence, output_dim)
 
+    def mark_parameters_with_optimizer_mode(self):
+        pass
+
 
 @CostAugmentedLayer.register("sequence-tagging-stacked")
 class SequenceTaggingStackedCostAugmentedLayer(CostAugmentedLayer):
