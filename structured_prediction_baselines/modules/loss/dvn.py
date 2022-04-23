@@ -251,8 +251,9 @@ class DVNScoreLoss(Loss):
         # do the normalization based on the task
 
         with self._score_nn_grad(self.score_nn_grad_state):
-            for p in self.score_nn.parameters():
-                assert not p.requires_grad
+            if not self.score_nn_grad_state:
+                for p in self.score_nn.parameters():
+                    assert not p.requires_grad
             predicted_score = self.score_nn(
                 x, y_hat, buffer, **kwargs
             )  # (batch, num_samples)
