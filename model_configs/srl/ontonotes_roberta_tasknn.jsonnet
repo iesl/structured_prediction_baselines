@@ -31,8 +31,8 @@ local task_nn = {
   [if use_wandb then 'type']: 'train_test_log_to_wandb',
   evaluate_on_test: true,
   dataset_reader: {
-    type: 'srl',
-    bert_model_name: transformer_model,
+    type: 'srl-custom',
+    model_name: transformer_model,
     domain_identifier: 'nw'
     //[if test == '1' then 'max_instances']: 100,
   },
