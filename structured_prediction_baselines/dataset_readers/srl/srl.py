@@ -70,7 +70,7 @@ class SrlReader(DatasetReader):
 
     def _tokenize_input(
         self, tokens: List[str]
-    ) -> Tuple[List[str], List[int], List[int]]:
+    ) -> Tuple[List[Token], List[int], List[int]]:
         """
         Convert a list of tokens to tokens and offsets, as well as adding
         separator tokens to the beginning and end of the sentence.
@@ -148,7 +148,7 @@ class SrlReader(DatasetReader):
             # In order to override the indexing mechanism, we need to set the `text_id`
             # attribute directly. This causes the indexing to use this id.
             text_field = TextField(
-                [Token(str(t), text_id=self._tokenizer.tokenizer.vocab[str(t)]) for t in wordpieces],
+                wordpieces,
                 token_indexers=self._token_indexers,
             )
             verb_indicator = SequenceLabelField(new_verbs, text_field)
