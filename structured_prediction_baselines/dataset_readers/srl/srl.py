@@ -64,7 +64,7 @@ class SrlReader(DatasetReader):
         self._domain_identifier = domain_identifier
 
         if model_name is not None:
-            self._tokenizer = PretrainedTransformerTokenizer(model_name=model_name, add_special_tokens=False)
+            self._tokenizer = PretrainedTransformerTokenizer(model_name=model_name)
         else:
             self._tokenizer = None
 
@@ -75,20 +75,14 @@ class SrlReader(DatasetReader):
         Convert a list of tokens to tokens and offsets, as well as adding
         separator tokens to the beginning and end of the sentence.
         """
-        word_piece_tokens = []
         end_offsets = []
         start_offsets = []
-        cumulative = 0
-        for token in tokens:
-            word_pieces = self._tokenizer.tokenize(token)
-            start_offsets.append(cumulative + 1)
-            cumulative += len(word_pieces)
-            end_offsets.append(cumulative)
-            word_piece_tokens.extend(word_pieces)
+        piece_tokens, offsets = self._tokenizer.intra_word_tokenize(tokens)
+        for offset in offsets:
+            start_offsets.append(offset[0])
+            end_offsets.append(offset[1])
 
-        wordpieces = self._tokenizer.single_sequence_start_tokens + word_piece_tokens + self._tokenizer.single_sequence_end_tokens
-
-        return wordpieces, end_offsets, start_offsets
+        return piece_tokens, end_offsets, start_offsets
 
     @overrides
     def _read(self, file_path: str):
