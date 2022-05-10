@@ -16,6 +16,9 @@ class GroundTruthSampler(Sampler):
     `labels` cannot be None.
     """
 
+    def _parameters_with_optimizer_mode(self):
+        pass
+
     known_dtypes = {"float": torch.float, "double": torch.double}
 
     def __init__(

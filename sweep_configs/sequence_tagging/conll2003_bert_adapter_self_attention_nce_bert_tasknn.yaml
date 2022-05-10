@@ -1,0 +1,48 @@
+name: conll2003_bert_adapter_self_attention_nce_bert_tasknn
+description: "Train tasknn using cross-entropy and  score loss (v(f(x),y)). The score-nn will be trained using NCE with a - sign (score-ln Pn). The samples are taken as discrete samples from the tasknn output."
+program: allennlp
+command:
+- ${program}
+- train-with-wandb
+- model_configs/sequence_tagging/conll2003_bert_adapter_self_attention_nce_bert_tasknn.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb-tags="task=seqtag,model=nce,sampler=nce_discrete_samples,dataset=conll2003,inference_module=inference_net,inference_module=tasknn,structured_score=self_attention"
+- ${args}
+- --file-friendly-logging
+method: grid
+metric:
+  goal: maximize
+  name: "validation/best_f1-measure-overall"
+
+early_terminate:
+  type: hyperband
+  min_iter: 10
+
+parameters:
+  env.cross_entropy_loss_weight:
+    value: 1.0
+  env.dvn_score_loss_weight:
+    values:
+      - 0.01
+      - 0.5
+      - 1
+      - 3
+  env.scorenn_lr:
+    values:
+      - 0.001
+      - 0.0001
+      - 0.0005
+  model.loss_fn.num_samples:
+    values:
+      - 100
+      - 50
+  env.attention_dim:
+    values:
+      - 50
+      - 100
+      - 150
+  env.attention_dropout_10x:
+    values:
+      - 1
+      - 3
+      - 5

@@ -22,17 +22,24 @@ from ..modules.oracle_value_function.manhatten_distance import (
 
 logger = logging.getLogger(__name__)
 
-
+@Model.register(
+    "multi-task-multi-label-classification",
+    constructor="from_partial_objects_with_shared_tasknn"
+)
 @Model.register(
     "multi-label-classification-with-infnet",
-    constructor="from_partial_objects_with_shared_tasknn",
+    constructor="from_partial_objects_with_inference_module_as_sampler",
 )
 @Model.register(
     "multi-label-classification", constructor="from_partial_objects"
 )
 @ScoreBasedLearningModel.register(
+    "multi-task-multi-label-classification",
+    constructor="from_partial_objects_with_shared_tasknn"
+)
+@ScoreBasedLearningModel.register(
     "multi-label-classification-with-infnet",
-    constructor="from_partial_objects_with_shared_tasknn",
+    constructor="from_partial_objects_with_inference_module_as_sampler",
 )
 @ScoreBasedLearningModel.register(
     "multi-label-classification", constructor="from_partial_objects"
@@ -104,7 +111,7 @@ class MultilabelClassification(ScoreBasedLearningModel):
 )
 @Model.register(
     "multi-label-classification-with-infnet-and-scorenn-evaluation",
-    constructor="from_partial_objects_with_shared_tasknn",
+    constructor="from_partial_objects_with_inference_module_as_sampler",
 )
 class MultilabelClassificationWithScoreNNEvaluation(MultilabelClassification):
     def __init__(

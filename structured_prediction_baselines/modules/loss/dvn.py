@@ -249,13 +249,17 @@ class DVNScoreLoss(Loss):
 
         # score_nn always expects y to be normalized
         # do the normalization based on the task
-        
-        predicted_score = self.score_nn(
-            x, y_hat, buffer, **kwargs
-        )  # (batch, num_samples)
+
+        with self._score_nn_grad(self.score_nn_grad_state):
+            if not self.score_nn_grad_state:
+                for p in self.score_nn.parameters():
+                    assert not p.requires_grad
+            predicted_score = self.score_nn(
+                x, y_hat, buffer, **kwargs
+            )  # (batch, num_samples)
 
         self._inference_score_values.append(float(torch.mean(predicted_score)))
-        
+
         return predicted_score
 
 

@@ -16,8 +16,9 @@ from typing import (
 import numpy as np
 import torch
 from allennlp.common.lazy import Lazy
+from allennlp.modules import FeedForward
 from allennlp.training.optimizers import Optimizer
-from structured_prediction_baselines.common import ModelMode
+from structured_prediction_baselines.common import ModelMode, OptimizerMode
 from structured_prediction_baselines.modules.loss import Loss
 from structured_prediction_baselines.modules.oracle_value_function import (
     OracleValueFunction,
@@ -38,6 +39,17 @@ class InferenceNetSampler(Sampler):
         yield from self.inference_nn.parameters()
         if self.cost_augmented_layer is not None:
             yield from self.cost_augmented_layer.parameters()
+        if self.tag_projection_layer is not None:
+            yield from self.tag_projection_layer.parameters()
+
+    def _parameters_with_optimizer_mode(self):
+        self.inference_nn.mark_parameters_with_optimizer_mode()
+        if self.cost_augmented_layer is not None:
+            for param in self.cost_augmented_layer.parameters():
+                OptimizerMode.NON_FEATURE_NET.mark_parameter_with_optimizer_mode(param)
+        if self.tag_projection_layer is not None:
+            for param in self.tag_projection_layer.parameters():
+                OptimizerMode.NON_FEATURE_NET.mark_parameter_with_optimizer_mode(param)
 
     def __init__(
         self,
@@ -46,6 +58,7 @@ class InferenceNetSampler(Sampler):
         score_nn: ScoreNN,
         cost_augmented_layer: Optional[CostAugmentedLayer] = None,
         oracle_value_function: Optional[OracleValueFunction] = None,
+        tag_projection_layer: Optional[FeedForward] = None,
         **kwargs: Any,
     ):
         assert ScoreNN is not None
@@ -57,7 +70,9 @@ class InferenceNetSampler(Sampler):
         self.inference_nn = inference_nn
         self.cost_augmented_layer = cost_augmented_layer
         self.loss_fn = loss_fn
+        self.tag_projection_layer = tag_projection_layer
 
+        self._parameters_with_optimizer_mode()
         self.logging_children.append(self.loss_fn)
 
     @property
@@ -113,9 +128,14 @@ class InferenceNetSampler(Sampler):
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
 
-        y_inf: torch.Tensor = self.inference_nn(x, buffer).unsqueeze(
-            1
-        )  # (batch_size, 1, ...) unormalized
+        if self.tag_projection_layer:
+            y_inf: torch.Tensor = self.tag_projection_layer(
+                self.inference_nn(x, buffer)
+            ).unsqueeze(1)  # (batch_size, 1, ...) unormalized
+        else:
+            y_inf: torch.Tensor = self.inference_nn(x, buffer).unsqueeze(
+                1
+            )  # (batch_size, 1, ...) unormalized
         # inference_nn is TaskNN so it will output tensor of shape (batch, ...)
         # hence the unsqueeze
 

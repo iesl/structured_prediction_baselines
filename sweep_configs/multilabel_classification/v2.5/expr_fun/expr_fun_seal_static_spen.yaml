@@ -1,0 +1,49 @@
+name: expr_fun_seal_static_spen
+program: allennlp
+command:
+- ${program}
+- train_with_wandb
+- model_configs/multilabel_classification/v2.5/gendata_nce_discrete_pretrained_scorenn.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb_tags="task=mlc,task_nn_loss=bce+inference_score,sampler=inference_net,dataset=expr_fun,inference_module=inference_net,inference_module=tasknn,inference_module_loss=bce+inference_score,sampler=tasknn"
+- ${args}
+- --file-friendly-logging
+method: bayes
+metric:
+  goal: maximize
+  name: "validation/best_fixed_f1"
+
+early_terminate:
+  type: hyperband
+  min_iter: 20
+
+parameters:
+  env.dataset_name:
+    value: 'expr_fun'
+  env.scorenn_path:
+    value: '/mnt/nfs/work1/mccallum/scorenn/best_models/spen_energy_model_wts/expr_fun_spen/best.th'
+  env.cross_entropy_loss_weight:
+    value: 1
+  env.dvn_score_loss_weight:
+    distribution: log_uniform
+    min: -6.9
+    max: 2.3
+  env.ff_dropout_10x:
+    value: 2
+  env.ff_hidden:
+    value: 200
+  env.ff_linear_layers:
+    value: 4
+  env.ff_weight_decay:
+    value: 0.00001
+  env.global_score_hidden_dim:
+    value: 200
+  trainer.optimizer.optimizers.task_nn.lr:
+    distribution: log_uniform
+    min: -12.5
+    max: -4.5
+  model.loss_fn.num_samples:
+    distribution: q_uniform
+    q: 20 # 10, 25, ..., 50
+    min: 20 # ln(10)
+    max: 100 # ln(50)

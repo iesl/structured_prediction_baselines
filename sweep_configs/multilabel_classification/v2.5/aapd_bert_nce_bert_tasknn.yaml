@@ -1,0 +1,52 @@
+name: aapd_bert_nce_bert_tasknn
+description: "Scorenn consisting of bert trained using nce objective with tasknn consisting of BERT as well."
+program: allennlp
+command:
+- ${program}
+- train-with-wandb
+- model_configs/multilabel_classification/v2.5/aapd_bert_nce_bert_tasknn.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb-tags=task=text_mlc,model=tasknn,inference_module=bert,dataset=aapd,sampler=bert,scorenn=bert_nce
+- ${args}
+- --file-friendly-logging
+
+early_terminate:
+  min_iter: 4
+  type: hyperband
+method: grid
+metric:
+  goal: maximize
+  name: "validation/best_fixed_f1"
+
+parameters:
+  env.dropout_10x:
+    values: [ 1, 3 ]
+  env.ff_hidden:
+    values: [ 1024, 768 ]
+  env.global_score_hidden_dim:
+    values:
+      - 600
+      - 900
+  env.score_loss_weight:
+    values:
+      - 3
+      - 1
+      - 0.5
+  env.weight_decay:
+    values:
+      - 0.0001
+      - 0.00001
+  model.loss_fn.num_samples:
+    values:
+      - 600
+      - 300
+  trainer.num_steps.score_nn:
+    value: 1
+  trainer.num_steps.task_nn:
+    value: 1
+  trainer.optimizer.optimizers.score_nn.lr:
+    values:
+      - 0.0001
+      - 0.00005
+  trainer.optimizer.optimizers.task_nn.lr:
+    value: 0.00001

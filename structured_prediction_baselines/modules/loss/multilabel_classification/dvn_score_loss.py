@@ -26,7 +26,7 @@ class MultiLabelScoreLoss(DVNScoreLoss):
     """
     def normalize(self, y: torch.Tensor) -> torch.Tensor:
         return _normalize(y)
-        
+
     def compute_loss(
         self,
         predicted_score: torch.Tensor,  # logits of shape (batch, num_samples)

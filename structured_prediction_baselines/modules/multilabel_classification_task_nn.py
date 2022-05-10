@@ -7,6 +7,8 @@ import torch.nn as nn
 import torch
 import numpy as np
 
+from ..common import OptimizerMode
+
 
 @TaskNN.register("multi-label-classification")
 class MultilabelTaskNN(TaskNN):
@@ -27,6 +29,12 @@ class MultilabelTaskNN(TaskNN):
             f"and hidden_dim of feature_network"
             f" ({self.feature_network.get_output_dim()}) do not match."
         )
+
+    def mark_parameters_with_optimizer_mode(self):
+        for param in self.feature_network.parameters():
+            OptimizerMode.FEATURE_NET.mark_parameter_with_optimizer_mode(param)
+        for param in self.label_embeddings.parameters():
+            OptimizerMode.NON_FEATURE_NET.mark_parameter_with_optimizer_mode(param)
 
     def forward(
         self,

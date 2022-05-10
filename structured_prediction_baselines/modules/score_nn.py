@@ -1,8 +1,11 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
 from allennlp.common.registrable import Registrable
 import torch
+from allennlp.modules import FeedForward
+
 from .task_nn import TaskNN
 from .structured_score.structured_score import StructuredScore
+from ..common import OptimizerMode
 
 
 class ScoreNN(torch.nn.Module, Registrable):
@@ -12,12 +15,26 @@ class ScoreNN(torch.nn.Module, Registrable):
         self,
         task_nn: TaskNN,  # (batch, ...)
         global_score: Optional[StructuredScore] = None,
+        residual_x: bool = False,
+        tag_projection_layer: Optional[FeedForward] = None,
         **kwargs: Any,
     ):
         super().__init__()  # type:ignore
         self.task_nn = task_nn
+        self.tag_projection_layer = tag_projection_layer
+        self.residual_x = residual_x
         self.global_score = global_score
         self._dtype = self.compute_input_dtype()
+        self._parameters_with_optimizer_mode()
+
+    def _parameters_with_optimizer_mode(self):
+        self.task_nn.mark_parameters_with_optimizer_mode()
+        if self.global_score is not None:
+            for param in self.global_score.parameters():
+                OptimizerMode.NON_FEATURE_NET.mark_parameter_with_optimizer_mode(param)
+        if self.tag_projection_layer is not None:
+            for param in self.tag_projection_layer.parameters():
+                OptimizerMode.NON_FEATURE_NET.mark_parameter_with_optimizer_mode(param)
 
     def compute_input_dtype(self) -> Optional[torch.dtype]:
         if self.global_score is not None:

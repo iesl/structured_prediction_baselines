@@ -1,0 +1,44 @@
+command:
+- ${program}
+- train-with-wandb
+- model_configs/srl/ontonotes_bert_adapter_nce_bert_tasknn.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb-tags=task@srl,model@tasknn,dataset@ontonotes,inference_module@tasknn,sampler@tasknn,scorenn@tasknn
+- ${args}
+- --file-friendly-logging
+description: Train tasknn using cross-entropy and  score loss (v(f(x),y)). The score-nn
+  will be trained using NCE with a - sign (score-ln Pn). The samples are taken as
+  discrete samples from the tasknn output.
+method: grid
+metric:
+  goal: maximize
+  name: validation/best_f1-measure-overall
+name: ontonotes_seal_bert_adapter_nce_discrete_self_attention_bert_tasknn
+parameters:
+  data_loader.batch_sampler.batch_size:
+    value: 16
+  env.attention_dim:
+    values:
+    - 128
+    - 256
+  env.attention_dropout_10x:
+    values:
+    - 1
+    - 2
+  env.score_loss_weight:
+    values:
+    - 0.1
+    - 0.01
+  env.weight_decay:
+    values:
+    - 1e-05
+    - 0.0001
+  model.loss_fn.num_samples:
+    values:
+    - 100
+  trainer.optimizer.optimizers.score_nn.lr:
+    values:
+    - 5e-05
+    - 0.0001
+    - 0.001
+program: allennlp

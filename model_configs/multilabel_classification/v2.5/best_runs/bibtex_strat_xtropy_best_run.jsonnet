@@ -1,4 +1,4 @@
-// Run Id: 0n8xzc7u
+// Run Id: ezllp30k
 
 {
     "dataset_reader": {
@@ -78,17 +78,19 @@
                 "type": "multi-label-classification",
                 "feature_network": {
                     "activations": [
+                        "softplus",
                         "softplus"
                     ],
                     "dropout": [
+                        0.4,
                         0
                     ],
-                    "hidden_dims": 300,
+                    "hidden_dims": 400,
                     "input_dim": 1836,
-                    "num_layers": 1
+                    "num_layers": 2
                 },
                 "label_embeddings": {
-                    "embedding_dim": 300,
+                    "embedding_dim": 400,
                     "vocab_namespace": "labels"
                 }
             }
@@ -97,30 +99,33 @@
             "type": "multi-label-classification",
             "feature_network": {
                 "activations": [
+                    "softplus",
                     "softplus"
                 ],
                 "dropout": [
+                    0.4,
                     0
                 ],
-                "hidden_dims": 300,
+                "hidden_dims": 400,
                 "input_dim": 1836,
-                "num_layers": 1
+                "num_layers": 2
             },
             "label_embeddings": {
-                "embedding_dim": 300,
+                "embedding_dim": 400,
                 "vocab_namespace": "labels"
             }
         }
     },
-    "train_data_path": "data/bibtex_stratified10folds_meka/Bibtex-fold@(1|2|3|4|5|6).arff",
-    "validation_data_path": "data/bibtex_stratified10folds_meka/Bibtex-fold@(7|8).arff",
-    "test_data_path": "data/bibtex_stratified10folds_meka/Bibtex-fold@(9|10).arff",
+    "train_data_path": "./data//bibtex_stratified10folds_meka/Bibtex-fold@(1|2|3|4|5|6).arff",
+    "validation_data_path": "./data//bibtex_stratified10folds_meka/Bibtex-fold@(7|8).arff",
+    "test_data_path": "./data//bibtex_stratified10folds_meka/Bibtex-fold@(9|10).arff",
     "trainer": {
         "type": "gradient_descent_minimax",
         "callbacks": [
             "track_epoch_callback",
             "slurm",
             {
+                "save_model_archive": false,
                 "sub_callbacks": [
                     {
                         "priority": 100,
@@ -157,12 +162,12 @@
                 "score_nn": {
                     "type": "adamw",
                     "lr": 0.001,
-                    "weight_decay": 1.888642262098776e-06
+                    "weight_decay": 1e-05
                 },
                 "task_nn": {
                     "type": "adamw",
-                    "lr": 0.0036336574795547724,
-                    "weight_decay": 1.888642262098776e-06
+                    "lr": 0.005,
+                    "weight_decay": 1e-05
                 }
             }
         },

@@ -17,7 +17,7 @@ class ModelMode(Enum):
             raise RuntimeError(f"{self} cannot be flipped.")
 
     def mark_parameter_with_model_mode(
-        self, param: torch.nn.Parameter
+            self, param: torch.nn.Parameter
     ) -> None:
         param.model_mode = self
 
@@ -34,3 +34,18 @@ class ModelMode(Enum):
     @classmethod
     def getattr_model_mode(cls, obj: Any) -> "ModelMode":
         return getattr(obj, "model_mode")
+
+
+class OptimizerMode(Enum):
+    FEATURE_NET: str = "feature_net"
+    NON_FEATURE_NET: str = "non_feature_net"
+    FULL: str = "full"
+
+    def mark_parameter_with_optimizer_mode(
+            self, param: torch.nn.Parameter
+    ) -> None:
+        param.optimizer_mode = self
+
+    @classmethod
+    def getattr_optimizer_mode(cls, obj: Any) -> "OptimizerMode":
+        return getattr(obj, "optimizer_mode", OptimizerMode.FULL)

@@ -19,7 +19,7 @@ local global_score_hidden_dim = std.parseJson(std.extVar('global_score_hidden_di
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local cross_entropy_loss_weight = std.parseJson(std.extVar('cross_entropy_loss_weight'));
 local dvn_score_loss_weight = std.parseJson(std.extVar('dvn_score_loss_weight'));
-local task_temp = std.parseJson(std.extVar('task_nn_steps'));
+local task_temp = 1; //std.parseJson(std.extVar('task_nn_steps'));
 local task_nn_steps = (if std.toString(task_temp) == '0' then 1 else task_temp);
 local scorenn_path = std.parseJson(std.extVar('scorenn_path'));
 
@@ -170,8 +170,10 @@ local scorenn_path = std.parseJson(std.extVar('scorenn_path'));
       if use_wandb then [
         {
           type: 'wandb_allennlp',
+          should_log_parameter_statistics: false,
           sub_callbacks: [{ type: 'log_best_validation_metrics', priority: 100 }],
           save_model_archive: false,
+          watch_model: false,
         },
       ]
       else []
