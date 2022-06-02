@@ -1,0 +1,34 @@
+name: best_weizmann_horse_seg_dvn
+program: allennlp
+command:
+- ${program}
+- train-with-wandb
+- model_configs/image_seg/weizmann_horse_seg_dvn.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb-entity=score-based-learning
+- --wandb-project=segmentation
+- --wandb-tags=task@image_seg,dataset@weizmann_horse
+- ${args}
+- --file-friendly-logging
+description: DVN.
+method: grid
+metric:
+  goal: maximize
+  name: validation/best_seg_iou
+parameters:
+  env.ckpt_path:
+    value: /mnt/nfs/scratch1/username/SEAL/structured_prediction_baselines/BEST_MODELS/run-20220403_232115-r85b40hg/best.th
+  env.batch_size:
+    value: 8
+  env.eval_cropping:
+    value: thirty_six
+  env.mix_method:
+    value: datum
+  env.gbi_lr:
+    value: 1.9538322739014624
+  env.adv_lr:
+    value: 1.9538322739014624
+  trainer.optimizer.optimizers.score_nn.lr:
+    value: 0.00014070852280778857
+  trainer.optimizer.optimizers.score_nn.weight_decay:
+    value: 0.000011544094506032608

@@ -1,0 +1,40 @@
+name: weizmann_horse_seg_dvn
+program: allennlp
+command:
+- ${program}
+- train-with-wandb
+- model_configs/image_seg/weizmann_horse_seg_dvn.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb-entity=score-based-learning
+- --wandb-project=segmentation
+- --wandb-tags=task@image_seg,dataset@weizmann_horse
+- ${args}
+- --file-friendly-logging
+description: DVN.
+method: bayes
+metric:
+  goal: maximize
+  name: validation/best_seg_iou
+parameters:
+  env.batch_size:
+    value: 8
+  env.eval_cropping:
+    value: thirty_six
+  env.mix_method:
+    value: datum
+  env.gbi_lr:
+    distribution: log_uniform_values
+    max: 10
+    min: 0.001
+  env.adv_lr:
+    distribution: log_uniform_values
+    max: 10
+    min: 0.001
+  trainer.optimizer.optimizers.score_nn.lr:
+    distribution: log_uniform_values
+    max: 10
+    min: 0.00001
+  trainer.optimizer.optimizers.score_nn.weight_decay:
+    distribution: log_uniform_values
+    max: 0.1
+    min: 0.00001

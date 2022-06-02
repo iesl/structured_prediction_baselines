@@ -1,0 +1,35 @@
+name: weizmann_horse_seg_adam_36cr
+program: allennlp
+command:
+- ${program}
+- train-with-wandb
+- model_configs/image_seg/weizmann_horse_seg_adam.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb-entity=score-based-learning
+- --wandb-project=segmentation
+- --wandb-tags=task@image_seg,dataset@weizmann_horse
+- ${args}
+- --file-friendly-logging
+description: Train tasknn using cross-entropy.
+method: bayes
+metric:
+  goal: maximize
+  name: validation/best_seg_iou
+parameters:
+  env.batch_size:
+    value: 8
+  env.eval_cropping:
+    value: thirty_six
+  trainer.optimizer.optimizers.task_nn.lr:
+    distribution: log_uniform
+    max: -0.69
+    min: -6.9
+  trainer.optimizer.optimizers.task_nn.weight_decay:
+    distribution: log_uniform
+    max: -4.61
+    min: -11.51
+  trainer.grad_norm.task_nn:
+    distribution: q_uniform
+    max: 10.99
+    min: 1.0
+    q: 1.0

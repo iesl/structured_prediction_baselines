@@ -1,0 +1,30 @@
+name: best_weizmann_horse_seg_adam_36cr
+program: allennlp
+command:
+- ${program}
+- train-with-wandb
+- model_configs/image_seg/weizmann_horse_seg_adam.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb-entity=score-based-learning
+- --wandb-project=segmentation
+- --wandb-tags=task@image_seg,dataset@weizmann_horse
+- ${args}
+- --file-friendly-logging
+description: Train tasknn using cross-entropy.
+method: grid
+metric:
+  goal: maximize
+  name: validation/best_seg_iou
+parameters:
+  env.ckpt_path:
+    value: /mnt/nfs/scratch1/username/SEAL/structured_prediction_baselines_sp22/.allennlp_models/run-20220410_045320-7tyuv7zr/best.th
+  env.batch_size:
+    value: 8
+  env.eval_cropping:
+    value: thirty_six
+  trainer.optimizer.optimizers.task_nn.lr:
+    value: 0.0020104125651561884
+  trainer.optimizer.optimizers.task_nn.weight_decay:
+    value: 0.0000586416339331605
+  trainer.grad_norm.task_nn:
+    value: 8

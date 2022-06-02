@@ -10,7 +10,10 @@ docs
 coverage.xml
 
 .data/
-data/
+data/*
+!data/weizmann_horse_seg/
+!data/weizmann_horse_seg/*
+logs/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -18,6 +21,9 @@ __pycache__/
 .venv*
 docs_source/*.rst
 !docs_source/index.rst
+
+# PyCharm
+.idea
 
 # C extensions
 *.so

@@ -1,0 +1,65 @@
+name: weizmann_horse_seg_seal_nce_pn
+program: allennlp
+command:
+- ${program}
+- train-with-wandb
+- model_configs/image_seg/weizmann_horse_seg_seal_nce.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb-entity=score-based-learning
+- --wandb-project=segmentation
+- --wandb-tags=task@image_seg,dataset@weizmann_horse
+- ${args}
+- --file-friendly-logging
+description: Train tasknn using cross-entropy and energy.
+  The score-nn will predict soft IoU and be trained using NCE with P_n and temperature.
+  The samples are taken as discrete samples from the tasknn output.
+method: bayes
+metric:
+  goal: maximize
+  name: validation/best_seg_iou
+parameters:
+  env.batch_size:
+    value: 8
+  env.eval_cropping:
+    value: thirty_six
+  trainer.optimizer.optimizers.task_nn.lr:
+    distribution: log_uniform
+    max: -0.69
+    min: -6.9
+  trainer.optimizer.optimizers.task_nn.weight_decay:
+    distribution: log_uniform
+    max: -4.61
+    min: -11.51
+  trainer.grad_norm.task_nn:
+    distribution: q_uniform
+    max: 10.99
+    min: 1.0
+    q: 1.0
+  trainer.optimizer.optimizers.score_nn.lr:
+    distribution: log_uniform
+    max: -0.69
+    min: -6.9
+  trainer.optimizer.optimizers.score_nn.weight_decay:
+    distribution: log_uniform
+    max: -4.61
+    min: -11.51
+  trainer.grad_norm.score_nn:
+    distribution: q_uniform
+    max: 10.99
+    min: 1.0
+    q: 1.0
+  trainer.num_steps.score_nn:
+    distribution: int_uniform
+    max: 10
+    min: 1
+  env.score_loss_weight:
+    distribution: log_uniform
+    max: 2.3
+    min: -6.9
+  model.loss_fn.num_samples:
+    distribution: int_uniform
+    max: 1000
+    min: 10
+  model.loss_fn.use_distance:
+    distribution: constant
+    value: True

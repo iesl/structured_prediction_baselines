@@ -1,0 +1,42 @@
+name: weizmann_horse_seg_seal_pretrained_dvn
+program: allennlp
+command:
+- ${program}
+- train-with-wandb
+- model_configs/image_seg/weizmann_horse_seg_seal_pretrained_dvn.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb-entity=score-based-learning
+- --wandb-project=segmentation
+- --wandb-tags=task@image_seg,dataset@weizmann_horse
+- ${args}
+- --file-friendly-logging
+description: Train tasknn using cross-entropy and energy.
+  The score-nn is a pretrained DVN.
+method: bayes
+metric:
+  goal: maximize
+  name: validation/best_seg_iou
+parameters:
+  env.batch_size:
+    value: 8
+  env.eval_cropping:
+    value: thirty_six
+  trainer.optimizer.optimizers.task_nn.lr:
+    distribution: log_uniform_values
+    max: 0.02
+    min: 1e-5
+  trainer.optimizer.optimizers.task_nn.weight_decay:
+    distribution: log_uniform_values
+    max: 0.01
+    min: 0.00001
+  trainer.grad_norm.task_nn:
+    distribution: q_uniform
+    max: 9.99
+    min: 1.0
+    q: 2.0
+  env.scorenn_path:
+    value: /mnt/nfs/scratch1/username/SEAL/structured_prediction_baselines/BEST_MODELS/run-20220403_232115-r85b40hg/best.th
+  env.score_loss_weight:
+    distribution: log_uniform_values
+    max: 10
+    min: 0.001
