@@ -13,7 +13,7 @@ method: grid
 metric:
   goal: maximize
   name: validation/best_f1-measure-overall
-name: ontonotes_seal_bert_adapter_nce_discrete_self_attention_bert_tasknn
+name: ontonotes_seal_shared_bert_tasknn
 parameters:
   data_loader.batch_sampler.batch_size:
     value: 16
