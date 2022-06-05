@@ -5,17 +5,19 @@ local use_wandb = (if test == '1' then false else true);
 
 local dataset_name = 'ontonotes';
 local dataset_metadata = (import 'datasets.jsonnet')[dataset_name];
-local num_labels = 130;
+local num_labels = 133;
 local transformer_model = 'bert-base-uncased';
 local transformer_hidden_dim = 768;
 //local max_length = 512;
 
-local attention_dropout = std.parseJson(std.extVar('attention_dropout_10x'))/10.0;
-local attention_dim = std.parseJson(std.extVar('attention_dim'));
+local attention_dropout = 0.1; //std.parseJson(std.extVar('attention_dropout_10x'))/10.0;
+local attention_dim = 256; //std.parseJson(std.extVar('attention_dim'));
 local ff_activation = 'softplus';
 local cross_entropy_loss_weight = 1;
-local score_loss_weight = std.parseJson(std.extVar('score_loss_weight'));
-local ff_weight_decay = std.parseJson(std.extVar('weight_decay'));
+local score_loss_weight = 1; //std.parseJson(std.extVar('score_loss_weight'));
+local weight_decay = 0.0001; //std.parseJson(std.extVar('weight_decay'));
+local task_nn_weight_decay = weight_decay;
+local score_nn_weight_decay = weight_decay;
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local task_nn = {
   type: 'sequence-tagging',
@@ -36,6 +38,7 @@ local task_nn = {
   dataset_reader: {
     type: 'srl',
     bert_model_name: transformer_model,
+    domain_identifier: 'nw'
     //[if test == '1' then 'max_instances']: 100,
   },
   train_data_path: (data_dir + '/' + dataset_metadata.dir_name + '/' +
@@ -135,17 +138,23 @@ local task_nn = {
       },
     },
     optimizer: {
+      type: 'minimax_multimodal',
+      shared_feature_net: true,
       optimizers: {
-        task_nn:
-          {
-            lr: 0.00001,
-            weight_decay: ff_weight_decay,
-            type: 'huggingface_adamw',
-          },
-        score_nn: {
-          lr: 0.00001,
-          weight_decay: ff_weight_decay,
-          type: 'adamw',
+        task_nn_feature_net: {
+          lr: 1e-5,
+          weight_decay: task_nn_weight_decay,
+          type: 'huggingface_adamw',
+        },
+        task_nn_non_feature_net: {
+          lr: 1e-5,
+          weight_decay: task_nn_weight_decay,
+          type: 'huggingface_adamw',
+        },
+        score_nn_non_feature_net: {
+          lr: 1e-5,
+          weight_decay: score_nn_weight_decay,
+          type: 'huggingface_adamw',
         },
       },
     },

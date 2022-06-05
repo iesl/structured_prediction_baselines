@@ -14,6 +14,8 @@ from torch.nn.modules.linear import Linear
 import torch.nn.functional as F
 import allennlp.nn.util as util
 
+from ..common import OptimizerMode
+
 logger = logging.getLogger(__name__)
 
 
@@ -102,7 +104,17 @@ class SequenceTaggingTaskNN(TaskNN):
         return encoded_text  # shape (batch, sequence, output_dim)
 
     def mark_parameters_with_optimizer_mode(self):
-        pass
+        for param in self.text_field_embedder.parameters():
+            OptimizerMode.FEATURE_NET.mark_parameter_with_optimizer_mode(param)
+        if self.encoder:
+            for param in self.encoder.parameters():
+                OptimizerMode.NON_FEATURE_NET.mark_parameter_with_optimizer_mode(param)
+        if self.feedforward:
+            for param in self.feedforward.parameters():
+                OptimizerMode.NON_FEATURE_NET.mark_parameter_with_optimizer_mode(param)
+        if self.tag_projection_layer:
+            for param in self.tag_projection_layer.parameters():
+                OptimizerMode.NON_FEATURE_NET.mark_parameter_with_optimizer_mode(param)
 
 
 @CostAugmentedLayer.register("sequence-tagging-stacked")
