@@ -5,17 +5,17 @@ local use_wandb = (if test == '1' then false else true);
 
 local dataset_name = 'ontonotes';
 local dataset_metadata = (import 'datasets.jsonnet')[dataset_name];
-local num_labels = 133;
+local num_labels = 130;
 local transformer_model = 'bert-base-uncased';
 local transformer_hidden_dim = 768;
 //local max_length = 512;
 
-local attention_dropout = 0.1; //std.parseJson(std.extVar('attention_dropout_10x'))/10.0;
-local attention_dim = 256; //std.parseJson(std.extVar('attention_dim'));
+local attention_dropout = std.parseJson(std.extVar('attention_dropout_10x'))/10.0;
+local attention_dim = std.parseJson(std.extVar('attention_dim'));
 local ff_activation = 'softplus';
 local cross_entropy_loss_weight = 1;
-local score_loss_weight = 1; //std.parseJson(std.extVar('score_loss_weight'));
-local weight_decay = 0.0001; //std.parseJson(std.extVar('weight_decay'));
+local score_loss_weight = std.parseJson(std.extVar('score_loss_weight'));
+local weight_decay = std.parseJson(std.extVar('weight_decay'));
 local task_nn_weight_decay = weight_decay;
 local score_nn_weight_decay = weight_decay;
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
