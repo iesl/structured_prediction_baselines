@@ -16,8 +16,7 @@ parameters:
   data_loader.batch_sampler.batch_size:
     value: 16
   env.weight_decay:
-    value:
-      - 1e-05
+    value: 1e-5
   env.attn_layers:
     values:
       - 1
