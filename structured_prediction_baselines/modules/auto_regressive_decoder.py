@@ -1,24 +1,20 @@
-import warnings
 from typing import Dict, List, Tuple, Optional
-
-from allennlp_models.generation import SeqDecoder, StackedSelfAttentionDecoderNet
-from overrides import overrides
 
 import numpy
 import torch
 import torch.nn.functional as F
-from torch.nn import Linear
-
+from allennlp.common import Lazy
 from allennlp.common.checks import ConfigurationError
-from allennlp.common.util import END_SYMBOL, START_SYMBOL
 from allennlp.data import TextFieldTensors, Vocabulary
-from allennlp.modules import Embedding, TextFieldEmbedder
+from allennlp.modules import TextFieldEmbedder
 from allennlp.nn import util
 from allennlp.nn.beam_search import BeamSearch
-from allennlp.training.metrics import Metric
-from allennlp.common import Lazy
+from allennlp_models.generation import SeqDecoder, StackedSelfAttentionDecoderNet
+from overrides import overrides
+from torch.nn import Linear
 
-from allennlp_models.generation.modules.decoder_nets.decoder_net import DecoderNet
+START_SYMBOL = '[CLS]'
+END_SYMBOL = '[SEP]'
 
 
 @SeqDecoder.register("auto_regressive_decoder")
@@ -62,7 +58,7 @@ class AutoRegressiveDecoder(SeqDecoder):
         vocab: Vocabulary,
         decoder_net: StackedSelfAttentionDecoderNet,
         target_embedder: TextFieldEmbedder,
-        target_namespace: str = "tokens",
+        target_namespace: str = "labels",
         beam_search: Lazy[BeamSearch] = Lazy(BeamSearch),
         tie_output_embedding: bool = False,
         scheduled_sampling_ratio: float = 0,
@@ -151,7 +147,7 @@ class AutoRegressiveDecoder(SeqDecoder):
 
         # Prepare embeddings for targets. They will be used as gold embeddings during decoder training
         # shape: (batch_size, max_target_sequence_length, embedding_dim)
-        target_embedding = self.target_embedder(targets)
+        target_embedding = self.target_embedder(target_tokens)
 
         # shape: (batch_size, max_target_batch_sequence_length)
         target_mask = util.get_text_field_mask(target_tokens)
@@ -247,6 +243,10 @@ class AutoRegressiveDecoder(SeqDecoder):
 
         Inputs are the same as for `take_step()`.
         """
+
+        assert len(last_predictions.size()) == 1
+        last_predictions = last_predictions.unsqueeze(1)
+
         # shape: (group_size, max_input_sequence_length, encoder_output_dim)
         encoder_outputs = state["encoder_outputs"]
 
@@ -256,8 +256,13 @@ class AutoRegressiveDecoder(SeqDecoder):
         # shape: (group_size, steps_count, decoder_output_dim)
         previous_steps_predictions = state.get("previous_steps_predictions")
 
+        last_predictions_text_field_tensor = {'tokens': {
+            'token_ids': last_predictions,
+            'mask': last_predictions.new_full(last_predictions.size(), True, dtype=bool)
+        }}
+
         # shape: (batch_size, 1, target_embedding_dim)
-        last_predictions_embeddings = self.target_embedder(last_predictions).unsqueeze(1)
+        last_predictions_embeddings = self.target_embedder(last_predictions_text_field_tensor)
 
         if previous_steps_predictions is None or previous_steps_predictions.shape[-1] == 0:
             # There is no previous steps, except for start vectors in `last_predictions`

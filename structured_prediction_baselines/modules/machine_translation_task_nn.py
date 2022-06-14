@@ -52,10 +52,10 @@ class MachineTranslationTaskNN(TaskNN):
         self.decoder = decoder
 
         encoder_output_dim = self.encoder.get_output_dim() if self.encoder else self.source_embedder.get_output_dim()
-        if encoder_output_dim != self._decoder.get_output_dim():
+        if encoder_output_dim != self.decoder.get_output_dim():
             raise ConfigurationError(
-                f"Encoder output dimension {self._encoder.get_output_dim()} should be"
-                f" equal to decoder dimension {self._decoder.get_output_dim()}."
+                f"Encoder output dimension {self.encoder.get_output_dim()} should be"
+                f" equal to decoder dimension {self.decoder.get_output_dim()}."
             )
 
     @classmethod
@@ -115,7 +115,7 @@ class MachineTranslationTaskNN(TaskNN):
         """
         Finalize predictions.
         """
-        return self._decoder.post_process(output_dict)
+        return self.decoder.post_process(output_dict)
 
     def mark_parameters_with_optimizer_mode(self):
         pass

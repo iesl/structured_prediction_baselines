@@ -16,21 +16,6 @@ class MachineTranslationNormalized(InferenceNetSampler):
     def is_normalized(self) -> bool:
         return True
 
-    @overload
-    def normalize(self, y: None) -> None:
-        ...
-
-    @overload
-    def normalize(self, y: torch.Tensor) -> torch.Tensor:
-        ...
-
-    def normalize(self, y: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
-
-        if y is not None:
-            return torch.softmax(y,dim=-1)
-        else:
-            return None
-
     @property
     def different_training_and_eval(self) -> bool:
         return False
@@ -72,10 +57,9 @@ class MachineTranslationNormalized(InferenceNetSampler):
         **kwargs: Any,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
 
-        y_inf, y_pred = self.inference_nn(x, labels).unsqueeze(
-            1
-        )  # (batch_size, 1, ...) unormalized
-        # inference_nn is TaskNN so it will output tensor of shape (batch, ...)
+        y_inf, y_pred = self.inference_nn(x, labels)
+        y_inf = y_inf.unsqueeze(1)  # (batch_size, 1, ...) unormalized
+        # inference_nn is TaskNN, so it will output tensor of shape (batch, ...)
         # hence the unsqueeze
 
         return y_inf, y_pred

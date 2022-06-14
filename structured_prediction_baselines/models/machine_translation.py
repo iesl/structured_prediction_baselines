@@ -10,8 +10,9 @@ from overrides import overrides
 
 from .base import ScoreBasedLearningModel
 
-START_SYMBOL = "@start@"
-END_SYMBOL = "@end@"
+START_SYMBOL = '[CLS]'
+END_SYMBOL = '[SEP]'
+PAD_TOKEN = '[PAD]'
 
 logger = logging.getLogger(__name__)
 
@@ -26,16 +27,16 @@ logger = logging.getLogger(__name__)
 class MachineTranslation(ScoreBasedLearningModel):
     def __init__(
         self,
-        target_namespace: str = "tokens",
+        target_namespace: str = "labels",
         bleu_ngram_weights: Iterable[float] = (0.25, 0.25, 0.25, 0.25),
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         # metrics
-        self._start_index = self.vocab.get_token_index(START_SYMBOL, self._target_namespace)
-        self._end_index = self.vocab.get_token_index(END_SYMBOL, self._target_namespace)
+        self._start_index = self.vocab.get_token_index(START_SYMBOL, target_namespace)
+        self._end_index = self.vocab.get_token_index(END_SYMBOL, target_namespace)
         pad_index = self.vocab.get_token_index(
-            self.vocab._padding_token, self._target_namespace
+            PAD_TOKEN, target_namespace
         )
         self._bleu = BLEU(
             bleu_ngram_weights,
@@ -85,5 +86,5 @@ class MachineTranslation(ScoreBasedLearningModel):
 
     def get_true_metrics(self, reset: bool = False) -> Dict[str, float]:
         metrics = {}
-
+        metrics.update(self._bleu.get_metric(reset=reset))
         return metrics

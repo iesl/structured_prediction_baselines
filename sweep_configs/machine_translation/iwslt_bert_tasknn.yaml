@@ -1,0 +1,49 @@
+command:
+- ${program}
+- train-with-wandb
+- model_configs/machine_translation/iwslt_bert_tasknn.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb-tags=task@nmt,model@tasknn,dataset@iwslt,inference_module@tasknn,sampler@tasknn
+- ${args}
+- --file-friendly-logging
+description: Train tasknn using cross-entropy
+method: grid
+metric:
+  goal: maximize
+  name: validation/best_BLEU
+name: iwslt_en_de_bert_tasknn
+parameters:
+  data_loader.batch_sampler.batch_size:
+    value: 16
+  env.weight_decay:
+    value:
+      - 1e-05
+  env.attn_layers:
+    values:
+      - 1
+      - 2
+      - 4
+  env.attn_heads:
+    values:
+      - 1
+      - 4
+      - 8
+  env.attn_dropout:
+    values:
+      - 0.1
+      - 0.2
+  env.ff_dropout:
+    values:
+      - 0.1
+      - 0.2
+      - 0.3
+  env.ff_hidden_dim:
+    values:
+      - 512
+      - 768
+      - 1024
+  trainer.optimizer.optimizers.task_nn.lr:
+    values:
+      - 0.00001
+      - 0.0001
+program: allennlp
