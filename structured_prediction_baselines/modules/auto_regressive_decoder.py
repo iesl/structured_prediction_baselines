@@ -10,6 +10,7 @@ from allennlp.modules import TextFieldEmbedder
 from allennlp.nn import util
 from allennlp.nn.beam_search import BeamSearch
 from allennlp_models.generation import SeqDecoder, StackedSelfAttentionDecoderNet
+from allennlp_models.lm import TransformerBeamSearchGenerator
 from overrides import overrides
 from torch.nn import Linear
 
@@ -61,12 +62,10 @@ class AutoRegressiveDecoder(SeqDecoder):
         target_namespace: str = "labels",
         beam_search: Lazy[BeamSearch] = Lazy(BeamSearch),
         tie_output_embedding: bool = False,
-        scheduled_sampling_ratio: float = 0,
         label_smoothing_ratio: Optional[float] = None,
         **kwargs
     ) -> None:
         super().__init__(target_embedder)
-
         self._vocab = vocab
 
         # Decodes the sequence of encoded hidden states into e new sequence of hidden states.
@@ -80,7 +79,11 @@ class AutoRegressiveDecoder(SeqDecoder):
         self._start_index = self._vocab.get_token_index(START_SYMBOL, self._target_namespace)
         self._end_index = self._vocab.get_token_index(END_SYMBOL, self._target_namespace)
 
-        self._beam_search = beam_search.construct(end_index=self._end_index)
+        _beam_search = beam_search.construct(end_index=self._end_index)
+        self._beam_search_generator = TransformerBeamSearchGenerator(beam_search=_beam_search)
+
+        # Ensure beam_search_generator is compatable with text_field_embedder.
+        self._beam_search_generator.validate_text_field_embedder(self.target_embedder)
 
         target_vocab_size = self._vocab.get_vocab_size(self._target_namespace)
 
@@ -102,28 +105,7 @@ class AutoRegressiveDecoder(SeqDecoder):
                 )
             self._output_projection_layer.weight = self.target_embedder.weight
 
-        self._scheduled_sampling_ratio = scheduled_sampling_ratio
-
-    def _forward_beam_search(self, state: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        """
-        Prepare inputs for the beam search, does beam search and returns beam search results.
-        """
-        batch_size = state["source_mask"].size()[0]
-        start_predictions = state["source_mask"].new_full(
-            (batch_size,), fill_value=self._start_index, dtype=torch.long
-        )
-
-        # shape (all_top_k_predictions): (batch_size, beam_size, num_decoding_steps)
-        # shape (log_probabilities): (batch_size, beam_size)
-        all_top_k_predictions, log_probabilities = self._beam_search.search(
-            start_predictions, state, self.take_step
-        )
-
-        output_dict = {
-            "class_log_probabilities": log_probabilities,
-            "predictions": all_top_k_predictions,
-        }
-        return output_dict
+        # self._scheduled_sampling_ratio = scheduled_sampling_ratio
 
     def _forward_loss(
         self, state: Dict[str, torch.Tensor], target_tokens: TextFieldTensors
@@ -142,9 +124,6 @@ class AutoRegressiveDecoder(SeqDecoder):
         # shape: (batch_size, max_input_sequence_length)
         source_mask = state["source_mask"]
 
-        # shape: (batch_size, max_target_sequence_length)
-        targets = util.get_token_ids_from_text_field_tensors(target_tokens)
-
         # Prepare embeddings for targets. They will be used as gold embeddings during decoder training
         # shape: (batch_size, max_target_sequence_length, embedding_dim)
         target_embedding = self.target_embedder(target_tokens)
@@ -152,146 +131,126 @@ class AutoRegressiveDecoder(SeqDecoder):
         # shape: (batch_size, max_target_batch_sequence_length)
         target_mask = util.get_text_field_mask(target_tokens)
 
-        if self._scheduled_sampling_ratio == 0:
-            _, decoder_output = self._decoder_net(
-                previous_state=state,
-                previous_steps_predictions=target_embedding[:, :-1, :],
-                encoder_outputs=encoder_outputs,
-                source_mask=source_mask,
-                previous_steps_mask=target_mask[:, :-1],
-            )
+        _, decoder_output = self._decoder_net(
+            previous_state=state,
+            previous_steps_predictions=target_embedding[:, :-1, :],
+            encoder_outputs=encoder_outputs,
+            source_mask=source_mask,
+            previous_steps_mask=target_mask[:, :-1],
+        )
 
-            # shape: (group_size, max_target_sequence_length, num_classes)
-            logits = self._output_projection_layer(decoder_output)
-        else:
-            batch_size = source_mask.size()[0]
-            _, target_sequence_length = targets.size()
-
-            # The last input from the target is either padding or the end symbol.
-            # Either way, we don't have to process it.
-            num_decoding_steps = target_sequence_length - 1
-
-            # Initialize target predictions with the start index.
-            # shape: (batch_size,)
-            last_predictions = source_mask.new_full(
-                (batch_size,), fill_value=self._start_index, dtype=torch.long
-            )
-
-            # shape: (steps, batch_size, target_embedding_dim)
-            steps_embeddings = torch.Tensor([])
-
-            step_logits: List[torch.Tensor] = []
-
-            for timestep in range(num_decoding_steps):
-                if self.training and torch.rand(1).item() < self._scheduled_sampling_ratio:
-                    # Use gold tokens at test time and at a rate of 1 - _scheduled_sampling_ratio
-                    # during training.
-                    # shape: (batch_size, steps, target_embedding_dim)
-                    state["previous_steps_predictions"] = steps_embeddings
-
-                    # shape: (batch_size, )
-                    effective_last_prediction = last_predictions
-                else:
-                    # shape: (batch_size, )
-                    effective_last_prediction = targets[:, timestep]
-
-                    if timestep == 0:
-                        state["previous_steps_predictions"] = torch.Tensor([])
-                    else:
-                        # shape: (batch_size, steps, target_embedding_dim)
-                        state["previous_steps_predictions"] = target_embedding[:, :timestep]
-
-                # shape: (batch_size, num_classes)
-                output_projections, state = self._prepare_output_projections(
-                    effective_last_prediction, state
-                )
-
-                # list of tensors, shape: (batch_size, 1, num_classes)
-                step_logits.append(output_projections.unsqueeze(1))
-
-                # shape (predicted_classes): (batch_size,)
-                _, predicted_classes = torch.max(output_projections, 1)
-
-                # shape (predicted_classes): (batch_size,)
-                last_predictions = predicted_classes
-
-                # shape: (batch_size, 1, target_embedding_dim)
-                last_predictions_embeddings = self.target_embedder(last_predictions).unsqueeze(1)
-
-                # This step is required, since we want to keep up two different prediction history: gold and real
-                if steps_embeddings.shape[-1] == 0:
-                    # There is no previous steps, except for start vectors in `last_predictions`
-                    # shape: (group_size, 1, target_embedding_dim)
-                    steps_embeddings = last_predictions_embeddings
-                else:
-                    # shape: (group_size, steps_count, target_embedding_dim)
-                    steps_embeddings = torch.cat([steps_embeddings, last_predictions_embeddings], 1)
-
-            # shape: (batch_size, num_decoding_steps, num_classes)
-            logits = torch.cat(step_logits, 1)
+        # shape: (group_size, max_target_sequence_length, num_classes)
+        logits = self._output_projection_layer(decoder_output)
 
         output_dict = {'logits': logits}
         return output_dict
 
-    def _prepare_output_projections(
-        self, last_predictions: torch.Tensor, state: Dict[str, torch.Tensor]
+    def _forward_beam_search(self, state: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        """
+        Prepare inputs for the beam search, does beam search and returns beam search results.
+        """
+        batch_size = state["source_mask"].size()[0]
+        start_predictions = state["source_mask"].new_full(
+            (batch_size, 1), fill_value=self._start_index, dtype=torch.long
+        )
+
+        decoder_init_state = {
+            'token_ids': start_predictions,
+            'mask': start_predictions.new_full(start_predictions.size(), True, dtype=bool),
+            'type_ids': start_predictions.new_full(start_predictions.size(), 0, dtype=int),
+        }
+
+        state.update(decoder_init_state)
+
+        # state = self._beam_search_generator.get_step_state(tokens)
+
+        # Shape (top_indices): (batch_size, beam_size, num_predicted_tokens)
+        # Shape (top_log_probs): (batch_size, beam_size)
+        all_top_k_predictions, log_probabilities = self._beam_search_generator.search(
+            start_predictions, state, self._beam_search_step
+        )
+
+        # Shape: (batch_size, beam_size)
+        # top_probs = top_log_probs.exp()
+
+        # shape (all_top_k_predictions): (batch_size, beam_size, num_decoding_steps)
+        # shape (log_probabilities): (batch_size, beam_size)
+        # all_top_k_predictions, log_probabilities = self._beam_search.search(
+        #     start_predictions, state, self.take_step
+        # )
+
+        output_dict = {
+            "class_log_probabilities": log_probabilities,
+            "predictions": all_top_k_predictions,
+        }
+        return output_dict
+
+    def _beam_search_step(
+        self, predicted_tokens: torch.Tensor, state: Dict[str, torch.Tensor], step: int
     ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
         """
-        Decode current state and last prediction to produce produce projections
-        into the target space, which can then be used to get probabilities of
-        each target token for the next step.
+        Step function to use with `BeamSearch`.
 
-        Inputs are the same as for `take_step()`.
+        `predicted_tokens` is a tensor of shape `(group_size,)` and
+        `state` is a dictionary of tensors with the following fields:
+        - "token_ids": shape `(group_size, num_tokens)`
+        - "mask": shape `(group_size, num_tokens)`
+        - "type_ids": shape `(group_size, num_tokens)`
         """
+        assert self._beam_search_generator is not None
 
-        assert len(last_predictions.size()) == 1
-        last_predictions = last_predictions.unsqueeze(1)
+        decoder_state = self._get_decoder_state(state)
+        if step == 0:
+            inputs = {self._beam_search_generator._namespace: decoder_state}
+        else:
+            inputs = self._beam_search_generator.prepare_step_input(predicted_tokens, decoder_state)
+            decoder_state = self._beam_search_generator.get_step_state(inputs)
+            state.update(decoder_state)
 
+        # Shape: (group_size, vocab_size)
+        next_token_scores = self._next_token_scores(inputs, state)
+
+        # Shape: (group_size, vocab_size)
+        log_probs = torch.nn.functional.log_softmax(next_token_scores, dim=-1)
+
+        return log_probs, state
+
+    def _get_decoder_state(self, state: Dict[str, torch.Tensor]):
+        return {
+            'token_ids': state["token_ids"],
+            'mask': state["mask"],
+            'type_ids': state["type_ids"]
+        }
+
+    def _next_token_scores(self, tokens: TextFieldTensors, state: Dict[str, torch.Tensor]) -> torch.Tensor:
+        """
+        Get the unnormalized log probabilities of the potential next token.
+        """
         # shape: (group_size, max_input_sequence_length, encoder_output_dim)
         encoder_outputs = state["encoder_outputs"]
 
         # shape: (group_size, max_input_sequence_length)
         source_mask = state["source_mask"]
 
-        # shape: (group_size, steps_count, decoder_output_dim)
-        previous_steps_predictions = state.get("previous_steps_predictions")
+        # Shape: (group_size, num_tokens, embedding_dim)
+        embeddings = self.target_embedder(tokens)
 
-        last_predictions_text_field_tensor = {'tokens': {
-            'token_ids': last_predictions,
-            'mask': last_predictions.new_full(last_predictions.size(), True, dtype=bool)
-        }}
+        # Shape: (group_size, num_tokens)
+        mask = util.get_text_field_mask(tokens)
 
-        # shape: (batch_size, 1, target_embedding_dim)
-        last_predictions_embeddings = self.target_embedder(last_predictions_text_field_tensor)
-
-        if previous_steps_predictions is None or previous_steps_predictions.shape[-1] == 0:
-            # There is no previous steps, except for start vectors in `last_predictions`
-            # shape: (group_size, 1, target_embedding_dim)
-            previous_steps_predictions = last_predictions_embeddings
-        else:
-            # shape: (group_size, steps_count, target_embedding_dim)
-            previous_steps_predictions = torch.cat(
-                [previous_steps_predictions, last_predictions_embeddings], 1
-            )
-
-        decoder_state, decoder_output = self._decoder_net(
-            previous_state=state,
+        _, decoder_output = self._decoder_net(
+            previous_state=None,
+            previous_steps_predictions=embeddings,
             encoder_outputs=encoder_outputs,
             source_mask=source_mask,
-            previous_steps_predictions=previous_steps_predictions,
         )
-        state["previous_steps_predictions"] = previous_steps_predictions
 
-        # Update state with new decoder state, override previous state
-        state.update(decoder_state)
-
-        if self._decoder_net.decodes_parallel:
-            decoder_output = decoder_output[:, -1, :]
+        decoder_output = decoder_output[:, -1, :]
 
         # shape: (group_size, num_classes)
-        output_projections = self._output_projection_layer(decoder_output)
+        final_embeddings = self._output_projection_layer(decoder_output)
 
-        return output_projections, state
+        return final_embeddings
 
     def _get_loss(
         self, logits: torch.LongTensor, targets: torch.LongTensor, target_mask: torch.BoolTensor
@@ -333,49 +292,6 @@ class AutoRegressiveDecoder(SeqDecoder):
 
     def get_output_dim(self):
         return self._decoder_net.get_output_dim()
-
-    def take_step(
-        self, last_predictions: torch.Tensor, state: Dict[str, torch.Tensor], step: int
-    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
-        """
-        Take a decoding step. This is called by the beam search class.
-
-        # Parameters
-
-        last_predictions : `torch.Tensor`
-            A tensor of shape `(group_size,)`, which gives the indices of the predictions
-            during the last time step.
-        state : `Dict[str, torch.Tensor]`
-            A dictionary of tensors that contain the current state information
-            needed to predict the next step, which includes the encoder outputs,
-            the source mask, and the decoder hidden state and context. Each of these
-            tensors has shape `(group_size, *)`, where `*` can be any other number
-            of dimensions.
-        step : `int`
-            The time step in beam search decoding.
-
-        # Returns
-
-        Tuple[torch.Tensor, Dict[str, torch.Tensor]]
-            A tuple of `(log_probabilities, updated_state)`, where `log_probabilities`
-            is a tensor of shape `(group_size, num_classes)` containing the predicted
-            log probability of each class for the next step, for each item in the group,
-            while `updated_state` is a dictionary of tensors containing the encoder outputs,
-            source mask, and updated decoder hidden state and context.
-
-        Notes
-        -----
-            We treat the inputs as a batch, even though `group_size` is not necessarily
-            equal to `batch_size`, since the group may contain multiple states
-            for each source sentence in the batch.
-        """
-        # shape: (group_size, num_classes)
-        output_projections, state = self._prepare_output_projections(last_predictions, state)
-
-        # shape: (group_size, num_classes)
-        class_log_probabilities = F.log_softmax(output_projections, dim=-1)
-
-        return class_log_probabilities, state
 
     @overrides
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:

@@ -54,7 +54,8 @@ local task_nn = {
       },
     },
     beam_search: {
-      max_steps: 200
+      max_steps: 150,
+      beam_size: 5
     }
   }
 };
@@ -69,7 +70,7 @@ local token_indexer = {
 local tokenizer = {
   type: 'pretrained_transformer',
   model_name: transformer_model,
-  max_length: 200,
+  max_length: 150,
 };
 
 {
@@ -83,7 +84,7 @@ local tokenizer = {
     source_add_end_token: false,
     target_add_start_token: false,
     target_add_end_token: false,
-    [if test == '1' then 'max_instances']: 10000,
+    [if test == '1' then 'max_instances']: 5,
   },
   train_data_path: (data_dir + '/' + dataset_metadata.dir_name + '/' +
                     dataset_metadata.train_file),
@@ -125,14 +126,14 @@ local tokenizer = {
   data_loader: {
     batch_sampler: {
       type: 'bucket',
-      batch_size: 32,  // effective batch size = batch_size*num_gradient_accumulation_steps
+      batch_size: 16,  // effective batch size = batch_size*num_gradient_accumulation_steps
       sorting_keys: ['source_tokens'],
     },
     //max_instances_in_memory: if test == '1' then 10 else 1000,
   },
   trainer: {
     type: 'gradient_descent_minimax',
-    num_epochs: if test == '1' then 10 else 50,
+    num_epochs: if test == '1' then 5 else 50,
     grad_norm: { task_nn: 1.0 },
     patience: 4,
     validation_metric: '+BLEU',
