@@ -14,12 +14,12 @@ local transformer_hidden_dim = 768;
 
 local ff_activation = 'softplus';
 local cross_entropy_loss_weight = 1;
-local ff_weight_decay = std.parseJson(std.extVar('weight_decay'));
-local num_attn_layers = std.parseJson(std.extVar('attn_layers'));
-local num_attn_heads = std.parseJson(std.extVar('attn_heads'));
-local attn_dropout = std.parseJson(std.extVar('attn_dropout'));
-local ff_hidden_dim = std.parseJson(std.extVar('ff_hidden_dim'));
-local ff_dropout = std.parseJson(std.extVar('ff_dropout'));
+local ff_weight_decay = 0.001; //std.parseJson(std.extVar('weight_decay'));
+local num_attn_layers = 1; //std.parseJson(std.extVar('attn_layers'));
+local num_attn_heads = 1; //std.parseJson(std.extVar('attn_heads'));
+local attn_dropout = 0.1; //std.parseJson(std.extVar('attn_dropout'));
+local ff_hidden_dim = 256; //std.parseJson(std.extVar('ff_hidden_dim'));
+local ff_dropout = 0.1; //std.parseJson(std.extVar('ff_dropout'));
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 local task_nn = {
   type: 'machine-translation',
@@ -55,7 +55,9 @@ local task_nn = {
     },
     beam_search: {
       max_steps: 150,
-      beam_size: 5
+      beam_size: 5,
+      min_steps: 10,
+      final_sequence_scorer: {type: 'length-normalized-sequence-log-prob'}
     }
   }
 };

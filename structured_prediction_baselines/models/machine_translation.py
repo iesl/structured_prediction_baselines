@@ -76,13 +76,14 @@ class MachineTranslation(ScoreBasedLearningModel):
         results: Dict,
         **kwargs: Any,
     ) -> None:
-        if not self.training:
-            # shape: (batch_size, beam_size, max_sequence_length)
-            top_k_predictions = y_hat
-            # shape: (batch_size, max_predicted_sequence_length)
-            best_predictions = top_k_predictions[:, 0, :]
-            targets = util.get_token_ids_from_text_field_tensors(labels)
-            self._bleu(best_predictions, targets)
+
+        # shape: (batch_size, beam_size, max_sequence_length)
+        top_k_predictions = y_hat
+        # shape: (batch_size, max_predicted_sequence_length)
+        best_predictions = top_k_predictions[:, 0, :]
+        targets = util.get_token_ids_from_text_field_tensors(labels)
+
+        self._bleu(best_predictions, targets)
 
     def get_true_metrics(self, reset: bool = False) -> Dict[str, float]:
         metrics = {}

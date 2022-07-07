@@ -107,7 +107,11 @@ class MachineTranslationTaskNN(TaskNN):
         encoded_state = {"source_mask": source_mask, "encoder_outputs": encoder_outputs}
 
         decoder_output = self.decoder(encoded_state, target_tokens)
-        return decoder_output['logits'], decoder_output.get('predictions')
+        logits, predictions = decoder_output['logits'], decoder_output.get('predictions')
+        if not predictions:
+            _, predictions = torch.max(logits, dim=-1)
+            predictions = predictions.unsqueeze(1)
+        return logits, predictions
 
     def make_output_human_readable(
         self, output_dict: Dict[str, torch.Tensor]
