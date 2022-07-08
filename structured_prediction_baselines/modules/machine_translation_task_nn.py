@@ -108,7 +108,7 @@ class MachineTranslationTaskNN(TaskNN):
 
         decoder_output = self.decoder(encoded_state, target_tokens)
         logits, predictions = decoder_output['logits'], decoder_output.get('predictions')
-        if not predictions:
+        if predictions is None:
             _, predictions = torch.max(logits, dim=-1)
             predictions = predictions.unsqueeze(1)
         return logits, predictions
