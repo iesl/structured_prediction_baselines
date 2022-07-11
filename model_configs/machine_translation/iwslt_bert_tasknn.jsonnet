@@ -158,6 +158,11 @@ local tokenizer = {
             type: 'huggingface_adamw',
           },
       },
+      parameter_groups: {
+        task_nn: [
+            [["task_nn.decoder.decoder_net."], {"lr": 1e-3}]
+        ],
+      }
     },
     checkpointer: {
       keep_most_recent_by_count: 1,
