@@ -4,7 +4,7 @@ program: allennlp
 command:
 - ${program}
 - train-with-wandb
-- model_configs/sequence_tagging/ontonotes_inference_net_stacked.jsonnet
+- model_configs/srl/ontonotes_inference_net_stacked.jsonnet
 - --include-package=structured_prediction_baselines
 - --wandb-tags="task=srl,score_nn_loss=margin,task_nn_loss=bce+inference_score,sampler=inference_net,dataset=ontonotes,inference_module=inference_net,inference_module=tasknn,inference_module_loss=bce+inference_score,sampler=tasknn"
 - ${args}
