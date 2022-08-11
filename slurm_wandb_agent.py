@@ -20,14 +20,16 @@ def main(args):
     template_str = dict()
     template_str['srun.sh'] = '\n'.join((
         "#!/bin/sh",
-        "module load cuda/10.0.130",
+        "export TEST=0",
+        "export CUDA_DEVICE=0",
+        "export DATA_DIR=./data/",
+        "export WANDB_IGNORE_GLOBS=*\*\*\*.th,*\*\*\*.tar.gz,*\*\*.th,*\*\*.tar.gz,*\*.th,*\*.tar.gz,*.tar.gz,*.th",
     ))
     template_str['sbatch.sh'] = '\n'.join((
         "#!/bin/bash",
         "#SBATCH --gres=gpu:1",
-        "#SBATCH --partition=m40-long",
-        "#SBATCH --cpus-per-task=4",
-        "#SBATCH --mem=16GB",
+        "#SBATCH --cpus-per-task=6",
+        "#SBATCH --mem=50GB",
     ))
     for fname in ['srun.sh', 'sbatch.sh']:
         if not template_path[fname].exists():
@@ -61,15 +63,17 @@ def main(args):
     complete_sweep_id = "/".join(complete_sweep_id_entires)
     file_str['srun.sh'] = "\n".join((
         "",
-        f"wandb agent --count 20 {complete_sweep_id}",
+        f"wandb agent --count {args.num_runs} {complete_sweep_id}",
         # f"pwd", # for testing
         # f"./test.sh", # for testing
     ))
 
     file_str['sbatch.sh'] = "\n".join((
         "",
+        f"#SBATCH --partition={args.slurm_queue}",
+        f"#SBATCH --exclude={args.exclude}" if args.exclude else "",
         f"#SBATCH --job-name={args.sweep_id}",
-        f"#SBATCH --output={job_dir}/%A-%a.out",
+        f"#SBATCH --output={job_dir}/%A-%a.out" if args.num_jobs > 1 else f"#SBATCH --output={job_dir}/%A.out",
         # f"#SBATCH --error={job_dir}/%A-%a.error",
         f"#SBATCH --ntasks={args.num_agents_per_job}",
         f'#SBATCH --array=1-{args.num_jobs}\n' if args.num_jobs > 1 else '',
@@ -99,6 +103,12 @@ if __name__ == '__main__':
     parser.add_argument('--num-jobs', type=int, default=1)
     parser.add_argument('--num-agents-per-job', type=int, default=1)
     parser.add_argument(
+        '--num-runs',
+        type=int,
+        default=100,
+        help="the number of runs per agent"
+    )
+    parser.add_argument(
         '--edit-sbatch',
         action='store_true',
         help="open the sbatch.sh file in a text editor before running")
@@ -119,7 +129,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--slurm_dir',
         type=str,
-        default="slurm",
+        default="logs",
         help="directory to store slurm files in")
     parser.add_argument(
         '--srun-filename',
@@ -147,8 +157,14 @@ if __name__ == '__main__':
         '-q',
         '--slurm-queue',
         type=str,
-        default="titanx-short",
-        help="slurm partition/queue"
+        default="gypsum-2080ti",
+        help="slurm partition/queue: gypsum-m40-phd, gypsum-titanx-phd, gypsum-1080ti-phd, gypsum-2080ti"
+    )
+    parser.add_argument(
+        '--exclude',
+        type=str,
+        default="",
+        help="compute nodes to be excluded, e.g. node001,node002"
     )
     parser.add_argument('--editor', type=str, default="vim")
     # More generally, should be able to use EDITOR = "${EDITOR:-vim}" but I don't always have my editor set.

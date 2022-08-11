@@ -376,6 +376,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         meta: Optional[Dict] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
+        # print("\n==================FORWARD TASKNN======================")
 
         if meta is None:
             meta = {}
@@ -418,6 +419,8 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         buffer: Dict,
         **kwargs: Any,
     ) -> Dict[str, Any]:
+        # print("\n==================FORWARD SCORENN======================")
+
         results: Dict[str, Any] = {}
 
         if labels is not None:

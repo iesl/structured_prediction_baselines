@@ -1,0 +1,31 @@
+name: trec_fine_bert
+description: "Training tasknn using cross entropy. Bert base uncased on trec fine-grained classification."
+program: allennlp
+command:
+- ${program}
+- train-with-wandb
+- model_configs/classification/trec_fine_bert.jsonnet
+- --include-package=structured_prediction_baselines
+- --wandb-entity=score-based-learning
+- --wandb-project=distillation
+- --wandb-tags=task@classification,dataset@trec_fine
+- ${args}
+- --file-friendly-logging
+method: grid
+metric:
+  goal: maximize
+  name: "validation/best_accuracy"
+
+parameters:
+  env.batch_size:
+    value: 32
+  env.ff_linear_layers:
+    values: [1, 2]
+  env.ff_hidden:
+    value: 768
+  env.task_nn_dropout_10x:
+    values: [1, 2, 3]
+  env.task_nn_lr:
+    values: [0.0001, 0.00005, 0.00002, 0.00001]
+  env.task_nn_weight_decay:
+    values: [0.1, 0.001]
