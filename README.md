@@ -49,7 +49,7 @@ pip install wandb_allennlp
         ```
         export TEST=1
         export CUDA_DEVICE=-1
-        allennlp train <path_to_config> -s <path to serialization dir> --include_package structured_prediction_baselines
+        allennlp train <path_to_config> -s <path to serialization dir> --include-package structured_prediction_baselines
         ```
 
         2. With output to wandb (see [creating account and login into wandb](https://docs.wandb.ai/quickstart#2-create-account) for details on getting started with wandb.)
