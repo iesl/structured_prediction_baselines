@@ -66,7 +66,7 @@ pip install wandb_allennlp
     1. Create a sweep using a sweep config file. See `sweep_configs` directory for examples. Refer sweeps documentation [here](https://docs.wandb.ai/sweeps).
 
     ```
-    wandb sweep -e score-based-learning -p baselines sweep_configs/path/to/config.yaml
+    wandb sweep -e score-based-learning -p baselines sweep_configs/path/to/config.yaml #여기서 -e를 내 id로 설정해야 함
 
     < you will see an alpha numeric sweep_id as output here. Copy it.>
     ```
