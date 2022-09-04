@@ -50,9 +50,6 @@ def main(args):
     file_path['srun.sh'] = Path(job_dir / args.srun_filename)
     file_path['sbatch.sh'] = Path(job_dir / args.sbatch_filename)
 
-    # The following might be nice but are definitely not necessary:
-    # TODO: Allow SBATCH defaults to be overridden by pass-through arguments to this script
-
     file_str = dict()
     complete_sweep_id_entires = []
     if args.wandb_entity:

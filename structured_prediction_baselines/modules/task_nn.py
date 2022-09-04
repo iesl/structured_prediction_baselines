@@ -13,11 +13,10 @@ import torch
 
 
 class TaskNN(torch.nn.Module, Registrable):
-    """Base class for creating feature representation for any task.
-
-    Inheriting classes should override the `foward` method.
     """
-
+    Typically a feature network and label embedding parameters.
+    Inheriting classes should override the `forward` method.
+    """
     pass
 
 
