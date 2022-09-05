@@ -23,8 +23,8 @@ from structured_prediction_baselines.modules.oracle_value_function import (
     OracleValueFunction,
 )
 from structured_prediction_baselines.modules.sampler import Sampler
-from structured_prediction_baselines.modules.score_nn import ScoreNN
-from structured_prediction_baselines.modules.task_nn import (
+from structured_prediction_baselines.modules.score_nn.score_nn import ScoreNN
+from structured_prediction_baselines.modules.task_nn.task_nn import (
     TaskNN,
     CostAugmentedLayer,
 )

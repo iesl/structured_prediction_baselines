@@ -4,13 +4,13 @@ from structured_prediction_baselines.modules.sampler import (
     BasicSampler,
 )
 import torch
-from structured_prediction_baselines.modules.score_nn import ScoreNN
+from structured_prediction_baselines.modules.score_nn.score_nn import ScoreNN
 from structured_prediction_baselines.modules.oracle_value_function import (
     OracleValueFunction,
 )
 from structured_prediction_baselines.modules.loss import Loss
 
-from structured_prediction_baselines.modules.multilabel_classification_task_nn import (
+from structured_prediction_baselines.modules.task_nn.multilabel_classification_task_nn import (
     MultilabelTaskNN,
 )
 

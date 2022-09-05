@@ -1,5 +1,5 @@
 {
-  // text datasets
+  // TREC question classification dataset
   trec: {
     dir_name: 'trec',
     num_labels: {

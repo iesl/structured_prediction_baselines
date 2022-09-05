@@ -2,8 +2,8 @@ from typing import List, Tuple, Union, Dict, Any, Optional
 
 from allennlp.nn.util import add_positional_features
 
-from structured_prediction_baselines.modules.self_attention_encoder import SelfAttentionEncoder
-from structured_prediction_baselines.modules.structured_score.structured_score import StructuredScore
+from structured_prediction_baselines.modules.layer.self_attention_encoder import SelfAttentionEncoder
+from structured_prediction_baselines.modules.score_nn.structured_score.structured_score import StructuredScore
 import torch
 
 

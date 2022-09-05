@@ -677,50 +677,32 @@ class GradientDescentMinimaxTrainer(Trainer):
             num_inner_steps = self.num_steps(self.inner_mode)
             num_outer_steps = self.num_steps(self.inner_mode.flip())
             for outer_step in range(num_outer_steps):
-
                 for inner_step in range(num_inner_steps):
-                    # Check if optmizer for this mode is present
-
+                    # inner step: check if optimizer for this mode is present
                     if self.inner_mode.value not in self.optimizer:
                         break
                     # we need to zero_grad before each optimization step.
-                    self.optimizer.zero_grad(
-                        opt_key=self.inner_mode.value, set_to_none=True
-                    )
-                    (
-                        batch_group_inner_loss_,
-                        batch_group_inner_outputs_,
-                    ) = self.batch_group_step(
+                    self.optimizer.zero_grad(opt_key=self.inner_mode.value, set_to_none=True)
+                    batch_group_inner_loss_, batch_group_inner_outputs_ = self.batch_group_step(
                         batch_group, mode=self.inner_mode
                     )
                     batch_group_inner_outputs += batch_group_inner_outputs_
-                    batch_group_inner_loss += (
-                        batch_group_inner_loss_ / num_inner_steps
-                    )  # log avg inner loss
+                    batch_group_inner_loss += (batch_group_inner_loss_ / num_inner_steps)  # log avg inner loss
                     train_inner_loss += batch_group_inner_loss
-                # outer step
-                # Check if optmizer for this mode is present
 
+                # outer step: check if optimizer for this mode is present
                 if self.inner_mode.flip().value not in self.optimizer:
                     continue
-
-                self.optimizer.zero_grad(
-                    opt_key=self.inner_mode.flip().value, set_to_none=True
-                )
-                (
-                    batch_group_outer_loss_,
-                    batch_group_outer_outputs_,
-                ) = self.batch_group_step(
+                # we need to zero_grad before each optimization step.
+                self.optimizer.zero_grad(opt_key=self.inner_mode.flip().value, set_to_none=True)
+                batch_group_outer_loss_, batch_group_outer_outputs_ = self.batch_group_step(
                     batch_group, mode=self.inner_mode.flip()
                 )
                 batch_group_outer_outputs += batch_group_outer_outputs_
-                batch_group_outer_loss += (
-                    batch_group_outer_loss_ / num_outer_steps
-                )  # log avg outer loss
+                batch_group_outer_loss += (batch_group_outer_loss_ / num_outer_steps)  # log avg outer loss
                 train_outer_loss += batch_group_outer_loss
 
             # Update moving averages
-
             if self._moving_average is not None:
                 self._moving_average.apply(self._total_batches_completed + 1)
 
@@ -769,9 +751,8 @@ class GradientDescentMinimaxTrainer(Trainer):
                     )
 
         if self._epochs_completed < self._start_after_epochs_completed or (
-            self._epochs_completed == self._start_after_epochs_completed
-            and self._batches_in_epoch_completed - 1
-            < self._start_after_batches_in_epoch_completed
+            self._epochs_completed == self._start_after_epochs_completed and
+            self._batches_in_epoch_completed - 1 < self._start_after_batches_in_epoch_completed
         ):
             metrics = {}
         else:
@@ -790,14 +771,10 @@ class GradientDescentMinimaxTrainer(Trainer):
             )
 
         for (worker, memory) in cpu_memory_usage:
-            metrics["worker_" + str(worker) + "_memory_MB"] = memory / (
-                1024 * 1024
-            )
+            metrics["worker_" + str(worker) + "_memory_MB"] = memory / (1024 * 1024)
 
         for (gpu_num, memory) in gpu_memory_usage:
-            metrics["gpu_" + str(gpu_num) + "_memory_MB"] = memory / (
-                1024 * 1024
-            )
+            metrics["gpu_" + str(gpu_num) + "_memory_MB"] = memory / (1024 * 1024)
 
         return metrics
 

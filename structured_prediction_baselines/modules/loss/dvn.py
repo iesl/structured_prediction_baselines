@@ -4,7 +4,7 @@ from structured_prediction_baselines.modules.loss.inference_net_loss import (
     MarginBasedLoss,
 )
 from allennlp.common.checks import ConfigurationError
-from structured_prediction_baselines.modules.score_nn import ScoreNN
+from structured_prediction_baselines.modules.score_nn.score_nn import ScoreNN
 from structured_prediction_baselines.modules.oracle_value_function import (
     OracleValueFunction,
 )

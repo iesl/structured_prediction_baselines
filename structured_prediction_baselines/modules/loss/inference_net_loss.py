@@ -8,7 +8,7 @@ from structured_prediction_baselines.modules.loss import Loss
 from structured_prediction_baselines.modules.oracle_value_function import (
     OracleValueFunction,
 )
-from structured_prediction_baselines.modules.score_nn import ScoreNN
+from structured_prediction_baselines.modules.score_nn.score_nn import ScoreNN
 from structured_prediction_baselines.modules.logging import (
     LoggingMixin,
     LoggedValue,

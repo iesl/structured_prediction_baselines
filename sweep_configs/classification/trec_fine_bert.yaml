@@ -1,5 +1,5 @@
 name: trec_fine_bert
-description: "Training tasknn using cross entropy. Bert base uncased on trec fine-grained classification."
+description: "Training bert-base-uncased task_nn using cross entropy on trec fine-grained classification."
 program: allennlp
 command:
 - ${program}
@@ -17,15 +17,17 @@ metric:
   name: "validation/best_accuracy"
 
 parameters:
+  env.n_epochs:
+    value: 40
   env.batch_size:
     value: 32
-  env.ff_linear_layers:
-    values: [1, 2]
-  env.ff_hidden:
+  env.ff_hidden_dim:
     value: 768
-  env.task_nn_dropout_10x:
-    values: [1, 2, 3]
+  env.n_ff_linear_layers:
+    values: [1, 2]
+  env.task_nn_dropout:
+    values: [0.1, 0.2, 0.3]
   env.task_nn_lr:
     values: [0.0001, 0.00005, 0.00002, 0.00001]
   env.task_nn_weight_decay:
-    values: [0.1, 0.001]
+    values: [0.1, 0.001, 0.00001]

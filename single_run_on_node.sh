@@ -5,10 +5,11 @@ export CUDA_DEVICE=0
 export DATA_DIR=./data/
 export WANDB_IGNORE_GLOBS=*\*\*\*.th,*\*\*\*.tar.gz,*\*\*.th,*\*\*.tar.gz,*\*.th,*\*.tar.gz,*.tar.gz,*.th
 
+export n_epochs=40
 export batch_size=32
-export ff_linear_layers=1
-export ff_hidden=768
-export task_nn_dropout_10x=1
+export ff_hidden_dim=768
+export n_ff_linear_layers=1
+export task_nn_dropout=0.1
 export task_nn_lr=0.00005
 export task_nn_weight_decay=0.001
 

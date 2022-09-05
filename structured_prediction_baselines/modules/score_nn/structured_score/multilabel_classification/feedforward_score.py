@@ -1,7 +1,5 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
-from structured_prediction_baselines.modules.structured_score import (
-    StructuredScore,
-)
+from structured_prediction_baselines.modules.score_nn.structured_score.structured_score import StructuredScore
 from allennlp.data.vocabulary import Vocabulary
 from allennlp.modules.feedforward import FeedForward
 import torch

@@ -1,8 +1,8 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
 from allennlp.common.registrable import Registrable
 import torch
-from .task_nn import TaskNN
-from .structured_score.structured_score import StructuredScore
+from ..task_nn.task_nn import TaskNN
+from structured_prediction_baselines.modules.score_nn.structured_score.structured_score import StructuredScore
 
 
 class ScoreNN(torch.nn.Module, Registrable):
@@ -10,7 +10,7 @@ class ScoreNN(torch.nn.Module, Registrable):
 
     def __init__(
         self,
-        task_nn: TaskNN,  # (batch, ...)
+        task_nn: Optional[TaskNN] = None,  # (batch, ...)
         global_score: Optional[StructuredScore] = None,
         **kwargs: Any,
     ):

@@ -1,7 +1,7 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
 from allennlp.common.registrable import Registrable
 import torch
-from structured_prediction_baselines.modules.score_nn import ScoreNN
+from structured_prediction_baselines.modules.score_nn.score_nn import ScoreNN
 from structured_prediction_baselines.modules.oracle_value_function import (
     OracleValueFunction,
 )

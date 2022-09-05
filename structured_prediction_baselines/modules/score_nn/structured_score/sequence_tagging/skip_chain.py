@@ -1,6 +1,6 @@
 from typing import Any
-from structured_prediction_baselines.modules.structured_score.sequence_tagging.linear_chain import LinearChain
-from structured_prediction_baselines.modules.structured_score.structured_score import StructuredScore
+from structured_prediction_baselines.modules.score_nn.structured_score.sequence_tagging.linear_chain import LinearChain
+from structured_prediction_baselines.modules.score_nn.structured_score.structured_score import StructuredScore
 import torch
 import torch.nn as nn
 import numpy as np

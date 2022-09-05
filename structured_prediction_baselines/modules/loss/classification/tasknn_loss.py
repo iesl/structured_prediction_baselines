@@ -5,7 +5,7 @@ import numpy as np
 
 
 @Loss.register("classification-ce")
-class CELoss(Loss):
+class ClassificationCrossEntropyLoss(Loss):
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
         self.loss_fn = torch.nn.functional.cross_entropy
@@ -37,3 +37,6 @@ class CELoss(Loss):
             self._loss_values = []
 
         return metrics
+
+
+# TODO WZ: classification-score-loss

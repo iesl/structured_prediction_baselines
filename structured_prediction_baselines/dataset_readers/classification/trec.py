@@ -1,28 +1,11 @@
-from typing import (
-    Dict,
-    List,
-    Union,
-    Any,
-    Iterator,
-    Tuple,
-    cast,
-    Optional,
-    Iterable,
-    Literal,
-)
-import sys
-import itertools
+import sys, itertools, logging, json
+from typing import Dict, List, Union, Any, Iterator, Tuple, cast, Optional, Iterable, Literal
+if sys.version_info >= (3, 8):
+    from typing import TypedDict  # pylint: disable=no-name-in-module
+else:
+    from typing_extensions import TypedDict
 from wcmatch import glob
 
-if sys.version_info >= (3, 8):
-    from typing import (
-        TypedDict,
-    )  # pylint: disable=no-name-in-module
-else:
-    from typing_extensions import TypedDict, Literal, overload
-
-import logging
-import json
 import allennlp
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 from allennlp.data.fields import TextField, MetadataField, LabelField
@@ -33,12 +16,6 @@ from allennlp.data.tokenizers import Tokenizer, Token
 logger = logging.getLogger(__name__)
 
 
-class InstanceFields(TypedDict):
-    """Contents which form an instance"""
-    x: TextField
-    label: LabelField
-
-
 @DatasetReader.register("trec")
 class TRECReader(DatasetReader):
     """
@@ -47,16 +24,16 @@ class TRECReader(DatasetReader):
 
     def __init__(
         self,
+        granularity: Literal["coarse", "fine"],
         tokenizer: Tokenizer,
         token_indexers: Dict[str, TokenIndexer],
-        granularity: Literal["coarse", "fine"] = "fine",
         **kwargs: Any,
     ) -> None:
         """
         Arguments:
+            granularity: The level of label granularity.
             tokenizer: The tokenizer to be used.
             token_indexers: The token_indexers to be used --- one per embedder. Will usually be only one.
-            granularity: The level of granularity to be used for the labels.
             **kwargs: Parent class args.
                 `Reference <https://github.com/allenai/allennlp/blob/master/allennlp/data/dataset_readers/dataset_reader.py>`_
         """
@@ -65,17 +42,11 @@ class TRECReader(DatasetReader):
             manual_multiprocess_sharding=True,
             **kwargs,
         )
+        self._granularity = granularity
         self._tokenizer = tokenizer
         self._token_indexers = token_indexers
-        self._granularity = granularity
 
-    def text_to_instance(  # type:ignore
-        self,
-        text: str,
-        label_coarse: str,
-        label_fine: str,
-        idx: int,
-    ) -> Instance:
+    def text_to_instance(self, text: str, label_coarse: str, label_fine: str, idx: int) -> Instance:
         """Converts contents of a single raw example to :class:`Instance`.
         Args:
             text: Question text
@@ -99,7 +70,6 @@ class TRECReader(DatasetReader):
         Yields:
             data instances
         """
-
         for file_ in glob.glob(file_path, flags=glob.EXTGLOB):
             with open(file_) as f:
                 for line in self.shard_iterable(f):

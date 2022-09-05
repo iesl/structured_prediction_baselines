@@ -10,13 +10,14 @@ local dataset_metadata = (import './datasets.jsonnet')[dataset_name];
 // Model
 local transformer_model = 'bert-base-uncased';
 local transformer_dim = 768;
-local ff_linear_layers = std.parseJson(std.extVar('ff_linear_layers'));
-local ff_hidden = std.parseJson(std.extVar('ff_hidden'));
+local n_ff_linear_layers = std.parseJson(std.extVar('n_ff_linear_layers'));
+local ff_hidden_dim = std.parseJson(std.extVar('ff_hidden_dim'));
 local ff_activation = 'softplus';
 local gain = (if ff_activation == 'tanh' then 5 / 3 else 1);
 // Training
+local n_epochs = std.parseInt(std.extVar('n_epochs'));
 local batch_size = std.parseInt(std.extVar('batch_size'));
-local task_nn_dropout = std.parseJson(std.extVar('task_nn_dropout_10x')) / 10.0;
+local task_nn_dropout = std.parseJson(std.extVar('task_nn_dropout'));
 local task_nn_lr = std.parseJson(std.extVar('task_nn_lr'));
 local task_nn_weight_decay = std.parseJson(std.extVar('task_nn_weight_decay'));
 
@@ -34,17 +35,16 @@ local task_nn_weight_decay = std.parseJson(std.extVar('task_nn_weight_decay'));
   dataset_reader: {
     type: dataset_name,
     granularity: label_granularity,
-    // [if test == '1' then 'max_instances']: 100,
-    token_indexers: {
-      x: {
-        type: 'pretrained_transformer',
-        model_name: transformer_model,
-      },
-    },
     tokenizer: {
       type: 'pretrained_transformer',
       model_name: transformer_model,
       max_length: 512,
+    },
+    token_indexers: {
+      x: { // token_indexer name
+        type: 'pretrained_transformer',
+        model_name: transformer_model,
+      },
     },
   },
   data_loader: {
@@ -61,7 +61,7 @@ local task_nn_weight_decay = std.parseJson(std.extVar('task_nn_weight_decay'));
       feature_network: {
         text_field_embedder: {
           token_embedders: {
-            x: {
+            x: {  // token_indexer name
               type: 'pretrained_transformer',
               model_name: transformer_model,
             },
@@ -74,17 +74,19 @@ local task_nn_weight_decay = std.parseJson(std.extVar('task_nn_weight_decay'));
         final_dropout: task_nn_dropout,
         feedforward: {
           input_dim: transformer_dim,
-          num_layers: ff_linear_layers,
-          activations: ([ff_activation for i in std.range(0, ff_linear_layers - 2)] + [ff_activation]),
-          hidden_dims: ff_hidden,
-          dropout: ([task_nn_dropout for i in std.range(0, ff_linear_layers - 2)] + [0]),
+          num_layers: n_ff_linear_layers,
+          activations: ([ff_activation for i in std.range(0, n_ff_linear_layers - 2)] + [ff_activation]),
+          hidden_dims: ff_hidden_dim,
+          dropout: ([task_nn_dropout for i in std.range(0, n_ff_linear_layers - 2)] + [0]),
         },
       },
       label_embeddings: {
-        embedding_dim: ff_hidden,
+        embedding_dim: ff_hidden_dim,
         vocab_namespace: 'labels',
       },
     },
+    score_nn: null,
+    oracle_value_function: null,
     sampler: {
       type: 'appending-container',
       log_key: 'sampler',
@@ -99,13 +101,17 @@ local task_nn_weight_decay = std.parseJson(std.extVar('task_nn_weight_decay'));
         log_key: 'cross_entropy',
       },
     },
-    oracle_value_function: null,
-    score_nn: null,  // no score nn for basic tasknn model
-    loss_fn: { type: 'zero' },
+    loss_fn: {type: 'zero'},
     initializer: {
       regexes: [
-        [@'.*feedforward._linear_layers.*weight', (if std.member(['tanh', 'sigmoid'], ff_activation) then { type: 'xavier_uniform', gain: gain } else { type: 'kaiming_uniform', nonlinearity: 'relu' })],
-        [@'.*feedforward._linear_layers.*bias', { type: 'zero' }],
+        [@'.*feedforward._linear_layers.*weight', (
+          if std.member(['tanh', 'sigmoid'], ff_activation) then {
+            type: 'xavier_uniform', gain: gain
+          } else {
+            type: 'kaiming_uniform', nonlinearity: 'relu'
+          }
+        )],
+        [@'.*feedforward._linear_layers.*bias', {type: 'zero'}],
       ],
     },
   },
@@ -115,20 +121,20 @@ local task_nn_weight_decay = std.parseJson(std.extVar('task_nn_weight_decay'));
     cuda_device: cuda_device,
     inner_mode: 'score_nn',
 
-    num_epochs: if test == '1' then 2 else 40,
-    num_steps: { task_nn: 1, score_nn: 1 },
-    // num_gradient_accumulation_steps: 1,
-    patience: 5,
+    num_epochs: if test == '1' then 2 else n_epochs,
+    num_gradient_accumulation_steps: 1,
+    num_steps: {task_nn: 1, score_nn: 0},
     validation_metric: '+accuracy',
+    patience: 5,
 
-    grad_norm: { task_nn: 1.0 },
+    grad_norm: {task_nn: 1.0},
     optimizer: {
       optimizers: {
         task_nn: {
-            type: 'huggingface_adamw',
-            lr: task_nn_lr,
-            weight_decay: task_nn_weight_decay,
-          },
+          type: 'huggingface_adamw',
+          lr: task_nn_lr,
+          weight_decay: task_nn_weight_decay,
+        },
       },
     },
     learning_rate_schedulers: {
@@ -141,10 +147,7 @@ local task_nn_weight_decay = std.parseJson(std.extVar('task_nn_weight_decay'));
       },
     },
 
-    checkpointer: {
-      keep_most_recent_by_count: 1,
-    },
-
+    checkpointer: {keep_most_recent_by_count: 1},
     callbacks: [
       'track_epoch_callback',
       'slurm',
@@ -152,13 +155,12 @@ local task_nn_weight_decay = std.parseJson(std.extVar('task_nn_weight_decay'));
       if use_wandb then [
         {
           type: 'wandb_allennlp',
-          sub_callbacks: [{ type: 'log_best_validation_metrics', priority: 100 }],
+          sub_callbacks: [{type: 'log_best_validation_metrics', priority: 100}],
           save_model_archive: false,
           watch_model: false,
           should_log_parameter_statistics: false,
         },
-      ]
-      else []
+      ] else []
     ),
   },
 }

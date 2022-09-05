@@ -14,9 +14,9 @@ from structured_prediction_baselines.modules.stopping_criteria import (
     StopAfterNumberOfSteps,
     StoppingCriteria,
 )
-from structured_prediction_baselines.modules.task_nn import TaskNN
+from structured_prediction_baselines.modules.task_nn.task_nn import TaskNN
 import torch
-from structured_prediction_baselines.modules.score_nn import ScoreNN
+from structured_prediction_baselines.modules.score_nn.score_nn import ScoreNN
 from structured_prediction_baselines.modules.oracle_value_function import (
     OracleValueFunction,
 )

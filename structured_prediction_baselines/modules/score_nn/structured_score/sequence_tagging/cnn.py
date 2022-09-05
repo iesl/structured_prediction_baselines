@@ -1,7 +1,7 @@
 from typing import List, Tuple, Union, Dict, Any, Optional
-from structured_prediction_baselines.modules.structured_score.structured_score import StructuredScore
+from structured_prediction_baselines.modules.score_nn.structured_score.structured_score import StructuredScore
 import torch
-from structured_prediction_baselines.modules.cnn_encoder import Cnn2dEncoder
+from structured_prediction_baselines.modules.layer.cnn_encoder import Cnn2dEncoder
 
 
 @StructuredScore.register("cnn")

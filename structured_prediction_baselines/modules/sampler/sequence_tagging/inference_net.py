@@ -5,11 +5,11 @@ from structured_prediction_baselines.modules.sampler import (
     InferenceNetSampler,
 )
 import torch
-from structured_prediction_baselines.modules.score_nn import ScoreNN
+from structured_prediction_baselines.modules.score_nn.score_nn import ScoreNN
 from structured_prediction_baselines.modules.oracle_value_function import (
     OracleValueFunction,
 )
-from structured_prediction_baselines.modules.sequence_tagging_task_nn import (
+from structured_prediction_baselines.modules.task_nn.sequence_tagging_task_nn import (
     SequenceTaggingTaskNN,
 )
 

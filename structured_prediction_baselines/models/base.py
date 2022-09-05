@@ -1,34 +1,15 @@
-from typing import (
-    List,
-    Tuple,
-    Union,
-    Dict,
-    Any,
-    Optional,
-    Iterator,
-    cast,
-    Generator,
-)
-import contextlib
-import torch
-from allennlp.models import Model
-from structured_prediction_baselines.modules.sampler import (
-    Sampler,
-    SamplerContainer,
-    AppendingSamplerContainer,
-)
-from structured_prediction_baselines.common import ModelMode
-from structured_prediction_baselines.modules.sampler.inference_net import (
-    InferenceNetSampler,
-)
-from structured_prediction_baselines.modules.oracle_value_function import (
-    OracleValueFunction,
-)
-from structured_prediction_baselines.modules.score_nn import ScoreNN
-from structured_prediction_baselines.modules.loss import Loss
-from allennlp.data.vocabulary import Vocabulary
+import torch, logging
+from typing import Tuple, Union, Dict, Any, Optional, Iterator, cast
 from allennlp.common.lazy import Lazy
+from allennlp.data.vocabulary import Vocabulary
 from allennlp.nn import InitializerApplicator, RegularizerApplicator, util
+from allennlp.models import Model
+from structured_prediction_baselines.common import ModelMode
+from structured_prediction_baselines.modules.task_nn.task_nn import TaskNN
+from structured_prediction_baselines.modules.score_nn.score_nn import ScoreNN
+from structured_prediction_baselines.modules.oracle_value_function import OracleValueFunction
+from structured_prediction_baselines.modules.sampler import Sampler, SamplerContainer, AppendingSamplerContainer
+from structured_prediction_baselines.modules.loss import Loss
 from structured_prediction_baselines.modules.logging import (
     LoggingMixin,
     LoggedValue,
@@ -36,17 +17,13 @@ from structured_prediction_baselines.modules.logging import (
     LoggedScalarScalarSample,
     LoggedNPArrayNPArraySample,
 )
-from structured_prediction_baselines.modules.task_nn import TaskNN
-from enum import Enum
-import logging
 
 logger = logging.getLogger(__name__)
 
 
 @Model.register("score-based-learning", constructor="from_partial_objects") # energy prediction networks
 @Model.register(
-    "score-based-learning-with-infnet",
-    constructor="from_partial_objects_with_shared_tasknn"
+    "score-based-learning-with-infnet", constructor="from_partial_objects_with_shared_tasknn"
 ) # task feedforward networks and seal
 class ScoreBasedLearningModel(LoggingMixin, Model):
     """
@@ -55,11 +32,11 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
             the inference_module is run in "inference" mode to produce predictions,
             and if labels present, loss; then if labels present, metrics are calculated.
             This will be used to update the parameters of the inference_module and to produce test-time predictions.
-        2. By calling `forward_on_scorenn()`,
+        2. By calling `forward_on_scorenn(x, labels)`,
             the sampler is run in "sample" mode with no_grad and logging turned off to produce sampled y for
             training ScoreNN; then ScoreNN loss is computed.
             This will be used to update the parameters of the ScoreNN.
-        3. By calling `compute_score(x,y)`,
+        3. By calling `compute_score(x, y)`,
             the score for (x,y) will be computed. This is useful for doing custom evaluations of ScoreNN.
             In order for such evaluations to not interfere with the training of ScoreNN,
             we need to do these after the optimizer step for ScoreNN.
@@ -92,7 +69,6 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         self.inference_module = inference_module if inference_module is not None else sampler
         self.evaluation_module = evaluation_module
         self.num_eval_samples = num_eval_samples
-        # self.eval_only_metrics = {}
 
         if initializer is not None:
             initializer(self)
@@ -133,19 +109,11 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
     ) -> "ScoreBasedLearningModel":
 
         if oracle_value_function is not None:
-            sampler_ = sampler.construct(
-                score_nn=score_nn, oracle_value_function=oracle_value_function
-            )
-            loss_fn_ = loss_fn.construct(
-                score_nn=score_nn, oracle_value_function=oracle_value_function
-            )
+            sampler_ = sampler.construct(score_nn=score_nn, oracle_value_function=oracle_value_function)
+            loss_fn_ = loss_fn.construct(score_nn=score_nn, oracle_value_function=oracle_value_function)
         else:
-            sampler_ = sampler.construct(
-                score_nn=score_nn,
-            )
-            loss_fn_ = loss_fn.construct(
-                score_nn=score_nn,
-            )
+            sampler_ = sampler.construct(score_nn=score_nn)
+            loss_fn_ = loss_fn.construct(score_nn=score_nn)
 
         if inference_module is None:
             # if no seperate inference module is given, use the sampler for test-time inference.
@@ -159,7 +127,8 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
 
         if evaluation_module is not None:
             evaluation_module_ = evaluation_module.construct(
-                score_nn=score_nn, oracle_value_function=oracle_value_function
+                score_nn=score_nn,
+                oracle_value_function=oracle_value_function
             )
         else:
             evaluation_module_ = None
@@ -209,11 +178,9 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
             else:
                 sampler_ = sampler.construct(
                     score_nn=score_nn,
-                    oracle_value_function=oracle_value_function,
+                    oracle_value_function=oracle_value_function
                 )
-            loss_fn_ = loss_fn.construct(
-                score_nn=score_nn, oracle_value_function=oracle_value_function
-            )
+            loss_fn_ = loss_fn.construct(score_nn=score_nn, oracle_value_function=oracle_value_function)
         else:
             if sampler is None:
                 sampler_ = AppendingSamplerContainer(
@@ -242,7 +209,8 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
 
         if evaluation_module is not None:
             evaluation_module_ = evaluation_module.construct(
-                score_nn=score_nn, oracle_value_function=oracle_value_function
+                score_nn=score_nn,
+                oracle_value_function=oracle_value_function
             )
         else:
             evaluation_module_ = None
@@ -388,6 +356,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
         return self._forward(**self.construct_args_for_forward(**kwargs))
 
 
+    @torch.no_grad()
     def calculate_metrics(
         self,
         x: Any,
@@ -405,9 +374,7 @@ class ScoreBasedLearningModel(LoggingMixin, Model):
 
 
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
-        non_metrics: Dict[str, Union[float, int]] = self.get_all(
-            reset=reset, type_=(LoggedScalarScalar,)
-        )
+        non_metrics: Dict[str, Union[float, int]] = self.get_all(reset=reset, type_=(LoggedScalarScalar,))
         metrics = self.get_true_metrics(reset=reset)
         return {**metrics, **non_metrics}
 
