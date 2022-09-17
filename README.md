@@ -33,6 +33,7 @@ pip install wandb_allennlp
     export CUDA_DEVICE=0 # 0 for GPU, -1 for CPU
     export TEST=1 # for a dryrun and without uploading results to wandb
     export WANDB_IGNORE_GLOBS=*\*\*\*.th,*\*\*\*.tar.gz,*\*\*.th,*\*\*.tar.gz,*\*.th,*\*.tar.gz,*.tar.gz,*.th
+    export DATA_DIR="./data/"
     ```
 
 3. Training single models
@@ -58,7 +59,7 @@ pip install wandb_allennlp
         ```
         export TEST=0
         export CUDA_DEVICE=-1
-        wandb_allennlp --subcommand=train --config_file=model_configs/<path_to_config_file> --include-package=structured_prediction_baselines --wandb_run_name=<some_informative_name_for_run>  --wandb_project structured_prediction_baselines --wandb_entity score-based-learning --wandb_tags=baselines,as_reported
+        allennlp train-with-wandb --config_file=model_configs/<path_to_config_file> --include-package=structured_prediction_baselines --wandb_run_name=<some_informative_name_for_run>  --wandb_project structured_prediction_baselines --wandb_entity <your wandb account name or team name> -- some hyperparameters to add (please refer to 5)
         ```
 
 4. Running hyperparameter sweeps
@@ -66,7 +67,7 @@ pip install wandb_allennlp
     1. Create a sweep using a sweep config file. See `sweep_configs` directory for examples. Refer sweeps documentation [here](https://docs.wandb.ai/sweeps).
 
     ```
-    wandb sweep -e score-based-learning -p baselines sweep_configs/path/to/config.yaml
+    wandb sweep -e score-based-learning -p baselines sweep_configs/<path/to/config.yaml>
 
     < you will see an alpha numeric sweep_id as output here. Copy it.>
     ```
@@ -75,10 +76,11 @@ pip install wandb_allennlp
 
     ```
     export TEST=0
-    python slurm_wandb_agent.py <sweep_id> -p baselines -e score-based-learning --num-jobs 5 -f --edit-sbatch --edit-srun
+    python slurm_wandb_agent.py <sweep_id> -p baselines -e <your wandb account name or team name> --num-jobs 5 -f --edit-sbatch --edit-srun
     ```
 
     You can use `squeue` to see the running agents on nodes. You can rerun this command to start more agents.
+
 
 # Directory Structure
 
