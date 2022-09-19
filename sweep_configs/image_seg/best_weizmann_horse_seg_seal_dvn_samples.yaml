@@ -1,0 +1,50 @@
+command:
+  - ${program}
+  - train-with-wandb
+  - model_configs/image_seg/weizmann_horse_seg_seal_dvn_samples.jsonnet
+  - --include-package=structured_prediction_baselines
+  - --wandb-entity=score-based-learning
+  - --wandb-project=segmentation
+  - --wandb-tags=task@image_seg,dataset@weizmann_horse
+  - -s /mnt/nfs/scratch1/username/SEAL/structured_prediction_baselines/BEST_MODELS/run-20220409_003156-no1oxf14
+  - ${args}
+  - --file-friendly-logging
+description: >
+  Train tasknn using cross-entropy and energy. 
+  The score-nn will predict soft IoU and be trained using DVN. 
+  The samples are taken as discrete samples from the tasknn output.
+method: grid
+metric:
+  goal: maximize
+  name: validation/best_seg_iou
+name: best_weizmann_horse_seg_seal_dvn_samples
+parameters:
+  env.batch_size:
+    value: 8
+  env.ckpt_path:
+    value: /mnt/nfs/scratch1/username/SEAL/structured_prediction_baselines_sp22/.allennlp_models/run-20220409_003156-no1oxf14/best.th
+  env.eval_cropping:
+    value: thirty_six
+  env.score_loss_weight:
+    value: 0.005642533046232902
+  model.inference_module.num_samples:
+    value: 48
+  model.inference_module.std:
+    value: 0.8553156023014764
+  trainer.grad_norm.score_nn:
+    value: 6
+  trainer.grad_norm.task_nn:
+    value: 2
+  trainer.num_steps.score_nn:
+    value: 6
+trainer.num_steps.task_nn:
+    value: 10
+  trainer.optimizer.optimizers.score_nn.lr:
+    value: 0.0027902543806201936
+  trainer.optimizer.optimizers.score_nn.weight_decay:
+    value: 0.000015541065782836974
+  trainer.optimizer.optimizers.task_nn.lr:
+    value: 0.002135972499128016
+  trainer.optimizer.optimizers.task_nn.weight_decay:
+    value: 0.00007230835795033457
+program: allennlp
