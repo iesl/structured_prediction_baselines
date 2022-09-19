@@ -67,7 +67,7 @@ pip install wandb_allennlp
     1. Create a sweep using a sweep config file. See `sweep_configs` directory for examples. Refer sweeps documentation [here](https://docs.wandb.ai/sweeps).
 
     ```
-    wandb sweep -e score-based-learning -p baselines sweep_configs/<path/to/config.yaml>
+    wandb sweep -e <your wandb account name or team name> -p baselines sweep_configs/<path/to/config.yaml>
 
     < you will see an alpha numeric sweep_id as output here. Copy it.>
     ```
@@ -81,6 +81,7 @@ pip install wandb_allennlp
 
     You can use `squeue` to see the running agents on nodes. You can rerun this command to start more agents.
 
+5. Running Example
 
 # Directory Structure
 
