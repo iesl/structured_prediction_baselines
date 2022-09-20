@@ -59,7 +59,7 @@ pip install wandb_allennlp
         ```
         export TEST=0
         export CUDA_DEVICE=-1
-        allennlp train-with-wandb --config_file=model_configs/<path_to_config_file> --include-package=structured_prediction_baselines --wandb_run_name=<some_informative_name_for_run>  --wandb_project structured_prediction_baselines --wandb_entity <your wandb account name or team name> -- some hyperparameters to add (please refer to 5)
+        allennlp train-with-wandb --config_file=model_configs/<path_to_config_file> --include-package=structured_prediction_baselines --wandb_run_name=<some_informative_name_for_run>  --wandb_project structured_prediction_baselines --wandb_entity <your wandb account name or team name> -- some hyperparameters to add
         ```
 
 4. Running hyperparameter sweeps
@@ -71,7 +71,8 @@ pip install wandb_allennlp
 
     < you will see an alpha numeric sweep_id as output here. Copy it.>
     ```
-
+    NOTE: some sweep config files use old allennlp command (e.g. 'allennlp train_with_wandb' or 'wandb_allenlp --subvommand=train'). please make sure your sweep config file is up to date as 3.
+    
     2. Start search agent on slurm using the following (This script will internally submit to sbatch. So you can run this command on the head node eventhough it is a python script because it exit withing seconds.)
 
     ```
@@ -81,7 +82,8 @@ pip install wandb_allennlp
 
     You can use `squeue` to see the running agents on nodes. You can rerun this command to start more agents.
 
-5. Running Example
+
+
 
 # Directory Structure
 
