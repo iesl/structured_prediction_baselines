@@ -17,8 +17,6 @@
 - Score-nn Evaluation [\#42](https://github.com/iesl/structured_prediction_baselines/pull/42) ([purujitgoyal](https://github.com/purujitgoyal))
 - Text MLC with any text encoder including BERT [\#37](https://github.com/iesl/structured_prediction_baselines/pull/37) ([dhruvdcoder](https://github.com/dhruvdcoder))
 - Original inference\_net setup as in Tu & Gimpel [\#33](https://github.com/iesl/structured_prediction_baselines/pull/33) ([dhruvdcoder](https://github.com/dhruvdcoder))
-- Added 'multi-label-score-loss' and changes in relevant configs \(bibtex\_strat\_nce\) [\#31](https://github.com/iesl/structured_prediction_baselines/pull/31) ([dhruvdcoder](https://github.com/dhruvdcoder))
-- sweep and model configs for dvn, nce reverse order [\#29](https://github.com/iesl/structured_prediction_baselines/pull/29) ([dhruvdcoder](https://github.com/dhruvdcoder))
 
 ### 🐛 Bug Fixes:
 
@@ -36,7 +34,6 @@
 ### 👷 Build and CI
 
 - Automatic generation of changelog [\#23](https://github.com/iesl/structured_prediction_baselines/issues/23)
-- Add new labels and update changelog generator [\#34](https://github.com/iesl/structured_prediction_baselines/pull/34) ([dhruvdcoder](https://github.com/dhruvdcoder))
 
 ### ⚙️  Model and sweep configs
 
