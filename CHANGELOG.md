@@ -16,7 +16,6 @@
 - Made changes for applying ranking loss directly to the TaskNN [\#48](https://github.com/iesl/structured_prediction_baselines/pull/48) ([leejayyoon](https://github.com/leejayyoon))
 - Score-nn Evaluation [\#42](https://github.com/iesl/structured_prediction_baselines/pull/42) ([purujitgoyal](https://github.com/purujitgoyal))
 - Text MLC with any text encoder including BERT [\#37](https://github.com/iesl/structured_prediction_baselines/pull/37) ([dhruvdcoder](https://github.com/dhruvdcoder))
-- Original inference\_net setup as in Tu & Gimpel [\#33](https://github.com/iesl/structured_prediction_baselines/pull/33) ([dhruvdcoder](https://github.com/dhruvdcoder))
 
 ### 🐛 Bug Fixes:
 
@@ -45,7 +44,6 @@
 - Feat/general data configs [\#39](https://github.com/iesl/structured_prediction_baselines/pull/39) ([leejayyoon](https://github.com/leejayyoon))
 - Pushing general sweep configs & corresponding jsonnet. + Sweep configs for 'delicious' dataset. [\#38](https://github.com/iesl/structured_prediction_baselines/pull/38) ([leejayyoon](https://github.com/leejayyoon))
 - Original infnet remaining configs [\#36](https://github.com/iesl/structured_prediction_baselines/pull/36) ([dhruvdcoder](https://github.com/dhruvdcoder))
-- Dev/v1.2/jy  Created sweeps/configs for testing effect of pretrained model + general data sweeps.  [\#35](https://github.com/iesl/structured_prediction_baselines/pull/35) ([leejayyoon](https://github.com/leejayyoon))
 
 ### 🧪 Peripheral utilities
 
