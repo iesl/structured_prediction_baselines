@@ -16,7 +16,6 @@
 - Made changes for applying ranking loss directly to the TaskNN [\#48](https://github.com/iesl/structured_prediction_baselines/pull/48) ([leejayyoon](https://github.com/leejayyoon))
 - Score-nn Evaluation [\#42](https://github.com/iesl/structured_prediction_baselines/pull/42) ([purujitgoyal](https://github.com/purujitgoyal))
 - Text MLC with any text encoder including BERT [\#37](https://github.com/iesl/structured_prediction_baselines/pull/37) ([dhruvdcoder](https://github.com/dhruvdcoder))
-- Original inference\_net setup as in Tu & Gimpel [\#33](https://github.com/iesl/structured_prediction_baselines/pull/33) ([dhruvdcoder](https://github.com/dhruvdcoder))
 
 ### 🐛 Bug Fixes:
 
