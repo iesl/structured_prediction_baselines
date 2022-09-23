@@ -3,10 +3,9 @@ description: "Original DVN."
 program: allennlp
 command:
 - ${program}
-- train_with_wandb
+- train-with-wandb
 - model_configs/multilabel_classification/v2.5/gendata_dvn.jsonnet
 - --include-package=structured_prediction_baselines
-- --wandb_tags=task=mlc,model=dvn,sampler=gbi+adv+gt,dataset=bibtex_strat,inference_module=gbi,inference_module=gbi,sampler=gbi+adv+gt
 - ${args}
 - --file-friendly-logging
 method: bayes
