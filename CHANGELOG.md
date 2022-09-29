@@ -22,6 +22,10 @@
 - Default "nce discrete" jsonnet has "-" signs now. [\#51](https://github.com/iesl/structured_prediction_baselines/pull/51) ([leejayyoon](https://github.com/leejayyoon))
 - Making GBI work again. [\#47](https://github.com/iesl/structured_prediction_baselines/pull/47) ([dhruvdcoder](https://github.com/dhruvdcoder))
 
+### 📖 Documentation updates
+
+- Add new dependency version info in README [\#27](https://github.com/iesl/structured_prediction_baselines/pull/27) ([leejayyoon](https://github.com/leejayyoon))
+
 ### 📦 Dependencies
 
 - Tracking notebooks using jupytext [\#54](https://github.com/iesl/structured_prediction_baselines/pull/54) ([dhruvdcoder](https://github.com/dhruvdcoder))
@@ -29,6 +33,7 @@
 ### 👷 Build and CI
 
 - Automatic generation of changelog [\#23](https://github.com/iesl/structured_prediction_baselines/issues/23)
+- Add new labels and update changelog generator [\#34](https://github.com/iesl/structured_prediction_baselines/pull/34) ([dhruvdcoder](https://github.com/dhruvdcoder))
 
 ### ⚙️  Model and sweep configs
 
