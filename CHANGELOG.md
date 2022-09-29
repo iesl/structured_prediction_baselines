@@ -33,7 +33,6 @@
 ### 👷 Build and CI
 
 - Automatic generation of changelog [\#23](https://github.com/iesl/structured_prediction_baselines/issues/23)
-- Add new labels and update changelog generator [\#34](https://github.com/iesl/structured_prediction_baselines/pull/34) ([dhruvdcoder](https://github.com/dhruvdcoder))
 
 ### ⚙️  Model and sweep configs
 
