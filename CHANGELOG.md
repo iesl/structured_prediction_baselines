@@ -42,7 +42,6 @@
 - Added sweeps & jsonnet for eurlex \(and other small sweep config changes\) [\#45](https://github.com/iesl/structured_prediction_baselines/pull/45) ([leejayyoon](https://github.com/leejayyoon))
 - Organized sweep configs for general data & specific datasets. [\#40](https://github.com/iesl/structured_prediction_baselines/pull/40) ([leejayyoon](https://github.com/leejayyoon))
 - Feat/general data configs [\#39](https://github.com/iesl/structured_prediction_baselines/pull/39) ([leejayyoon](https://github.com/leejayyoon))
-- Dev/v1.2/jy  Created sweeps/configs for testing effect of pretrained model + general data sweeps.  [\#35](https://github.com/iesl/structured_prediction_baselines/pull/35) ([leejayyoon](https://github.com/leejayyoon))
 
 ### 🧪 Peripheral utilities
 
