@@ -8,6 +8,7 @@ docs
 **.coverage
 **.hypothesis
 coverage.xml
+wandb/
 
 .data/
 data/*

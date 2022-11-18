@@ -1,7 +1,0 @@
-sphinx
-sphinx-rtd-theme
-git+https://github.com/miyakogi/m2r.git
-aafigure
-docstr-coverage
-sphinx-autoapi
-sphinx-multiversion

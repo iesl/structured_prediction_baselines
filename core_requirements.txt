@@ -13,3 +13,5 @@ seaborn
 ipywidgets
 gdown
 jupytext
+wandb_allennlp
+wandb
