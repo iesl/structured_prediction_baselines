@@ -36,29 +36,9 @@ export WANDB_IGNORE_GLOBS=*\*\*\*.th,*\*\*\*.tar.gz,*\*\*.th,*\*\*.tar.gz,*\*.th
 The model configs are stored in `best_models_configs`. To run, for example, the cross-entropy model on bibtex dataset you would use `best_models_configs/bibtex_strat_cross-entropy_ezllp30k/config.json`. 
 
 
-        From the config file, remove the "callback" that logs to wandb by removing the following lines
-
-        ```
-        "trainer": {
-        ...
-        "callbacks": [
-            ...
-            <REMOVE STARTING HERE> <REMOVE TILL HERE>
-        ],
-        ```
-
-        ```
-        allennlp train best_models_configs/bibtex_strat_cross-entropy_ezllp30k/config.json -s run_bibtex_cross-entropy --include-package seal --overrides {\"trainer.cuda_device\":-1}
-        ```
-
-    2. With output to wandb (see [creating account and login into wandb](https://docs.wandb.ai/quickstart#2-create-account) for details on getting started with wandb.)
-
-        ```
-        export TEST=0
-        export CUDA_DEVICE=-1
-        allennlp train-with-wandb model_configs/<path_to_config_file> --include-package=structured_prediction_baselines --wandb-run-name=<some_informative_name_for_run>  --wandb-project <project name> --wandb-entity <your wandb account name or team name> 
-        ```
-
+```
+allennlp train best_models_configs/bibtex_strat_cross-entropy_ezllp30k/config.json -s run_bibtex_cross-entropy --include-package seal --overrides {\"trainer.cuda_device\":-1}
+```
 
 
 # Cite
